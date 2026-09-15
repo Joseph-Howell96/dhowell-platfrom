@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <main className="flex flex-1 items-center justify-center p-8">
@@ -6,12 +8,14 @@ export default function Home() {
           dhowell-platfrom
         </h1>
         <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">
-          A Next.js site built with TypeScript and Tailwind CSS. Edit{" "}
-          <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-base dark:bg-gray-800">
-            src/app/page.tsx
-          </code>{" "}
-          to change this page.
+          Waste management admin.
         </p>
+        <Link
+          href="/customers"
+          className="mt-8 inline-block rounded-md bg-gray-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300"
+        >
+          Customers
+        </Link>
       </div>
     </main>
   );
