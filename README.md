@@ -1,6 +1,8 @@
-# dhowell-platfrom
+# Dennis
 
-A website built with [Next.js](https://nextjs.org), TypeScript and Tailwind CSS.
+The internal platform for **D Howell & Sons**, a UK waste management business.
+
+Built with [Next.js](https://nextjs.org), TypeScript and Tailwind CSS.
 
 ## Running it on your computer
 
@@ -17,14 +19,20 @@ Open <http://localhost:3000> in a browser. Save a file and the page updates by i
 
 Press `Ctrl+C` in the terminal to stop it.
 
-## Screens
+## Sections
+
+The sidebar has five sections. Only Clients does anything so far.
 
 | Address | What it does |
 | --- | --- |
-| `/customers` | Lists every customer with their contact details and rate lines. |
-| `/customers/new` | Form for adding a customer. |
+| `/dashboard` | Placeholder. Opening the app lands here. |
+| `/clients` | Lists every client with their contact details and rate lines. |
+| `/clients/new` | Form for adding a client. |
+| `/calendar` | Placeholder. |
+| `/finance` | Placeholder. |
+| `/settings` | Placeholder. |
 
-Customers are saved to `data/customers.json`, a plain text file you can open and
+Clients are saved to `data/clients.json`, a plain text file you can open and
 read. There is no database yet. Rates are stored in pence as whole numbers
 (£85.50 is `8550`) because computers handle decimals imprecisely, which would
 cause rounding errors once invoices start adding figures up.
@@ -33,15 +41,18 @@ cause rounding errors once invoices start adding figures up.
 
 | Path | What it is |
 | --- | --- |
-| `src/app/page.tsx` | The home page. Start editing here. |
-| `src/app/layout.tsx` | The wrapper around every page — fonts, page title, anything shared. |
-| `src/app/globals.css` | Site-wide styling and colours. |
-| `public/` | Images and files served as-is (e.g. `/logo.png`). |
+| `src/app/` | One folder per screen. The folder name is the web address. |
+| `src/app/layout.tsx` | The wrapper around every page: the sidebar, fonts, page title. |
+| `src/app/globals.css` | Every colour in the app, defined once at the top. |
+| `src/components/` | Pieces shared between screens: the sidebar, icons, headings. |
 | `src/lib/` | The shared logic: data types, saving and loading, formatting. |
-| `data/customers.json` | The customer records. Back this up. |
+| `data/clients.json` | The client records. Back this up. |
+| `public/` | Images and files served as-is (e.g. `/logo.png`). |
 | `package.json` | Project settings and the list of commands below. |
 
-Adding a new page: create `src/app/about/page.tsx` and it becomes `/about`. The folder name is the web address.
+Adding a new screen: create `src/app/reports/page.tsx` and it becomes
+`/reports`. Add it to the `NAV` list in `src/components/sidebar.tsx` to put it
+in the sidebar.
 
 ## Commands
 

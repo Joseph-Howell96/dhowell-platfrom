@@ -18,9 +18,11 @@ import { EMPTY_FORM_STATE } from "@/lib/form-state";
 import { BASES, DIRECTION_LABELS, DIRECTIONS, MATERIALS } from "@/lib/types";
 
 const inputClass =
-  "w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:focus:border-gray-300";
-const labelClass = "block text-sm font-medium mb-1.5";
-const errorClass = "mt-1 text-sm text-red-600 dark:text-red-400";
+  "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
+const labelClass = "mb-1.5 block text-sm font-medium";
+const errorClass = "mt-1 text-sm text-danger";
+/** Each group of fields sits on its own card, as on the clients list. */
+const cardClass = "space-y-4 rounded-xl border border-line bg-surface p-6";
 
 /** Everything about the customer apart from their rates. */
 type Details = {
@@ -101,14 +103,14 @@ export default function CustomerForm() {
       {state.formError ? (
         <p
           role="alert"
-          className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+          className="rounded-lg border border-danger/40 bg-danger-soft px-4 py-3 text-sm text-danger"
         >
           {state.formError}
         </p>
       ) : null}
 
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Business details</h2>
+      <section className={cardClass}>
+        <h2 className="text-base font-semibold">Business details</h2>
 
         <div>
           <label className={labelClass} htmlFor="businessName">
@@ -170,8 +172,8 @@ export default function CustomerForm() {
         </div>
       </section>
 
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Contact</h2>
+      <section className={cardClass}>
+        <h2 className="text-base font-semibold">Contact</h2>
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <label className={labelClass} htmlFor="contactName">
@@ -227,10 +229,10 @@ export default function CustomerForm() {
         </div>
       </section>
 
-      <section className="space-y-4">
+      <section className={cardClass}>
         <div>
-          <h2 className="text-lg font-semibold">Rates</h2>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+          <h2 className="text-base font-semibold">Rates</h2>
+          <p className="mt-1 text-sm text-muted">
             One line per material. The last column is the important one: it
             records whether the money comes to us or goes to the customer.
           </p>
@@ -246,7 +248,7 @@ export default function CustomerForm() {
           {rows.map((row, index) => (
             <div
               key={row.key}
-              className="grid gap-3 rounded-md border border-gray-200 p-4 sm:grid-cols-[1.4fr_1fr_0.8fr_1.4fr_auto] sm:items-start dark:border-gray-800"
+              className="grid gap-3 rounded-lg border border-line bg-elevated/40 p-4 sm:grid-cols-[1.2fr_1fr_0.7fr_1.7fr_auto] sm:items-start"
             >
               <div>
                 <label
@@ -345,7 +347,7 @@ export default function CustomerForm() {
                   type="button"
                   onClick={() => removeRow(row.key)}
                   disabled={rows.length === 1}
-                  className="rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:hover:bg-gray-800"
+                  className="rounded-lg border border-line px-3 py-2 text-sm text-muted transition-colors hover:border-danger/50 hover:text-danger disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted"
                 >
                   Remove
                 </button>
@@ -362,14 +364,14 @@ export default function CustomerForm() {
               blankRow(nextRowSequence.current++),
             ])
           }
-          className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
+          className="rounded-lg border border-line px-4 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
         >
           Add another rate line
         </button>
       </section>
 
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Terms and notes</h2>
+      <section className={cardClass}>
+        <h2 className="text-base font-semibold">Terms and notes</h2>
         <div>
           <label className={labelClass} htmlFor="paymentTermsDays">
             Payment terms (days)
@@ -412,17 +414,17 @@ export default function CustomerForm() {
         </div>
       </section>
 
-      <div className="flex items-center gap-3 border-t border-gray-200 pt-6 dark:border-gray-800">
+      <div className="flex items-center gap-3">
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-gray-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300"
+          className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover disabled:opacity-50"
         >
-          {pending ? "Saving…" : "Save customer"}
+          {pending ? "Saving…" : "Save client"}
         </button>
         <Link
-          href="/customers"
-          className="rounded-md px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+          href="/clients"
+          className="rounded-lg px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:text-ink"
         >
           Cancel
         </Link>

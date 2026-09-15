@@ -1,7 +1,7 @@
 /**
- * Reading and writing the customer list.
+ * Reading and writing the client list.
  *
- * For now the whole list lives in one file, data/customers.json. That is
+ * For now the whole list lives in one file, data/clients.json. That is
  * deliberate: it is easy to open, read and correct by hand while the shape of
  * the data is still settling. Swapping this file for a real database later
  * means rewriting these two functions and nothing else.
@@ -20,7 +20,7 @@ import {
 } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "customers.json");
+const DATA_FILE = path.join(DATA_DIR, "clients.json");
 
 /** Anything read off disk is unknown until we have checked it, so check it. */
 function isBasis(value: unknown): value is Basis {

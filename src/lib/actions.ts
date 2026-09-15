@@ -138,6 +138,6 @@ export async function createCustomer(
 
   // Throw away the cached copy of the list page so it rebuilds with the new
   // customer, then send the browser there.
-  revalidatePath("/customers");
-  redirect("/customers");
+  revalidatePath("/clients");
+  redirect("/clients");
 }
