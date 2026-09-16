@@ -176,3 +176,13 @@ export function daysBetween(fromISO_: string, toISO_: string): number {
     (fromISO(toISO_).getTime() - fromISO(fromISO_).getTime()) / MS_PER_DAY,
   );
 }
+
+/**
+ * A number of ordinary days later, weekends and holidays included.
+ *
+ * Used for what we owe a supplier, where the terms are the plain "30 days"
+ * kind rather than the working-day count we give our own customers.
+ */
+export function addCalendarDays(startISO: string, days: number): string {
+  return toISO(addDays(fromISO(startISO), days));
+}

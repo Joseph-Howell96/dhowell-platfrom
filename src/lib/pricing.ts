@@ -8,10 +8,12 @@
 import type { Customer, Job } from "./types";
 
 export type JobPrice = {
-  /** The amount in pence, always positive. `direction` says which way it goes. */
+  /**
+   * The amount in pence, always positive. Which way it goes is the job's own
+   * direction, not this rate line's, since the two can disagree and the job
+   * is the one someone actually chose.
+   */
   pence: number;
-  /** "charge" means the client owes us, "pay" means we owe the client. */
-  direction: "charge" | "pay";
   /** How it was worked out, for showing beside the figure. */
   workedOut: string;
 };
@@ -36,7 +38,6 @@ export function priceJob(job: Job, customer: Customer | undefined): JobPrice | n
     const tonnes = job.weightKg / 1000;
     return {
       pence: Math.round(line.ratePence * tonnes),
-      direction: line.direction,
       workedOut: `${tonnes.toFixed(2)} t at ${(line.ratePence / 100).toFixed(2)}/t`,
     };
   }
@@ -44,7 +45,6 @@ export function priceJob(job: Job, customer: Customer | undefined): JobPrice | n
   // Haulage fee, per lift and fixed price are all flat amounts.
   return {
     pence: line.ratePence,
-    direction: line.direction,
     workedOut: line.basis.toLowerCase(),
   };
 }

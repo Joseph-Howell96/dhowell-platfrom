@@ -28,6 +28,10 @@
   --generate-soft: rgba(251, 191, 36, 0.16);
   --sent: #22c55e; /* green */
   --sent-soft: rgba(34, 197, 94, 0.16);
+  --po: #22d3ee; /* cyan - purchase order out */
+  --po-soft: rgba(34, 211, 238, 0.16);
+  --paid: #94a3b8; /* slate - settled, nothing outstanding */
+  --paid-soft: rgba(148, 163, 184, 0.16);
 }
 
 @theme inline {
@@ -50,6 +54,10 @@
   --color-generate-soft: var(--generate-soft);
   --color-sent: var(--sent);
   --color-sent-soft: var(--sent-soft);
+  --color-po: var(--po);
+  --color-po-soft: var(--po-soft);
+  --color-paid: var(--paid);
+  --color-paid-soft: var(--paid-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

@@ -12,7 +12,14 @@ import { isValidISODate, monthKeyOf } from "./calendar";
 import { readCustomers } from "./customers";
 import type { FormState } from "./form-state";
 import { addJob, updateJob } from "./jobs";
-import { isWeighedOrLater, JOB_STATUSES, type JobStatus } from "./types";
+import {
+  isStatusValidFor,
+  isWeighedOrLater,
+  JOB_DIRECTIONS,
+  JOB_STATUSES,
+  type JobDirection,
+  type JobStatus,
+} from "./types";
 import { parseTonnesToKg } from "./weight";
 
 function text(formData: FormData, name: string): string {
@@ -30,7 +37,12 @@ type ParsedJob = {
   notes: string;
   status: JobStatus;
   weightKg: number | null;
+  direction: JobDirection;
   invoiceSentDate: string | null;
+  supplierPO: string | null;
+  poRaisedDate: string | null;
+  supplierInvoiceRef: string | null;
+  paidDate: string | null;
 };
 
 /**
@@ -79,8 +91,22 @@ async function parseJob(
     }
   }
 
+  const directionValue = text(formData, "direction") || "sale";
+  const directionIsKnown = JOB_DIRECTIONS.includes(
+    directionValue as JobDirection,
+  );
+  if (!directionIsKnown) {
+    fieldErrors.direction = "Choose whether this is a sale or a purchase.";
+  }
+  const direction = directionValue as JobDirection;
+
   const statusValue = text(formData, "status") || "booked";
-  const statusIsKnown = JOB_STATUSES.includes(statusValue as JobStatus);
+  // The status has to belong to this job's path. A purchase cannot be at
+  // "invoice sent", and a sale cannot be at "paid".
+  const statusIsKnown =
+    JOB_STATUSES.includes(statusValue as JobStatus) &&
+    directionIsKnown &&
+    isStatusValidFor(statusValue as JobStatus, direction);
   if (!statusIsKnown) {
     fieldErrors.status = "Choose a status.";
   }
@@ -101,17 +127,52 @@ async function parseJob(
     }
   }
 
-  // The date the invoice went out is only recorded once it has gone out.
+  /** A date field that has to be filled in and has to be a real date. */
+  function requiredDate(name: string, missingMessage: string): string | null {
+    const value = text(formData, name);
+    if (value === "") {
+      fieldErrors[name] = missingMessage;
+      return null;
+    }
+    if (!isValidISODate(value)) {
+      fieldErrors[name] = "That is not a real date.";
+      return null;
+    }
+    return value;
+  }
+
+  // Sale side. The date the invoice went out is recorded once it has gone out.
   let invoiceSentDate: string | null = null;
   if (statusIsKnown && status === "invoice-sent") {
-    const sent = text(formData, "invoiceSentDate");
-    if (sent === "") {
-      fieldErrors.invoiceSentDate = "Enter the date the invoice was sent.";
-    } else if (!isValidISODate(sent)) {
-      fieldErrors.invoiceSentDate = "That is not a real date.";
-    } else {
-      invoiceSentDate = sent;
+    invoiceSentDate = requiredDate(
+      "invoiceSentDate",
+      "Enter the date the invoice was sent.",
+    );
+  }
+
+  // Purchase side. The order number and its date are needed from the moment an
+  // order goes out, and stay on the job after it has been paid.
+  let supplierPO: string | null = null;
+  let poRaisedDate: string | null = null;
+  let supplierInvoiceRef: string | null = null;
+  let paidDate: string | null = null;
+
+  if (statusIsKnown && (status === "po-raised" || status === "paid")) {
+    supplierPO = text(formData, "supplierPO");
+    if (supplierPO === "") {
+      fieldErrors.supplierPO = "Enter the purchase order number.";
+      supplierPO = null;
     }
+    poRaisedDate = requiredDate(
+      "poRaisedDate",
+      "Enter the date the order was raised.",
+    );
+    // Optional: there is no supplier invoice at all when we self-bill.
+    supplierInvoiceRef = text(formData, "supplierInvoiceRef") || null;
+  }
+
+  if (statusIsKnown && status === "paid") {
+    paidDate = requiredDate("paidDate", "Enter the date they were paid.");
   }
 
   if (Object.keys(fieldErrors).length > 0) {
@@ -129,7 +190,12 @@ async function parseJob(
       notes: text(formData, "notes"),
       status,
       weightKg,
+      direction,
       invoiceSentDate,
+      supplierPO,
+      poRaisedDate,
+      supplierInvoiceRef,
+      paidDate,
     },
   };
 }

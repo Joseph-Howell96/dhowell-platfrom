@@ -9,7 +9,14 @@ import { randomUUID } from "node:crypto";
 
 import { isValidISODate } from "./calendar";
 import { readJsonList, writeJsonList } from "./store";
-import { JOB_STATUSES, type Job, type JobStatus } from "./types";
+import {
+  isStatusValidFor,
+  JOB_DIRECTIONS,
+  JOB_STATUSES,
+  type Job,
+  type JobDirection,
+  type JobStatus,
+} from "./types";
 
 const FILE = "jobs.json";
 
@@ -29,6 +36,13 @@ function toStatus(value: unknown): JobStatus | null {
   if (typeof value !== "string") return null;
   if (JOB_STATUSES.includes(value as JobStatus)) return value as JobStatus;
   return RENAMED_STATUSES[value] ?? null;
+}
+
+function toDirection(value: unknown): JobDirection | null {
+  if (typeof value !== "string") return null;
+  return JOB_DIRECTIONS.includes(value as JobDirection)
+    ? (value as JobDirection)
+    : null;
 }
 
 function toJob(raw: unknown): Job | null {
@@ -55,11 +69,26 @@ function toJob(raw: unknown): Job | null {
       ? Math.round(record.weightKg)
       : null;
 
-  const sentDate =
-    typeof record.invoiceSentDate === "string" &&
-    isValidISODate(record.invoiceSentDate)
-      ? record.invoiceSentDate
+  const optionalDate = (key: string) =>
+    typeof record[key] === "string" && isValidISODate(record[key] as string)
+      ? (record[key] as string)
       : null;
+
+  const optionalText = (key: string) => {
+    const value = record[key];
+    return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+  };
+
+  // Jobs saved before sales and purchases were told apart have no direction
+  // recorded. They were all being treated as money coming in, so that is what
+  // they stay until someone says otherwise on the job itself.
+  const direction = toDirection(record.direction) ?? "sale";
+
+  const status = toStatus(record.status) ?? "booked";
+  // A status from the other path cannot apply here. Falling back to the start
+  // of this one is the safe answer: it understates progress rather than
+  // claiming an invoice went out when it did not.
+  const safeStatus = isStatusValidFor(status, direction) ? status : "booked";
 
   return {
     id: typeof record.id === "string" ? record.id : randomUUID(),
@@ -69,9 +98,14 @@ function toJob(raw: unknown): Job | null {
     skipSize: text("skipSize"),
     material: text("material"),
     notes: text("notes"),
-    status: toStatus(record.status) ?? "booked",
+    status: safeStatus,
     weightKg,
-    invoiceSentDate: sentDate,
+    direction,
+    invoiceSentDate: optionalDate("invoiceSentDate"),
+    supplierPO: optionalText("supplierPO"),
+    poRaisedDate: optionalDate("poRaisedDate"),
+    supplierInvoiceRef: optionalText("supplierInvoiceRef"),
+    paidDate: optionalDate("paidDate"),
     createdAt: text("createdAt") || new Date().toISOString(),
   };
 }

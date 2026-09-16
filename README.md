@@ -30,7 +30,7 @@ The sidebar has five sections. Clients, Calendar and Finance work; the rest are 
 | `/clients/new` | Form for adding a client. |
 | `/calendar` | Month view of jobs, colour-coded by status. Click a day to book. |
 | `/calendar/new` | Form for booking a job. |
-| `/finance` | Every sent invoice, with due dates and anything overdue in red. |
+| `/finance` | Money in and money out, with due dates and anything overdue in red. |
 | `/settings` | Placeholder. |
 
 Clients are saved to `data/clients.json` and jobs to `data/jobs.json`, plain
@@ -43,7 +43,12 @@ Two things are stored in a deliberate way:
 - **Job dates are plain text** (`"2026-09-16"`), not points in time. A job
   booked for the 16th stays on the 16th whatever the clocks are doing.
 
-A job moves through four statuses, each with its own colour on the calendar:
+Every job is either a **sale** (we charge the client) or a **purchase** (we buy
+material off them and sell it on). The direction is set from the client's rate
+for that material when you pick one, and can be changed by hand. It decides
+which run of work the job follows.
+
+**Sales — money in**
 
 | Status | Colour | What it means |
 | --- | --- | --- |
@@ -52,10 +57,24 @@ A job moves through four statuses, each with its own colour on the calendar:
 | Generate invoice | Amber | Ready to invoice, not sent |
 | Invoice sent | Green | Records the date sent, and works out the due date |
 
+**Purchases — money out**
+
+| Status | Colour | What it means |
+| --- | --- | --- |
+| Booked | Blue | In the diary, not done yet |
+| Weighed | Violet | Weighbridge ticket in. Records the weight in tonnes. |
+| PO raised | Cyan | Records our PO number, its date, and their invoice reference |
+| Paid | Grey | Records the date we paid them |
+
+Switching a job between the two moves it to the matching stage on the other
+path, so a job three steps along stays three steps along.
+
 - **Weights are whole kilograms** (2.45 tonnes is `2450`), for the same reason
   as pence.
-- **Invoices fall due 28 working days after being sent**, skipping weekends and
-  England and Wales bank holidays. Bank holidays are worked out from the rules
+- **Our invoices fall due 28 working days after being sent**, skipping weekends
+  and England and Wales bank holidays. **What we owe a client** falls due on
+  the payment terms recorded against them, counted in ordinary days, because
+  that is what "30 days" on a supplier account means. Bank holidays are worked out from the rules
   rather than typed in, so they stay right in future years. One-offs like a
   jubilee have to be added by hand, in `src/lib/working-days.ts`.
 - **Invoice amounts are not stored.** They are worked out each time from the

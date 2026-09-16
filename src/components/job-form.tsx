@@ -16,19 +16,29 @@ import Select from "@/components/select";
 import { formatDateGB } from "@/lib/dates";
 import { EMPTY_FORM_STATE, type FormState } from "@/lib/form-state";
 import {
+  directionForRate,
+  DIRECTION_JOB_LABELS,
+  equivalentStatus,
   isWeighedOrLater,
+  JOB_DIRECTIONS,
   JOB_MATERIALS,
-  JOB_STATUSES,
+  isStatusValidFor,
   SKIP_SIZES,
+  statusesFor,
   STATUS_CLASSES,
   STATUS_HINTS,
   STATUS_LABELS,
   type Customer,
   type Job,
+  type JobDirection,
   type JobStatus,
 } from "@/lib/types";
 import { kgToInputValue } from "@/lib/weight";
-import { invoiceDueDate, PAYMENT_WORKING_DAYS } from "@/lib/working-days";
+import {
+  addCalendarDays,
+  invoiceDueDate,
+  PAYMENT_WORKING_DAYS,
+} from "@/lib/working-days";
 
 const inputClass =
   "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
@@ -88,6 +98,40 @@ export default function JobForm({
   const [invoiceSentDate, setInvoiceSentDate] = useState(
     job?.invoiceSentDate ?? "",
   );
+  const [direction, setDirection] = useState<JobDirection>(
+    job?.direction ?? "sale",
+  );
+  const [supplierPO, setSupplierPO] = useState(job?.supplierPO ?? "");
+  const [poRaisedDate, setPoRaisedDate] = useState(job?.poRaisedDate ?? "");
+  const [supplierInvoiceRef, setSupplierInvoiceRef] = useState(
+    job?.supplierInvoiceRef ?? "",
+  );
+  const [paidDate, setPaidDate] = useState(job?.paidDate ?? "");
+
+  /**
+   * Switching between a sale and a purchase changes which statuses apply, so a
+   * job already part-way along moves to the matching point on the other path
+   * rather than dropping back to the beginning.
+   */
+  function chooseDirection(next: JobDirection) {
+    setDirection(next);
+    if (!isStatusValidFor(status, next)) {
+      setStatus(equivalentStatus(status, next));
+    }
+  }
+
+  /**
+   * Picking a material sets the direction from the client's rate for it, since
+   * that is what says whether we charge for this material or pay for it. It
+   * can still be changed by hand afterwards.
+   */
+  function applyRateDirection(customerIdNow: string, materialNow: string) {
+    const client = customers.find((c) => c.id === customerIdNow);
+    const rate = client?.rateLines.find(
+      (line) => line.material.toLowerCase() === materialNow.toLowerCase(),
+    );
+    if (rate) chooseDirection(directionForRate(rate.direction));
+  }
 
   /**
    * Moving a job to "invoice sent" fills today's date in, since that is nearly
@@ -95,10 +139,26 @@ export default function JobForm({
    */
   function chooseStatus(next: JobStatus) {
     setStatus(next);
+    // Each of these dates is nearly always today, so fill it in and let it be
+    // changed for anything recorded after the event.
     if (next === "invoice-sent" && invoiceSentDate === "") {
       setInvoiceSentDate(today);
     }
+    if ((next === "po-raised" || next === "paid") && poRaisedDate === "") {
+      setPoRaisedDate(today);
+    }
+    if (next === "paid" && paidDate === "") {
+      setPaidDate(today);
+    }
   }
+
+  /**
+   * What we owe this client runs on their own agreed terms, taken from their
+   * client record, rather than the working-day count we give our customers.
+   */
+  const supplierTermsDays =
+    customers.find((customer) => customer.id === customerId)
+      ?.paymentTermsDays ?? null;
 
   /** Picking a client fills in their site address, saving retyping it. */
   function chooseCustomer(id: string) {
@@ -108,11 +168,18 @@ export default function JobForm({
     if (chosen && siteAddress.trim() === "") {
       setSiteAddress(chosen.siteAddress);
     }
+    applyRateDirection(id, material === "Other" ? otherMaterial : material);
+  }
+
+  function chooseMaterial(value: string) {
+    setMaterial(value);
+    if (value !== "Other") applyRateDirection(customerId, value);
   }
 
   return (
     <form action={formAction} noValidate className="space-y-6">
       {job ? <input type="hidden" name="jobId" value={job.id} /> : null}
+      <input type="hidden" name="direction" value={direction} />
 
       {state.formError ? (
         <p
@@ -216,7 +283,7 @@ export default function JobForm({
               name="material"
               className={inputClass}
               value={material}
-              onChange={(event) => setMaterial(event.target.value)}
+              onChange={(event) => chooseMaterial(event.target.value)}
             >
               <option value="">Choose a material…</option>
               {JOB_MATERIALS.map((option) => (
@@ -240,7 +307,10 @@ export default function JobForm({
                   className={inputClass}
                   placeholder="e.g. Plasterboard"
                   value={otherMaterial}
-                  onChange={(event) => setOtherMaterial(event.target.value)}
+                  onChange={(event) => {
+                    setOtherMaterial(event.target.value);
+                    applyRateDirection(customerId, event.target.value);
+                  }}
                 />
                 {state.fieldErrors.otherMaterial ? (
                   <p className={errorClass}>
@@ -255,9 +325,46 @@ export default function JobForm({
 
       <section className={cardClass}>
         <div>
+          <h2 className="text-base font-semibold">Which way does the money go?</h2>
+          <p className="mt-1 text-sm text-muted">
+            Set from the client&rsquo;s rate for this material when you pick
+            one. Change it here if this job is the other way round.
+          </p>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          {JOB_DIRECTIONS.map((option) => {
+            const chosen = direction === option;
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => chooseDirection(option)}
+                aria-pressed={chosen}
+                className={`rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors ${
+                  chosen
+                    ? "border-accent bg-accent-soft text-accent"
+                    : "border-line text-muted hover:border-muted hover:text-ink"
+                }`}
+              >
+                {DIRECTION_JOB_LABELS[option]}
+              </button>
+            );
+          })}
+        </div>
+        {state.fieldErrors.direction ? (
+          <p className={errorClass}>{state.fieldErrors.direction}</p>
+        ) : null}
+      </section>
+
+      <section className={cardClass}>
+        <div>
           <h2 className="text-base font-semibold">Status</h2>
           <p className="mt-1 text-sm text-muted">
-            Where the job has got to. This sets its colour on the calendar.
+            {direction === "sale"
+              ? "Where the job has got to on its way to being invoiced."
+              : "Where the job has got to on its way to being paid for."}{" "}
+            This sets its colour on the calendar.
           </p>
         </div>
 
@@ -265,7 +372,7 @@ export default function JobForm({
             nicer way of picking one of four values. */}
         <input type="hidden" name="status" value={status} />
         <div className="grid gap-2 sm:grid-cols-4">
-          {JOB_STATUSES.map((option) => {
+          {statusesFor(direction).map((option) => {
             const chosen = status === option;
             return (
               <button
@@ -313,6 +420,84 @@ export default function JobForm({
             </p>
             {state.fieldErrors.weightTonnes ? (
               <p className={errorClass}>{state.fieldErrors.weightTonnes}</p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {status === "po-raised" || status === "paid" ? (
+          <div className="space-y-4 border-t border-line pt-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className={labelClass} htmlFor="supplierPO">
+                  Our PO number
+                </label>
+                <input
+                  id="supplierPO"
+                  name="supplierPO"
+                  className={inputClass}
+                  placeholder="e.g. PO-2026-0148"
+                  value={supplierPO}
+                  onChange={(event) => setSupplierPO(event.target.value)}
+                />
+                {state.fieldErrors.supplierPO ? (
+                  <p className={errorClass}>{state.fieldErrors.supplierPO}</p>
+                ) : null}
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="poRaisedDate">
+                  Date PO raised
+                </label>
+                <input
+                  id="poRaisedDate"
+                  name="poRaisedDate"
+                  type="date"
+                  className={inputClass}
+                  value={poRaisedDate}
+                  onChange={(event) => setPoRaisedDate(event.target.value)}
+                />
+                <p className="mt-1.5 text-xs text-muted">
+                  {poRaisedDate && supplierTermsDays !== null
+                    ? `Due ${formatDateGB(addCalendarDays(poRaisedDate, supplierTermsDays))} — ${supplierTermsDays} days, this client's terms.`
+                    : "Their payment terms run from this date."}
+                </p>
+                {state.fieldErrors.poRaisedDate ? (
+                  <p className={errorClass}>{state.fieldErrors.poRaisedDate}</p>
+                ) : null}
+              </div>
+            </div>
+
+            <div>
+              <label className={labelClass} htmlFor="supplierInvoiceRef">
+                Their invoice number{" "}
+                <span className="font-normal text-muted">(optional)</span>
+              </label>
+              <input
+                id="supplierInvoiceRef"
+                name="supplierInvoiceRef"
+                className={`${inputClass} sm:max-w-[20rem]`}
+                placeholder="Leave blank if we self-bill"
+                value={supplierInvoiceRef}
+                onChange={(event) => setSupplierInvoiceRef(event.target.value)}
+              />
+            </div>
+
+            {status === "paid" ? (
+              <div>
+                <label className={labelClass} htmlFor="paidDate">
+                  Date paid
+                </label>
+                <input
+                  id="paidDate"
+                  name="paidDate"
+                  type="date"
+                  className={`${inputClass} sm:max-w-[14rem]`}
+                  value={paidDate}
+                  onChange={(event) => setPaidDate(event.target.value)}
+                />
+                {state.fieldErrors.paidDate ? (
+                  <p className={errorClass}>{state.fieldErrors.paidDate}</p>
+                ) : null}
+              </div>
             ) : null}
           </div>
         ) : null}
