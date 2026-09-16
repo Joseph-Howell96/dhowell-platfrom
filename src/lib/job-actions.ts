@@ -20,6 +20,7 @@ import {
   type JobDirection,
   type JobStatus,
 } from "./types";
+import { parsePoundsToPence } from "./money";
 import { parseTonnesToKg } from "./weight";
 
 function text(formData: FormData, name: string): string {
@@ -43,6 +44,8 @@ type ParsedJob = {
   poRaisedDate: string | null;
   supplierInvoiceRef: string | null;
   paidDate: string | null;
+  disposalCostPence: number | null;
+  onwardSalePence: number | null;
 };
 
 /**
@@ -175,6 +178,29 @@ async function parseJob(
     paidDate = requiredDate("paidDate", "Enter the date they were paid.");
   }
 
+  /** An optional money box: blank is allowed, nonsense is not. */
+  function optionalMoney(name: string): number | null {
+    const raw = text(formData, name);
+    if (raw === "") return null;
+    const pence = parsePoundsToPence(raw);
+    if (pence === null) {
+      fieldErrors[name] = "Enter an amount in pounds, e.g. 120.00.";
+      return null;
+    }
+    return pence;
+  }
+
+  // Only asked for once a job has been weighed, and only on the side it
+  // belongs to: what a load cost us to dispose of, or what it sold on for.
+  const disposalCostPence =
+    statusIsKnown && direction === "sale" && isWeighedOrLater(status)
+      ? optionalMoney("disposalCost")
+      : null;
+  const onwardSalePence =
+    statusIsKnown && direction === "purchase" && isWeighedOrLater(status)
+      ? optionalMoney("onwardSale")
+      : null;
+
   if (Object.keys(fieldErrors).length > 0) {
     return { errors: fieldErrors, job: null };
   }
@@ -196,6 +222,8 @@ async function parseJob(
       poRaisedDate,
       supplierInvoiceRef,
       paidDate,
+      disposalCostPence,
+      onwardSalePence,
     },
   };
 }

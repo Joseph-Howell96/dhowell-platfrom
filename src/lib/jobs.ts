@@ -74,6 +74,13 @@ function toJob(raw: unknown): Job | null {
       ? (record[key] as string)
       : null;
 
+  const optionalPence = (key: string) => {
+    const value = record[key];
+    return typeof value === "number" && Number.isFinite(value) && value >= 0
+      ? Math.round(value)
+      : null;
+  };
+
   const optionalText = (key: string) => {
     const value = record[key];
     return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
@@ -106,6 +113,8 @@ function toJob(raw: unknown): Job | null {
     poRaisedDate: optionalDate("poRaisedDate"),
     supplierInvoiceRef: optionalText("supplierInvoiceRef"),
     paidDate: optionalDate("paidDate"),
+    disposalCostPence: optionalPence("disposalCostPence"),
+    onwardSalePence: optionalPence("onwardSalePence"),
     createdAt: text("createdAt") || new Date().toISOString(),
   };
 }

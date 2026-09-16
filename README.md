@@ -21,11 +21,11 @@ Press `Ctrl+C` in the terminal to stop it.
 
 ## Sections
 
-The sidebar has five sections. Clients, Calendar and Finance work; the rest are stubs.
+The sidebar has five sections. Only Settings is still a stub.
 
 | Address | What it does |
 | --- | --- |
-| `/dashboard` | Placeholder. Opening the app lands here. |
+| `/dashboard` | Totals for the year, a monthly billings chart and a breakdown by material. Opening the app lands here. |
 | `/clients` | Lists every client with their contact details and rate lines. |
 | `/clients/new` | Form for adding a client. |
 | `/calendar` | Month view of jobs, colour-coded by status. Click a day to book. |
@@ -77,6 +77,12 @@ path, so a job three steps along stays three steps along.
   that is what "30 days" on a supplier account means. Bank holidays are worked out from the rules
   rather than typed in, so they stay right in future years. One-offs like a
   jubilee have to be added by hand, in `src/lib/working-days.ts`.
+- **Profit needs two figures no rate can supply.** A client's rate says what we
+  charge them or pay them; it cannot say what the tip charged us to take a load,
+  or what an outlet paid us for it. Both are recorded on the job once it is
+  weighed, and both are optional. A job with neither still counts towards
+  revenue but is left out of profit, and the dashboard says how many jobs are in
+  that position. Treating a blank as zero would report every job as pure profit.
 - **Invoice amounts are not stored.** They are worked out each time from the
   client's rate line for that material: a per-tonne rate multiplied by the
   recorded weight, anything else taken as a flat fee. Correcting a rate on the

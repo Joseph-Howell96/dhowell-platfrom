@@ -255,5 +255,19 @@ export type Job = {
   /** The day we paid them. */
   paidDate: string | null;
 
+  /* The other half of each sum, which no rate line can tell us. */
+  /**
+   * On a sale: what the tip or outlet charged us to take this load, in pence.
+   * Null means nobody has recorded it, which is not the same as nothing:
+   * profit is left unknown rather than overstated.
+   */
+  disposalCostPence: number | null;
+  /**
+   * On a purchase: what the outlet paid us for the load once it was sold on,
+   * in pence. Null means not recorded yet. Prices for paper and plastics move
+   * week to week, so this is held per load rather than per material.
+   */
+  onwardSalePence: number | null;
+
   createdAt: string;
 };

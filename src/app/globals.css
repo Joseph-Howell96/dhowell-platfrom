@@ -32,6 +32,12 @@
   --po-soft: rgba(34, 211, 238, 0.16);
   --paid: #94a3b8; /* slate - settled, nothing outstanding */
   --paid-soft: rgba(148, 163, 184, 0.16);
+
+  /* The two series on the dashboard chart. Checked for colour-blind
+     separation against this background rather than picked by eye. */
+  --series-revenue: #3987e5;
+  --series-profit: #d95926;
+  --grid: #2b3130; /* hairlines on the chart, one step off the surface */
 }
 
 @theme inline {
@@ -58,6 +64,9 @@
   --color-po-soft: var(--po-soft);
   --color-paid: var(--paid);
   --color-paid-soft: var(--paid-soft);
+  --color-series-revenue: var(--series-revenue);
+  --color-series-profit: var(--series-profit);
+  --color-grid: var(--grid);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

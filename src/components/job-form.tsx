@@ -33,6 +33,7 @@ import {
   type JobDirection,
   type JobStatus,
 } from "@/lib/types";
+import { penceToInputValue } from "@/lib/money";
 import { kgToInputValue } from "@/lib/weight";
 import {
   addCalendarDays,
@@ -107,6 +108,12 @@ export default function JobForm({
     job?.supplierInvoiceRef ?? "",
   );
   const [paidDate, setPaidDate] = useState(job?.paidDate ?? "");
+  const [disposalCost, setDisposalCost] = useState(
+    job?.disposalCostPence != null ? penceToInputValue(job.disposalCostPence) : "",
+  );
+  const [onwardSale, setOnwardSale] = useState(
+    job?.onwardSalePence != null ? penceToInputValue(job.onwardSalePence) : "",
+  );
 
   /**
    * Switching between a sale and a purchase changes which statuses apply, so a
@@ -421,6 +428,51 @@ export default function JobForm({
             {state.fieldErrors.weightTonnes ? (
               <p className={errorClass}>{state.fieldErrors.weightTonnes}</p>
             ) : null}
+
+            {/* The other half of the sum. What the client is charged or paid
+                comes from their rate; this is the outlet's side of it, and
+                without it the job has a revenue but no profit. */}
+            <div className="mt-4">
+              <label
+                className={labelClass}
+                htmlFor={direction === "sale" ? "disposalCost" : "onwardSale"}
+              >
+                {direction === "sale" ? "Disposal cost (£)" : "Sold on for (£)"}{" "}
+                <span className="font-normal text-muted">(optional)</span>
+              </label>
+              {direction === "sale" ? (
+                <input
+                  id="disposalCost"
+                  name="disposalCost"
+                  inputMode="decimal"
+                  className={`${inputClass} sm:max-w-[14rem]`}
+                  placeholder="120.00"
+                  value={disposalCost}
+                  onChange={(event) => setDisposalCost(event.target.value)}
+                />
+              ) : (
+                <input
+                  id="onwardSale"
+                  name="onwardSale"
+                  inputMode="decimal"
+                  className={`${inputClass} sm:max-w-[14rem]`}
+                  placeholder="260.00"
+                  value={onwardSale}
+                  onChange={(event) => setOnwardSale(event.target.value)}
+                />
+              )}
+              <p className="mt-1.5 text-xs text-muted">
+                {direction === "sale"
+                  ? "What the tip or outlet charged us to take this load. Profit on the dashboard is what we charged less this."
+                  : "What the outlet paid us for this load. Profit on the dashboard is this less what we pay the client."}
+              </p>
+              {state.fieldErrors.disposalCost ? (
+                <p className={errorClass}>{state.fieldErrors.disposalCost}</p>
+              ) : null}
+              {state.fieldErrors.onwardSale ? (
+                <p className={errorClass}>{state.fieldErrors.onwardSale}</p>
+              ) : null}
+            </div>
           </div>
         ) : null}
 
