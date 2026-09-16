@@ -20,14 +20,14 @@
 
   /* Job statuses, in the order work moves through them. The colours run from
      blue (just booked) to green (invoiced and done). */
-  --booked: #60a5fa;
+  --booked: #60a5fa; /* blue */
   --booked-soft: rgba(96, 165, 250, 0.16);
-  --completed: #fbbf24;
-  --completed-soft: rgba(251, 191, 36, 0.16);
-  --weighed: #a78bfa;
+  --weighed: #a78bfa; /* violet */
   --weighed-soft: rgba(167, 139, 250, 0.16);
-  --invoiced: #22c55e;
-  --invoiced-soft: rgba(34, 197, 94, 0.16);
+  --generate: #fbbf24; /* amber */
+  --generate-soft: rgba(251, 191, 36, 0.16);
+  --sent: #22c55e; /* green */
+  --sent-soft: rgba(34, 197, 94, 0.16);
 }
 
 @theme inline {
@@ -44,12 +44,12 @@
   --color-danger-soft: var(--danger-soft);
   --color-booked: var(--booked);
   --color-booked-soft: var(--booked-soft);
-  --color-completed: var(--completed);
-  --color-completed-soft: var(--completed-soft);
   --color-weighed: var(--weighed);
   --color-weighed-soft: var(--weighed-soft);
-  --color-invoiced: var(--invoiced);
-  --color-invoiced-soft: var(--invoiced-soft);
+  --color-generate: var(--generate);
+  --color-generate-soft: var(--generate-soft);
+  --color-sent: var(--sent);
+  --color-sent-soft: var(--sent-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

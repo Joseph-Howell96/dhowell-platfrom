@@ -21,7 +21,7 @@ Press `Ctrl+C` in the terminal to stop it.
 
 ## Sections
 
-The sidebar has five sections. Clients and Calendar work; the rest are stubs.
+The sidebar has five sections. Clients, Calendar and Finance work; the rest are stubs.
 
 | Address | What it does |
 | --- | --- |
@@ -30,7 +30,7 @@ The sidebar has five sections. Clients and Calendar work; the rest are stubs.
 | `/clients/new` | Form for adding a client. |
 | `/calendar` | Month view of jobs, colour-coded by status. Click a day to book. |
 | `/calendar/new` | Form for booking a job. |
-| `/finance` | Placeholder. |
+| `/finance` | Every sent invoice, with due dates and anything overdue in red. |
 | `/settings` | Placeholder. |
 
 Clients are saved to `data/clients.json` and jobs to `data/jobs.json`, plain
@@ -44,7 +44,25 @@ Two things are stored in a deliberate way:
   booked for the 16th stays on the 16th whatever the clocks are doing.
 
 A job moves through four statuses, each with its own colour on the calendar:
-booked, completed, weighed, invoiced.
+
+| Status | Colour | What it means |
+| --- | --- | --- |
+| Booked | Blue | In the diary, not done yet |
+| Weighed | Violet | Weighbridge ticket in. Records the weight in tonnes. |
+| Generate invoice | Amber | Ready to invoice, not sent |
+| Invoice sent | Green | Records the date sent, and works out the due date |
+
+- **Weights are whole kilograms** (2.45 tonnes is `2450`), for the same reason
+  as pence.
+- **Invoices fall due 28 working days after being sent**, skipping weekends and
+  England and Wales bank holidays. Bank holidays are worked out from the rules
+  rather than typed in, so they stay right in future years. One-offs like a
+  jubilee have to be added by hand, in `src/lib/working-days.ts`.
+- **Invoice amounts are not stored.** They are worked out each time from the
+  client's rate line for that material: a per-tonne rate multiplied by the
+  recorded weight, anything else taken as a flat fee. Correcting a rate on the
+  client record corrects every job priced off it. Where no rate matches the
+  material, the amount shows as a dash.
 
 ## Where things live
 

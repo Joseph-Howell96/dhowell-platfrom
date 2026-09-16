@@ -13,8 +13,22 @@ import { JOB_STATUSES, type Job, type JobStatus } from "./types";
 
 const FILE = "jobs.json";
 
-function isStatus(value: unknown): value is JobStatus {
-  return JOB_STATUSES.includes(value as JobStatus);
+/**
+ * Statuses that existed before the list changed, and what they became.
+ * Without this, a job saved under an old name would quietly fall back to
+ * "booked" and lose its place in the run of work.
+ */
+const RENAMED_STATUSES: Record<string, JobStatus> = {
+  // "Completed" meant collected but not yet weighed, which is where a booked
+  // job sits under the current list.
+  completed: "booked",
+  invoiced: "invoice-sent",
+};
+
+function toStatus(value: unknown): JobStatus | null {
+  if (typeof value !== "string") return null;
+  if (JOB_STATUSES.includes(value as JobStatus)) return value as JobStatus;
+  return RENAMED_STATUSES[value] ?? null;
 }
 
 function toJob(raw: unknown): Job | null {
@@ -33,6 +47,20 @@ function toJob(raw: unknown): Job | null {
   const text = (key: string) =>
     typeof record[key] === "string" ? (record[key] as string) : "";
 
+  // A weight of zero is a real answer, so only a proper number counts.
+  const weightKg =
+    typeof record.weightKg === "number" &&
+    Number.isFinite(record.weightKg) &&
+    record.weightKg >= 0
+      ? Math.round(record.weightKg)
+      : null;
+
+  const sentDate =
+    typeof record.invoiceSentDate === "string" &&
+    isValidISODate(record.invoiceSentDate)
+      ? record.invoiceSentDate
+      : null;
+
   return {
     id: typeof record.id === "string" ? record.id : randomUUID(),
     customerId: record.customerId,
@@ -41,7 +69,9 @@ function toJob(raw: unknown): Job | null {
     skipSize: text("skipSize"),
     material: text("material"),
     notes: text("notes"),
-    status: isStatus(record.status) ? record.status : "booked",
+    status: toStatus(record.status) ?? "booked",
+    weightKg,
+    invoiceSentDate: sentDate,
     createdAt: text("createdAt") || new Date().toISOString(),
   };
 }

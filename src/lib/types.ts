@@ -71,26 +71,34 @@ export type Customer = {
 /** Where a job has got to. They happen in this order, left to right. */
 export const JOB_STATUSES = [
   "booked",
-  "completed",
   "weighed",
-  "invoiced",
+  "generate-invoice",
+  "invoice-sent",
 ] as const;
 
 export type JobStatus = (typeof JOB_STATUSES)[number];
 
 export const STATUS_LABELS: Record<JobStatus, string> = {
   booked: "Booked",
-  completed: "Completed",
   weighed: "Weighed",
-  invoiced: "Invoiced",
+  "generate-invoice": "Generate invoice",
+  "invoice-sent": "Invoice sent",
 };
 
 export const STATUS_HINTS: Record<JobStatus, string> = {
   booked: "In the diary, not done yet",
-  completed: "Collected, waiting on a weight",
-  weighed: "Weighbridge ticket in, ready to invoice",
-  invoiced: "Invoice sent",
+  weighed: "Weighbridge ticket in",
+  "generate-invoice": "Ready to invoice, not sent",
+  "invoice-sent": "Invoice out, waiting on payment",
 };
+
+/**
+ * Statuses a job has already been weighed at. From "weighed" onwards the
+ * weight is known, so the form asks for it and keeps showing it.
+ */
+export function isWeighedOrLater(status: JobStatus): boolean {
+  return status !== "booked";
+}
 
 /**
  * The colour each status shows in. The actual colours live in globals.css so
@@ -99,9 +107,9 @@ export const STATUS_HINTS: Record<JobStatus, string> = {
  */
 export const STATUS_CLASSES: Record<JobStatus, string> = {
   booked: "bg-booked-soft text-booked",
-  completed: "bg-completed-soft text-completed",
   weighed: "bg-weighed-soft text-weighed",
-  invoiced: "bg-invoiced-soft text-invoiced",
+  "generate-invoice": "bg-generate-soft text-generate",
+  "invoice-sent": "bg-sent-soft text-sent",
 };
 
 /** The materials a job can be for. "Other" lets you type your own. */
@@ -143,5 +151,13 @@ export type Job = {
   material: string;
   notes: string;
   status: JobStatus;
+  /**
+   * The weighbridge figure, held in whole kilograms. 2.45 tonnes is stored as
+   * 2450, for the same reason money is held in pence: whole numbers do not
+   * drift the way decimals do. Null until the job has been weighed.
+   */
+  weightKg: number | null;
+  /** The day the invoice went out, as "YYYY-MM-DD". Null until it has. */
+  invoiceSentDate: string | null;
   createdAt: string;
 };

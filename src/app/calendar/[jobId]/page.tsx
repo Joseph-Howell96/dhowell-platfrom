@@ -5,7 +5,7 @@ import { connection } from "next/server";
 
 import JobForm from "@/components/job-form";
 import PageHeader from "@/components/page-header";
-import { monthKeyOf } from "@/lib/calendar";
+import { monthKeyOf, todayISO } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
 import { formatDateGB } from "@/lib/dates";
 import { saveJob } from "@/lib/job-actions";
@@ -51,6 +51,7 @@ export default async function JobPage({
         submitLabel="Save changes"
         cancelHref={`/calendar?month=${monthKeyOf(job.date)}`}
         job={job}
+        today={todayISO()}
       />
     </main>
   );

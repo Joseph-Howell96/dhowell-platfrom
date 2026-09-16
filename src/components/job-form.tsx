@@ -13,8 +13,10 @@ import Link from "next/link";
 import { useActionState, useId, useState } from "react";
 
 import Select from "@/components/select";
+import { formatDateGB } from "@/lib/dates";
 import { EMPTY_FORM_STATE, type FormState } from "@/lib/form-state";
 import {
+  isWeighedOrLater,
   JOB_MATERIALS,
   JOB_STATUSES,
   SKIP_SIZES,
@@ -23,7 +25,10 @@ import {
   STATUS_LABELS,
   type Customer,
   type Job,
+  type JobStatus,
 } from "@/lib/types";
+import { kgToInputValue } from "@/lib/weight";
+import { invoiceDueDate, PAYMENT_WORKING_DAYS } from "@/lib/working-days";
 
 const inputClass =
   "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
@@ -41,6 +46,8 @@ type Props = {
   job?: Job;
   /** Which day was clicked on the calendar, for a new job. */
   defaultDate?: string;
+  /** Today's date, worked out on the server so both sides agree on it. */
+  today: string;
 };
 
 export default function JobForm({
@@ -50,6 +57,7 @@ export default function JobForm({
   cancelHref,
   job,
   defaultDate,
+  today,
 }: Props) {
   const [state, formAction, pending] = useActionState(action, EMPTY_FORM_STATE);
   const skipListId = useId();
@@ -71,7 +79,26 @@ export default function JobForm({
     job && !savedMaterialIsListed ? job.material : "",
   );
   const [notes, setNotes] = useState(job?.notes ?? "");
-  const [status, setStatus] = useState(job?.status ?? "booked");
+  const [status, setStatus] = useState<JobStatus>(job?.status ?? "booked");
+  const [weightTonnes, setWeightTonnes] = useState(
+    job?.weightKg !== null && job?.weightKg !== undefined
+      ? kgToInputValue(job.weightKg)
+      : "",
+  );
+  const [invoiceSentDate, setInvoiceSentDate] = useState(
+    job?.invoiceSentDate ?? "",
+  );
+
+  /**
+   * Moving a job to "invoice sent" fills today's date in, since that is nearly
+   * always the answer. It can still be changed for an invoice sent earlier.
+   */
+  function chooseStatus(next: JobStatus) {
+    setStatus(next);
+    if (next === "invoice-sent" && invoiceSentDate === "") {
+      setInvoiceSentDate(today);
+    }
+  }
 
   /** Picking a client fills in their site address, saving retyping it. */
   function chooseCustomer(id: string) {
@@ -244,7 +271,7 @@ export default function JobForm({
               <button
                 key={option}
                 type="button"
-                onClick={() => setStatus(option)}
+                onClick={() => chooseStatus(option)}
                 aria-pressed={chosen}
                 className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
                   chosen
@@ -264,6 +291,56 @@ export default function JobForm({
         </div>
         {state.fieldErrors.status ? (
           <p className={errorClass}>{state.fieldErrors.status}</p>
+        ) : null}
+
+        {isWeighedOrLater(status) ? (
+          <div className="border-t border-line pt-4">
+            <label className={labelClass} htmlFor="weightTonnes">
+              Weight (tonnes)
+            </label>
+            <input
+              id="weightTonnes"
+              name="weightTonnes"
+              inputMode="decimal"
+              className={`${inputClass} sm:max-w-[14rem]`}
+              placeholder="2.45"
+              value={weightTonnes}
+              onChange={(event) => setWeightTonnes(event.target.value)}
+            />
+            <p className="mt-1.5 text-xs text-muted">
+              Off the weighbridge ticket. Per-tonne rates are worked out from
+              this.
+            </p>
+            {state.fieldErrors.weightTonnes ? (
+              <p className={errorClass}>{state.fieldErrors.weightTonnes}</p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {status === "invoice-sent" ? (
+          <div className="border-t border-line pt-4">
+            <label className={labelClass} htmlFor="invoiceSentDate">
+              Date invoice sent
+            </label>
+            <input
+              id="invoiceSentDate"
+              name="invoiceSentDate"
+              type="date"
+              className={`${inputClass} sm:max-w-[14rem]`}
+              value={invoiceSentDate}
+              onChange={(event) => setInvoiceSentDate(event.target.value)}
+            />
+            {/* Worked out as you change the date, so there is no waiting to
+                find out when payment is due. */}
+            <p className="mt-1.5 text-xs text-muted">
+              {invoiceSentDate
+                ? `Due ${formatDateGB(invoiceDueDate(invoiceSentDate))} — ${PAYMENT_WORKING_DAYS} working days later, skipping weekends and bank holidays.`
+                : `Payment falls due ${PAYMENT_WORKING_DAYS} working days after this date.`}
+            </p>
+            {state.fieldErrors.invoiceSentDate ? (
+              <p className={errorClass}>{state.fieldErrors.invoiceSentDate}</p>
+            ) : null}
+          </div>
         ) : null}
       </section>
 
