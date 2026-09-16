@@ -21,21 +21,30 @@ Press `Ctrl+C` in the terminal to stop it.
 
 ## Sections
 
-The sidebar has five sections. Only Clients does anything so far.
+The sidebar has five sections. Clients and Calendar work; the rest are stubs.
 
 | Address | What it does |
 | --- | --- |
 | `/dashboard` | Placeholder. Opening the app lands here. |
 | `/clients` | Lists every client with their contact details and rate lines. |
 | `/clients/new` | Form for adding a client. |
-| `/calendar` | Placeholder. |
+| `/calendar` | Month view of jobs, colour-coded by status. Click a day to book. |
+| `/calendar/new` | Form for booking a job. |
 | `/finance` | Placeholder. |
 | `/settings` | Placeholder. |
 
-Clients are saved to `data/clients.json`, a plain text file you can open and
-read. There is no database yet. Rates are stored in pence as whole numbers
-(£85.50 is `8550`) because computers handle decimals imprecisely, which would
-cause rounding errors once invoices start adding figures up.
+Clients are saved to `data/clients.json` and jobs to `data/jobs.json`, plain
+text files you can open and read. There is no database yet.
+
+Two things are stored in a deliberate way:
+
+- **Rates are whole pence** (£85.50 is `8550`). Computers handle decimals
+  imprecisely, which would cause rounding errors once invoices add figures up.
+- **Job dates are plain text** (`"2026-09-16"`), not points in time. A job
+  booked for the 16th stays on the 16th whatever the clocks are doing.
+
+A job moves through four statuses, each with its own colour on the calendar:
+booked, completed, weighed, invoiced.
 
 ## Where things live
 
@@ -47,6 +56,7 @@ cause rounding errors once invoices start adding figures up.
 | `src/components/` | Pieces shared between screens: the sidebar, icons, headings. |
 | `src/lib/` | The shared logic: data types, saving and loading, formatting. |
 | `data/clients.json` | The client records. Back this up. |
+| `data/jobs.json` | The booked jobs. Back this up. |
 | `public/` | Images and files served as-is (e.g. `/logo.png`). |
 | `package.json` | Project settings and the list of commands below. |
 

@@ -13,6 +13,7 @@
 import Link from "next/link";
 import { useActionState, useId, useRef, useState } from "react";
 
+import Select from "@/components/select";
 import { createCustomer } from "@/lib/actions";
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
 import { BASES, DIRECTION_LABELS, DIRECTIONS, MATERIALS } from "@/lib/types";
@@ -279,7 +280,7 @@ export default function CustomerForm() {
                 <label className={labelClass} htmlFor={`rateBasis-${row.key}`}>
                   Basis
                 </label>
-                <select
+                <Select
                   id={`rateBasis-${row.key}`}
                   name="rateBasis"
                   className={inputClass}
@@ -293,7 +294,7 @@ export default function CustomerForm() {
                       {basis}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               <div>
@@ -325,7 +326,7 @@ export default function CustomerForm() {
                 >
                   Direction
                 </label>
-                <select
+                <Select
                   id={`rateDirection-${row.key}`}
                   name="rateDirection"
                   className={inputClass}
@@ -339,7 +340,7 @@ export default function CustomerForm() {
                       {DIRECTION_LABELS[direction]}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               <div className="sm:pt-7">

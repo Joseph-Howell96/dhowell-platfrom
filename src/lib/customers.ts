@@ -7,9 +7,8 @@
  * means rewriting these two functions and nothing else.
  */
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import path from "node:path";
 
+import { readJsonList, writeJsonList } from "./store";
 import {
   BASES,
   DIRECTIONS,
@@ -19,8 +18,7 @@ import {
   type RateLine,
 } from "./types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "clients.json");
+const FILE = "clients.json";
 
 /** Anything read off disk is unknown until we have checked it, so check it. */
 function isBasis(value: unknown): value is Basis {
@@ -80,38 +78,11 @@ function toCustomer(raw: unknown): Customer | null {
 
 /** Every customer we hold, newest first. */
 export async function readCustomers(): Promise<Customer[]> {
-  let contents: string;
-  try {
-    contents = await readFile(DATA_FILE, "utf8");
-  } catch (error) {
-    // No file yet simply means no customers yet, which is not an error.
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw error;
-  }
-
-  if (contents.trim() === "") return [];
-
-  const parsed: unknown = JSON.parse(contents);
-  if (!Array.isArray(parsed)) return [];
-
-  return parsed
+  const rows = await readJsonList(FILE);
+  return rows
     .map(toCustomer)
     .filter((customer) => customer !== null)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-}
-
-/**
- * Save the list back to disk.
- *
- * Written to a temporary file first, then renamed over the real one. A rename
- * either happens completely or not at all, so a crash mid-save leaves the
- * previous list intact rather than half a file of broken JSON.
- */
-async function writeCustomers(customers: Customer[]): Promise<void> {
-  await mkdir(DATA_DIR, { recursive: true });
-  const temporaryFile = `${DATA_FILE}.${randomUUID()}.tmp`;
-  await writeFile(temporaryFile, `${JSON.stringify(customers, null, 2)}\n`, "utf8");
-  await rename(temporaryFile, DATA_FILE);
 }
 
 /** Add one customer to the list and save. Returns the customer that was stored. */
@@ -124,6 +95,6 @@ export async function addCustomer(
     id: randomUUID(),
     createdAt: new Date().toISOString(),
   };
-  await writeCustomers([customer, ...customers]);
+  await writeJsonList(FILE, [customer, ...customers]);
   return customer;
 }

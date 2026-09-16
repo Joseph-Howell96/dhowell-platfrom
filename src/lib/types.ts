@@ -63,3 +63,85 @@ export type Customer = {
   /** When the record was created, as an ISO timestamp. Displayed as DD/MM/YYYY. */
   createdAt: string;
 };
+
+/* ---------------------------------------------------------------------------
+ * Jobs
+ * ------------------------------------------------------------------------- */
+
+/** Where a job has got to. They happen in this order, left to right. */
+export const JOB_STATUSES = [
+  "booked",
+  "completed",
+  "weighed",
+  "invoiced",
+] as const;
+
+export type JobStatus = (typeof JOB_STATUSES)[number];
+
+export const STATUS_LABELS: Record<JobStatus, string> = {
+  booked: "Booked",
+  completed: "Completed",
+  weighed: "Weighed",
+  invoiced: "Invoiced",
+};
+
+export const STATUS_HINTS: Record<JobStatus, string> = {
+  booked: "In the diary, not done yet",
+  completed: "Collected, waiting on a weight",
+  weighed: "Weighbridge ticket in, ready to invoice",
+  invoiced: "Invoice sent",
+};
+
+/**
+ * The colour each status shows in. The actual colours live in globals.css so
+ * that everything visual stays in one place; these are just the class names
+ * that point at them.
+ */
+export const STATUS_CLASSES: Record<JobStatus, string> = {
+  booked: "bg-booked-soft text-booked",
+  completed: "bg-completed-soft text-completed",
+  weighed: "bg-weighed-soft text-weighed",
+  invoiced: "bg-invoiced-soft text-invoiced",
+};
+
+/** The materials a job can be for. "Other" lets you type your own. */
+export const JOB_MATERIALS = [
+  "Wood",
+  "General rubbish",
+  "Mixed paper",
+  "Corex",
+  "Other",
+] as const;
+
+/** Common skip sizes, offered as suggestions rather than a fixed list. */
+export const SKIP_SIZES = [
+  "4 yard",
+  "6 yard",
+  "8 yard",
+  "12 yard",
+  "14 yard",
+  "16 yard",
+  "20 yard",
+  "35 yard RoRo",
+  "40 yard RoRo",
+] as const;
+
+export type Job = {
+  id: string;
+  /** Which client this is for, matching a Customer id. */
+  customerId: string;
+  siteAddress: string;
+  /**
+   * The day of the job as "YYYY-MM-DD", e.g. "2026-09-16".
+   *
+   * Stored this way rather than as a full timestamp on purpose. A job booked
+   * for the 16th is on the 16th whatever the clocks are doing, and this
+   * format also sorts correctly when compared as plain text.
+   */
+  date: string;
+  skipSize: string;
+  material: string;
+  notes: string;
+  status: JobStatus;
+  createdAt: string;
+};
