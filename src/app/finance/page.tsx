@@ -11,7 +11,12 @@ import { formatInvoiceNumber, linesForJobs, totalsForLines } from "@/lib/invoici
 import { readJobs } from "@/lib/jobs";
 import { formatPence } from "@/lib/money";
 import { priceJob, type JobPrice } from "@/lib/pricing";
-import type { Job } from "@/lib/types";
+import {
+  invoiceStanding,
+  STANDING_CLASSES,
+  STANDING_LABELS,
+  type Job,
+} from "@/lib/types";
 import { readSettings } from "@/lib/settings";
 import { invoiceDueDate } from "@/lib/terms";
 
@@ -236,7 +241,14 @@ export default async function FinancePage() {
    */
   const filed = new Map<
     string,
-    { reference: string; invoice: (typeof invoices)[number]; grossPence: number }[]
+    {
+      reference: string;
+      invoice: (typeof invoices)[number];
+      grossPence: number;
+      dueDate: string;
+      standing: ReturnType<typeof invoiceStanding>;
+      daysLate: number;
+    }[]
   >();
   for (const invoice of invoices) {
     if (!invoice.pdfSavedAt) continue;
@@ -250,10 +262,14 @@ export default async function FinancePage() {
       settings.vatPercent,
     );
     const rows = filed.get(name) ?? [];
+    const invoiceDue = addCalendarDays(invoice.issueDate, settings.paymentTermsDays);
     rows.push({
       reference: formatInvoiceNumber(settings.invoiceNumberPrefix, invoice.number),
       invoice,
       grossPence: totals.grossPence,
+      dueDate: invoiceDue,
+      standing: invoiceStanding(invoice.status, invoiceDue, today),
+      daysLate: Math.abs(daysBetween(today, invoiceDue)),
     });
     filed.set(name, rows);
   }
@@ -369,8 +385,18 @@ export default async function FinancePage() {
                       <span className="w-24 shrink-0 text-muted">
                         {formatDateGB(row.invoice.issueDate)}
                       </span>
-                      <span className="flex-1 tabular-nums">
+                      <span className="w-24 shrink-0 tabular-nums">
                         {formatPence(row.grossPence)}
+                      </span>
+                      <span className="flex-1">
+                        <span
+                          className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${STANDING_CLASSES[row.standing]}`}
+                        >
+                          {STANDING_LABELS[row.standing]}
+                          {row.standing === "overdue"
+                            ? ` · ${row.daysLate} days overdue`
+                            : ""}
+                        </span>
                       </span>
                       <Link
                         href={`/invoices/${row.invoice.id}`}

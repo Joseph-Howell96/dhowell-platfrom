@@ -24,6 +24,9 @@ export default async function NewInvoicePage() {
     readInvoices(),
   ]);
   const clientsById = new Map(customers.map((c) => [c.id, c]));
+  // Archived clients are not offered, but their jobs still price correctly
+  // from the record above.
+  const choosable = customers.filter((c) => c.archivedAt === null);
   const billed = invoicedJobIds(invoices);
 
   // A job can be billed once it has been weighed, if we are charging for it
@@ -66,7 +69,7 @@ export default async function NewInvoicePage() {
         <PageHeader title="Raise invoice" />
       </div>
       <RaiseInvoiceForm
-        customers={customers}
+        customers={choosable}
         billable={billable}
         today={todayISO()}
       />

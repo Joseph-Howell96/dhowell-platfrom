@@ -11,7 +11,11 @@ import { formatInvoiceNumber, linesForJobs, totalsForLines } from "@/lib/invoici
 import { readJobs } from "@/lib/jobs";
 import { formatPence } from "@/lib/money";
 import { readSettings } from "@/lib/settings";
-import { INVOICE_STATUS_CLASSES, INVOICE_STATUS_LABELS } from "@/lib/types";
+import {
+  invoiceStanding,
+  STANDING_CLASSES,
+  STANDING_LABELS,
+} from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Invoices",
@@ -49,6 +53,7 @@ export default async function InvoicesPage() {
       totals,
       dueDate,
       daysRemaining: daysBetween(today, dueDate),
+      standing: invoiceStanding(invoice.status, dueDate, today),
     };
   });
 
@@ -101,8 +106,7 @@ export default async function InvoicesPage() {
             </thead>
             <tbody>
               {rows.map((row) => {
-                const chasing = row.invoice.status === "sent";
-                const late = chasing && row.daysRemaining < 0;
+                const late = row.standing === "overdue";
                 return (
                   <tr
                     key={row.invoice.id}
@@ -141,9 +145,10 @@ export default async function InvoicesPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <span
-                        className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${INVOICE_STATUS_CLASSES[row.invoice.status]}`}
+                        className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${STANDING_CLASSES[row.standing]}`}
                       >
-                        {INVOICE_STATUS_LABELS[row.invoice.status]}
+                        {STANDING_LABELS[row.standing]}
+                        {late ? ` · ${Math.abs(row.daysRemaining)}d` : ""}
                       </span>
                     </td>
                   </tr>

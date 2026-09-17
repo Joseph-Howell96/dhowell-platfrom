@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import CustomerForm from "@/components/customer-form";
 import PageHeader from "@/components/page-header";
-import CustomerForm from "./customer-form";
+import { createCustomer } from "@/lib/actions";
 
 export const metadata: Metadata = {
   title: "Add client",
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function NewClientPage() {
   return (
-    <main className="mx-auto w-full max-w-4xl px-6 py-10 lg:px-10">
+    <main className="mx-auto w-full max-w-5xl px-6 py-10 lg:px-10">
       <Link
         href="/clients"
         className="text-sm text-muted transition-colors hover:text-ink"
@@ -20,7 +21,7 @@ export default function NewClientPage() {
       <div className="mt-4">
         <PageHeader title="Add client" />
       </div>
-      <CustomerForm />
+      <CustomerForm action={createCustomer} submitLabel="Save client" />
     </main>
   );
 }

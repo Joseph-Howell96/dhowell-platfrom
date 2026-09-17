@@ -11,7 +11,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { addCustomer } from "./customers";
+import { addCustomer, updateCustomer } from "./customers";
 import type { FormState } from "./form-state";
 import { parsePoundsToPence } from "./money";
 import { randomUUID } from "node:crypto";
@@ -25,10 +25,27 @@ function text(formData: FormData, name: string): string {
   return value.replace(/\r\n/g, "\n").trim();
 }
 
-export async function createCustomer(
-  _previousState: FormState,
+type ParsedCustomer = {
+  businessName: string;
+  siteAddress: string;
+  billingAddress: string;
+  contactName: string;
+  phone: string;
+  email: string;
+  paymentTermsDays: number;
+  notes: string;
+  rateLines: RateLine[];
+};
+
+/**
+ * Read a client out of the form, collecting anything wrong as it goes.
+ * Shared by adding one and by changing one, so the two cannot drift apart.
+ */
+function parseCustomer(
   formData: FormData,
-): Promise<FormState> {
+):
+  | { errors: Record<string, string>; customer: null }
+  | { errors: null; customer: ParsedCustomer } {
   const fieldErrors: Record<string, string> = {};
 
   const businessName = text(formData, "businessName");
@@ -124,14 +141,12 @@ export async function createCustomer(
   }
 
   if (Object.keys(fieldErrors).length > 0) {
-    return {
-      fieldErrors,
-      formError: "Some details need fixing before this can be saved.",
-    };
+    return { errors: fieldErrors, customer: null };
   }
 
-  try {
-    await addCustomer({
+  return {
+    errors: null,
+    customer: {
       businessName,
       siteAddress: text(formData, "siteAddress"),
       billingAddress: text(formData, "billingAddress"),
@@ -141,7 +156,33 @@ export async function createCustomer(
       paymentTermsDays,
       notes: text(formData, "notes"),
       rateLines,
-    });
+    },
+  };
+}
+
+/** Everything that shows a client or prices off their rates. */
+function refreshClientPages() {
+  revalidatePath("/clients");
+  revalidatePath("/calendar");
+  revalidatePath("/finance");
+  revalidatePath("/invoices");
+  revalidatePath("/dashboard");
+}
+
+export async function createCustomer(
+  _previousState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = parseCustomer(formData);
+  if (parsed.errors) {
+    return {
+      fieldErrors: parsed.errors,
+      formError: "Some details need fixing before this can be saved.",
+    };
+  }
+
+  try {
+    await addCustomer(parsed.customer);
   } catch (error) {
     console.error("Could not save the customer", error);
     return {
@@ -150,8 +191,61 @@ export async function createCustomer(
     };
   }
 
-  // Throw away the cached copy of the list page so it rebuilds with the new
-  // customer, then send the browser there.
-  revalidatePath("/clients");
+  refreshClientPages();
   redirect("/clients");
+}
+
+export async function saveCustomer(
+  _previousState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const clientId = text(formData, "clientId");
+  if (clientId === "") {
+    return { fieldErrors: {}, formError: "Could not tell which client this is." };
+  }
+
+  const parsed = parseCustomer(formData);
+  if (parsed.errors) {
+    return {
+      fieldErrors: parsed.errors,
+      formError: "Some details need fixing before this can be saved.",
+    };
+  }
+
+  let updated;
+  try {
+    updated = await updateCustomer(clientId, parsed.customer);
+  } catch (error) {
+    console.error("Could not save the customer", error);
+    return {
+      fieldErrors: {},
+      formError: "Could not save the customer. Please try again.",
+    };
+  }
+
+  if (!updated) {
+    return {
+      fieldErrors: {},
+      formError: "That client no longer exists.",
+    };
+  }
+
+  refreshClientPages();
+  redirect("/clients");
+}
+
+/**
+ * Put a client away, or bring them back.
+ *
+ * Archiving never deletes: their jobs and invoices still name them, and a
+ * record that vanished would leave those pointing at nothing.
+ */
+export async function setCustomerArchived(
+  clientId: string,
+  archived: boolean,
+): Promise<void> {
+  await updateCustomer(clientId, {
+    archivedAt: archived ? new Date().toISOString() : null,
+  });
+  refreshClientPages();
 }

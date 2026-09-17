@@ -11,7 +11,13 @@ import { formatInvoiceNumber, linesForJobs, totalsForLines } from "@/lib/invoici
 import { readJobs } from "@/lib/jobs";
 import { formatPence } from "@/lib/money";
 import { readSettings } from "@/lib/settings";
-import { INVOICE_STATUS_CLASSES, INVOICE_STATUS_LABELS } from "@/lib/types";
+import { todayISO } from "@/lib/calendar";
+import { daysBetween } from "@/lib/dates";
+import {
+  invoiceStanding,
+  STANDING_CLASSES,
+  STANDING_LABELS,
+} from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Invoice",
@@ -53,6 +59,9 @@ export default async function InvoicePage({
   const lines = linesForJobs(billed, client);
   const totals = totalsForLines(lines, settings.vatPercent);
   const dueDate = addCalendarDays(invoice.issueDate, settings.paymentTermsDays);
+  const today = todayISO();
+  const standing = invoiceStanding(invoice.status, dueDate, today);
+  const daysLate = Math.abs(daysBetween(today, dueDate));
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-10 lg:px-10 print:max-w-none print:px-0 print:py-0">
@@ -71,10 +80,16 @@ export default async function InvoicePage({
               {formatInvoiceNumber(settings.invoiceNumberPrefix, invoice.number)}
             </h1>
             <span
-              className={`rounded-full px-2.5 py-1 text-xs font-medium ${INVOICE_STATUS_CLASSES[invoice.status]}`}
+              className={`rounded-full px-2.5 py-1 text-xs font-medium ${STANDING_CLASSES[standing]}`}
             >
-              {INVOICE_STATUS_LABELS[invoice.status]}
+              {STANDING_LABELS[standing]}
+              {standing === "overdue" ? ` · ${daysLate} days` : ""}
             </span>
+            {invoice.paidDate ? (
+              <span className="text-sm text-muted">
+                paid {formatDateGB(invoice.paidDate)}
+              </span>
+            ) : null}
           </div>
           <InvoiceActions invoiceId={invoice.id} status={invoice.status} />
         </div>

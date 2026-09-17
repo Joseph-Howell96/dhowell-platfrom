@@ -5,7 +5,7 @@ import { connection } from "next/server";
 import JobForm from "@/components/job-form";
 import PageHeader from "@/components/page-header";
 import { isValidISODate, monthKeyOf, todayISO } from "@/lib/calendar";
-import { readCustomers } from "@/lib/customers";
+import { readActiveCustomers } from "@/lib/customers";
 import { readOutlets } from "@/lib/outlets";
 import { readSettings } from "@/lib/settings";
 import { createJob } from "@/lib/job-actions";
@@ -28,7 +28,7 @@ export default async function NewJobPage({
     requested && isValidISODate(requested) ? requested : todayISO();
 
   const [customers, outlets, settings] = await Promise.all([
-    readCustomers(),
+    readActiveCustomers(),
     readOutlets(),
     readSettings(),
   ]);

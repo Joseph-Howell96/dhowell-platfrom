@@ -9,12 +9,21 @@
 import { useTransition } from "react";
 
 import { setInvoiceStatus } from "@/lib/invoice-actions";
-import { INVOICE_STATUSES, type InvoiceStatus } from "@/lib/types";
+import type { InvoiceStatus } from "@/lib/types";
 
-const LABELS: Record<InvoiceStatus, string> = {
-  draft: "Back to draft",
-  sent: "Mark as sent",
-  paid: "Mark as paid",
+/**
+ * What can be done next, given where the invoice is.
+ *
+ * Due and overdue are not in here on purpose: they follow from the date, and
+ * offering them as buttons would let the two disagree.
+ */
+const NEXT: Record<InvoiceStatus, { to: InvoiceStatus; label: string }[]> = {
+  draft: [{ to: "sent", label: "Mark as sent" }],
+  sent: [
+    { to: "paid", label: "Mark as paid" },
+    { to: "draft", label: "Back to draft" },
+  ],
+  paid: [{ to: "sent", label: "Mark as unpaid" }],
 };
 
 export default function InvoiceActions({
@@ -28,19 +37,19 @@ export default function InvoiceActions({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {INVOICE_STATUSES.filter((option) => option !== status).map((option) => (
+      {NEXT[status].map((step) => (
         <button
-          key={option}
+          key={step.to}
           type="button"
           disabled={pending}
           onClick={() =>
             startTransition(() => {
-              void setInvoiceStatus(invoiceId, option);
+              void setInvoiceStatus(invoiceId, step.to);
             })
           }
           className="rounded-lg border border-line px-4 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
         >
-          {LABELS[option]}
+          {step.label}
         </button>
       ))}
       {/* A plain link to the PDF: asking for it builds the file, files a copy

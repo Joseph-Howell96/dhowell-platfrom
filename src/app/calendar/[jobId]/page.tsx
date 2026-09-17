@@ -35,6 +35,11 @@ export default async function JobPage({
     readSettings(),
   ]);
   const client = customers.find((customer) => customer.id === job.customerId);
+  // Archived clients are not offered for new work, but a job already booked
+  // against one has to keep showing it, or saving would lose the client.
+  const choosable = customers.filter(
+    (customer) => customer.archivedAt === null || customer.id === job.customerId,
+  );
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-10 lg:px-10">
@@ -52,7 +57,7 @@ export default async function JobPage({
       </div>
 
       <JobForm
-        customers={customers}
+        customers={choosable}
         outlets={outlets}
         action={saveJob}
         submitLabel="Save changes"

@@ -14,14 +14,16 @@ import Link from "next/link";
 import { useActionState, useId, useRef, useState } from "react";
 
 import Select from "@/components/select";
-import { createCustomer } from "@/lib/actions";
+import type { FormState } from "@/lib/form-state";
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
+import { penceToInputValue } from "@/lib/money";
 import {
   DIRECTION_HINTS,
   DIRECTION_LABELS,
   DIRECTIONS,
   MATERIALS,
   SKIP_SIZES,
+  type Customer,
 } from "@/lib/types";
 
 const inputClass =
@@ -83,14 +85,52 @@ function blankRow(sequence: number): RateRow {
   };
 }
 
-export default function CustomerForm() {
-  const [state, formAction, pending] = useActionState(
-    createCustomer,
-    EMPTY_FORM_STATE,
+export default function CustomerForm({
+  action,
+  submitLabel,
+  customer,
+}: {
+  action: (state: FormState, formData: FormData) => Promise<FormState>;
+  submitLabel: string;
+  /** The client being changed, or nothing when adding a new one. */
+  customer?: Customer;
+}) {
+  const [state, formAction, pending] = useActionState(action, EMPTY_FORM_STATE);
+  const [details, setDetails] = useState<Details>(
+    customer
+      ? {
+          businessName: customer.businessName,
+          siteAddress: customer.siteAddress,
+          billingAddress: customer.billingAddress,
+          contactName: customer.contactName,
+          phone: customer.phone,
+          email: customer.email,
+          paymentTermsDays: String(customer.paymentTermsDays),
+          notes: customer.notes,
+        }
+      : EMPTY_DETAILS,
   );
-  const [details, setDetails] = useState<Details>(EMPTY_DETAILS);
-  const [rows, setRows] = useState<RateRow[]>([blankRow(0)]);
-  const nextRowSequence = useRef(1);
+  const [rows, setRows] = useState<RateRow[]>(
+    customer && customer.rateLines.length > 0
+      ? customer.rateLines.map((line, index) => ({
+          key: `row-${index}`,
+          material: line.material,
+          skipSize: line.skipSize,
+          perTonne:
+            line.ratePerTonnePence === null
+              ? ""
+              : penceToInputValue(line.ratePerTonnePence),
+          haulage:
+            line.haulageRatePence === null
+              ? ""
+              : penceToInputValue(line.haulageRatePence),
+          direction: line.direction,
+        }))
+      : [blankRow(0)],
+  );
+  const nextRowSequence = useRef(
+    customer && customer.rateLines.length > 0 ? customer.rateLines.length : 1,
+  );
   const materialListId = useId();
   const skipListId = useId();
 
@@ -113,6 +153,8 @@ export default function CustomerForm() {
   // The server checks everything regardless, which is what actually counts.
   return (
     <form action={formAction} noValidate className="space-y-8">
+      {customer ? <input type="hidden" name="clientId" value={customer.id} /> : null}
+
       {state.formError ? (
         <p
           role="alert"
@@ -477,7 +519,7 @@ export default function CustomerForm() {
           disabled={pending}
           className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover disabled:opacity-50"
         >
-          {pending ? "Saving…" : "Save client"}
+          {pending ? "Saving…" : submitLabel}
         </button>
         <Link
           href="/clients"

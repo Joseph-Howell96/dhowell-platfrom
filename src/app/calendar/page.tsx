@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
+import GenerateWeekButton from "./generate-week-button";
 import PageHeader from "@/components/page-header";
 import {
   addMonths,
@@ -12,6 +13,8 @@ import {
   WEEKDAY_NAMES,
 } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
+import { invoicedJobIds, readInvoices } from "@/lib/invoices";
+import { isBillable } from "@/lib/invoicing";
 import { readJobs } from "@/lib/jobs";
 import {
   JOB_STATUSES,
@@ -39,7 +42,11 @@ export default async function CalendarPage({
   const month =
     requested && isValidMonthKey(requested) ? requested : today.slice(0, 7);
 
-  const [jobs, customers] = await Promise.all([readJobs(), readCustomers()]);
+  const [jobs, customers, invoices] = await Promise.all([
+    readJobs(),
+    readCustomers(),
+    readInvoices(),
+  ]);
 
   const clientNames = new Map(
     customers.map((customer) => [customer.id, customer.businessName]),
@@ -56,11 +63,39 @@ export default async function CalendarPage({
 
   const cells = buildMonthGrid(month);
 
+  // The grid is whole weeks, so it splits cleanly into rows of seven.
+  const weeks: typeof cells[] = [];
+  for (let start = 0; start < cells.length; start += 7) {
+    weeks.push(cells.slice(start, start + 7));
+  }
+
+  // What each week has waiting to be billed: done, priced, and not already on
+  // an invoice. Counted here so the button can say so before it is pressed.
+  const clientsById = new Map(customers.map((c) => [c.id, c]));
+  const alreadyBilled = invoicedJobIds(invoices);
+  const waitingByWeek = weeks.map((week) => {
+    const first = week[0].iso;
+    const last = week[week.length - 1].iso;
+    const ready = jobs.filter(
+      (job) =>
+        job.date >= first &&
+        job.date <= last &&
+        job.status !== "booked" &&
+        !alreadyBilled.has(job.id) &&
+        isBillable(job, clientsById.get(job.customerId)),
+    );
+    return {
+      weekStart: first,
+      waiting: ready.length,
+      clients: new Set(ready.map((job) => job.customerId)).size,
+    };
+  });
+
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-10 lg:px-10">
       <PageHeader
         title="Calendar"
-        description="Click a day to book a job. Click a job to open it."
+        description="Click a day to book a job, or a job to open it. The button at the end of a week raises that week's invoices."
         action={
           <div className="flex items-center gap-2">
             <Link
@@ -113,8 +148,8 @@ export default async function CalendarPage({
       ) : null}
 
       <div className="overflow-x-auto">
-        <div className="min-w-[44rem]">
-          <div className="grid grid-cols-7 gap-px rounded-t-xl border border-line bg-line">
+        <div className="min-w-[50rem]">
+          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_5.5rem] gap-px rounded-t-xl border border-line bg-line">
             {WEEKDAY_NAMES.map((name) => (
               <div
                 key={name}
@@ -123,10 +158,14 @@ export default async function CalendarPage({
                 {name}
               </div>
             ))}
+            <div className="bg-elevated px-2 py-2 text-center text-xs font-medium uppercase tracking-wide text-muted">
+              Bill
+            </div>
           </div>
 
-          <div className="grid grid-cols-7 gap-px rounded-b-xl border border-t-0 border-line bg-line">
-            {cells.map((cell) => {
+          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_5.5rem] gap-px rounded-b-xl border border-t-0 border-line bg-line">
+            {weeks.flatMap((week, weekIndex) => [
+              ...week.map((cell) => {
               const dayJobs = jobsByDate.get(cell.iso) ?? [];
               const isToday = cell.iso === today;
 
@@ -176,8 +215,18 @@ export default async function CalendarPage({
                     ))}
                   </ul>
                 </div>
-              );
-            })}
+                );
+              }),
+              // The end of the week: everything on these seven days that is
+              // ready to bill, turned into one invoice per client.
+              <div key={`bill-${week[0].iso}`} className="bg-surface">
+                <GenerateWeekButton
+                  weekStart={waitingByWeek[weekIndex].weekStart}
+                  waiting={waitingByWeek[weekIndex].waiting}
+                  clients={waitingByWeek[weekIndex].clients}
+                />
+              </div>,
+            ])}
           </div>
         </div>
       </div>

@@ -88,6 +88,14 @@ export type Customer = {
   paymentTermsDays: number;
   notes: string;
   rateLines: RateLine[];
+  /**
+   * When the client was archived, as an ISO timestamp, or null while active.
+   *
+   * Archiving hides a client from the lists and from the boxes you pick one
+   * out of, without removing them. Their old jobs and invoices still name
+   * them, which deleting would break.
+   */
+  archivedAt: string | null;
   /** When the record was created, as an ISO timestamp. Displayed as DD/MM/YYYY. */
   createdAt: string;
 };
@@ -424,6 +432,42 @@ export const INVOICE_STATUS_CLASSES: Record<InvoiceStatus, string> = {
   sent: "bg-sent-soft text-sent",
   paid: "bg-paid-soft text-paid",
 };
+
+/**
+ * How an invoice reads on screen.
+ *
+ * Only two of these are anyone's to choose. An invoice is sent, or it is
+ * settled; whether a sent one is merely due or actually late is a matter of
+ * the date, worked out fresh each time rather than set by hand and forgotten.
+ */
+export const INVOICE_STANDINGS = ["draft", "due", "overdue", "paid"] as const;
+
+export type InvoiceStanding = (typeof INVOICE_STANDINGS)[number];
+
+export const STANDING_LABELS: Record<InvoiceStanding, string> = {
+  draft: "Draft",
+  due: "Due",
+  overdue: "Overdue",
+  paid: "Paid",
+};
+
+export const STANDING_CLASSES: Record<InvoiceStanding, string> = {
+  draft: "bg-elevated text-muted",
+  due: "bg-generate-soft text-generate",
+  overdue: "bg-danger-soft text-danger",
+  paid: "bg-sent-soft text-sent",
+};
+
+/** Where an invoice stands today, given when it falls due. */
+export function invoiceStanding(
+  status: InvoiceStatus,
+  dueDate: string,
+  today: string,
+): InvoiceStanding {
+  if (status === "paid") return "paid";
+  if (status === "draft") return "draft";
+  return today > dueDate ? "overdue" : "due";
+}
 
 /**
  * One invoice, covering a week's work for a client.

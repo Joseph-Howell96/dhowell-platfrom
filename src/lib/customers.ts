@@ -122,6 +122,8 @@ function toCustomer(raw: unknown): Customer | null {
         : 0,
     notes: text("notes"),
     rateLines: toRateLines(record.rateLines),
+    archivedAt:
+      typeof record.archivedAt === "string" ? record.archivedAt : null,
     createdAt: text("createdAt") || new Date().toISOString(),
   };
 }
@@ -135,16 +137,42 @@ export async function readCustomers(): Promise<Customer[]> {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+/** Just the clients still in use, for lists and for picking one out of. */
+export async function readActiveCustomers(): Promise<Customer[]> {
+  return (await readCustomers()).filter((customer) => customer.archivedAt === null);
+}
+
 /** Add one customer to the list and save. Returns the customer that was stored. */
 export async function addCustomer(
-  details: Omit<Customer, "id" | "createdAt">,
+  details: Omit<Customer, "id" | "createdAt" | "archivedAt">,
 ): Promise<Customer> {
   const customers = await readCustomers();
   const customer: Customer = {
     ...details,
     id: randomUUID(),
+    archivedAt: null,
     createdAt: new Date().toISOString(),
   };
   await writeJsonList(FILE, [customer, ...customers]);
   return customer;
+}
+
+/**
+ * Change an existing client. Returns the updated record, or null where the id
+ * matches nothing.
+ */
+export async function updateCustomer(
+  id: string,
+  changes: Partial<Omit<Customer, "id" | "createdAt">>,
+): Promise<Customer | null> {
+  const customers = await readCustomers();
+  const existing = customers.find((customer) => customer.id === id);
+  if (!existing) return null;
+
+  const updated: Customer = { ...existing, ...changes, id: existing.id };
+  await writeJsonList(
+    FILE,
+    customers.map((customer) => (customer.id === id ? updated : customer)),
+  );
+  return updated;
 }

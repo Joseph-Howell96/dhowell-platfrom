@@ -115,6 +115,23 @@ path, so a job three steps along stays three steps along.
   time it is opened, since it is still changing; once an invoice is sent the
   saved file is served untouched, so what the client received stays on record
   even if a rate is corrected later.
+- **Where an invoice stands is worked out, not chosen.** It is a Draft until
+  marked sent, then **Due** (amber) or **Overdue** (red) depending on the date,
+  with the days late shown. **Paid** (green) is the one thing set by hand, and
+  records the day it was marked. Due and overdue are deliberately not offered
+  as buttons: a status set by hand would sooner or later disagree with the
+  calendar.
+- **The button at the end of a week on the calendar** raises that week's
+  invoices. Every job that week which is done, priced and not already billed is
+  gathered up and split by client, one draft invoice each. It says how many
+  jobs are waiting before you press it, and goes quiet when there are none.
+  Pressing it twice does nothing the second time: a job already on an invoice
+  is skipped, checked against what invoices actually hold rather than a flag on
+  the job that could fall out of step.
+- **Clients can be edited and archived.** Archiving keeps the record - their
+  jobs and invoices still name them - but takes them out of the lists and out
+  of the boxes you pick a client from. A job already booked against an archived
+  client still shows them, so saving it cannot lose the link.
 - **VAT is charged on the whole invoice** at the rate set under Settings,
   rounded to the penny once on the total rather than line by line.
 - **Our invoices fall due a set number of calendar days after the invoice

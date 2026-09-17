@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
+import ArchiveButton from "./archive-button";
 import PageHeader from "@/components/page-header";
 import { readCustomers } from "@/lib/customers";
 import { formatDateGB } from "@/lib/dates";
@@ -82,7 +83,9 @@ export default async function ClientsPage() {
   // Wait for a real visitor before reading the file. Without this, Next.js
   // would read it once while building and show that snapshot forever.
   await connection();
-  const customers = await readCustomers();
+  const all = await readCustomers();
+  const customers = all.filter((customer) => customer.archivedAt === null);
+  const archived = all.filter((customer) => customer.archivedAt !== null);
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-10 lg:px-10">
@@ -115,13 +118,22 @@ export default async function ClientsPage() {
               key={customer.id}
               className="rounded-xl border border-line bg-surface p-6"
             >
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold">
                   {customer.businessName}
                 </h2>
-                <p className="text-sm text-muted">
-                  Added {formatDateGB(customer.createdAt)}
-                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted">
+                    Added {formatDateGB(customer.createdAt)}
+                  </span>
+                  <Link
+                    href={`/clients/${customer.id}/edit`}
+                    className="rounded-lg border border-line px-3 py-1.5 text-sm text-muted transition-colors hover:border-accent hover:text-accent"
+                  >
+                    Edit
+                  </Link>
+                  <ArchiveButton clientId={customer.id} archived={false} />
+                </div>
               </div>
 
               <dl className="mt-5 grid gap-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
@@ -152,6 +164,37 @@ export default async function ClientsPage() {
           ))}
         </ul>
       )}
+
+      {archived.length > 0 ? (
+        <section className="mt-10">
+          <h2 className="mb-1 text-lg font-semibold">Archived</h2>
+          <p className="mb-3 text-sm text-muted">
+            Kept because their jobs and invoices still name them, but out of the
+            way and not offered when booking.
+          </p>
+          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
+            {archived.map((customer) => (
+              <li
+                key={customer.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+              >
+                <span className="text-sm text-muted">
+                  {customer.businessName}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/clients/${customer.id}/edit`}
+                    className="rounded-lg border border-line px-3 py-1.5 text-sm text-muted transition-colors hover:border-accent hover:text-accent"
+                  >
+                    Edit
+                  </Link>
+                  <ArchiveButton clientId={customer.id} archived />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </main>
   );
 }
