@@ -7,7 +7,7 @@ import PageHeader from "@/components/page-header";
 import {
   byMaterial,
   byMonth,
-  isCompleted,
+  isWeighed,
   marginPercent,
   totalsFor,
   yearsWithJobs,
@@ -94,13 +94,13 @@ export default async function FinancePage({
   const year = requested && years.includes(requested) ? requested : years[0];
 
   const inYear = jobs.filter((job) => job.date.startsWith(year));
-  const completed = inYear.filter(isCompleted);
-  const scheduled = inYear.filter((job) => !isCompleted(job));
+  const weighed = inYear.filter(isWeighed);
+  const scheduled = inYear.filter((job) => !isWeighed(job));
 
-  const done = totalsFor(completed, clientsById, outletsById);
+  const done = totalsFor(weighed, clientsById, outletsById);
   const ahead = totalsFor(scheduled, clientsById, outletsById);
-  const months = byMonth(completed, clientsById, outletsById);
-  const materials = byMaterial(completed, clientsById, outletsById);
+  const months = byMonth(weighed, clientsById, outletsById);
+  const materials = byMaterial(weighed, clientsById, outletsById);
 
   // The widest margin sets the length of the bars, so they compare against each
   // other rather than against an arbitrary 100%.
@@ -190,7 +190,7 @@ export default async function FinancePage({
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card
-          label="Jobs completed"
+          label="Jobs weighed"
           value={String(done.jobs)}
           note={`in ${year}`}
         />
@@ -225,7 +225,7 @@ export default async function FinancePage({
         <section className="rounded-xl border border-line bg-surface p-6 lg:col-span-3">
           <h2 className="mb-1 text-base font-semibold">Monthly billings</h2>
           <p className="mb-4 text-sm text-muted">
-            Completed jobs in {year}, by the month the job was done.
+            Weighed jobs in {year}, by the month the job was done.
           </p>
           <BillingsChart months={months} />
         </section>
@@ -238,7 +238,7 @@ export default async function FinancePage({
 
           {materials.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted">
-              No completed jobs yet.
+              No weighed jobs yet.
             </p>
           ) : (
             <div className="overflow-x-auto">

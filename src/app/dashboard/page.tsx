@@ -7,7 +7,7 @@ import { monthKeyOf, todayISO, weekStartOf } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
 import { addCalendarDays, daysBetween, formatDateGB } from "@/lib/dates";
 import { invoicedJobIds, readInvoices } from "@/lib/invoices";
-import { invoiceGrossPence, isBillable } from "@/lib/invoicing";
+import { invoiceGrossPence, isAwaitingInvoice, isBillable } from "@/lib/invoicing";
 import { readJobs } from "@/lib/jobs";
 import { formatPence } from "@/lib/money";
 import { readSettings } from "@/lib/settings";
@@ -105,16 +105,18 @@ export default async function DashboardPage() {
   ).length;
 
   // --- Waiting to be billed ----------------------------------------------
-  // Weighed, priced, and not on an invoice. Worked out from what the invoices
-  // actually hold rather than from anything written on the job, so a job can
-  // never sit here after it has been billed.
+  // Weighed and not on an invoice. Worked out from what the invoices actually
+  // hold rather than from anything written on the job, so a job can never sit
+  // here after it has been billed.
   const alreadyBilled = invoicedJobIds(invoices);
-  const awaitingInvoice = jobs.filter(
-    (job) =>
-      isWeighedOrLater(job.status) &&
-      !alreadyBilled.has(job.id) &&
-      isBillable(job, clientsById.get(job.customerId)),
+  const awaitingInvoice = jobs.filter((job) =>
+    isAwaitingInvoice(job, alreadyBilled),
   );
+  // Those of them the client has no rate for. They count as waiting - they are
+  // unbilled work - but they cannot go on an invoice until the rate is added.
+  const unpriced = awaitingInvoice.filter(
+    (job) => !isBillable(job, clientsById.get(job.customerId)),
+  ).length;
   const oldestWaiting = awaitingInvoice.reduce<string | null>(
     (oldest, job) => (oldest === null || job.date < oldest ? job.date : oldest),
     null,
@@ -181,7 +183,9 @@ export default async function DashboardPage() {
           note={
             awaitingInvoice.length === 0
               ? "Everything weighed is billed"
-              : `Oldest ${formatDateGB(oldestWaiting as string)}`
+              : unpriced > 0
+                ? `Oldest ${formatDateGB(oldestWaiting as string)} · ${unpriced} ${unpriced === 1 ? "needs" : "need"} a rate`
+                : `Oldest ${formatDateGB(oldestWaiting as string)}`
           }
           href={`/calendar?month=${
             oldestWaiting ? monthKeyOf(oldestWaiting) : thisMonth
@@ -204,10 +208,11 @@ export default async function DashboardPage() {
       </div>
 
       <p className="mt-8 text-xs text-muted">
-        Waiting to invoice counts jobs that have been weighed, have a rate on
-        the client record, and are not already on an invoice. Raise them a week
-        at a time from the button on the end of a calendar week. Revenue,
-        profit and margin now live under{" "}
+        Waiting to invoice counts every job that has been weighed and is not
+        already on an invoice. Raise them a week at a time from the button on
+        the end of a calendar week. A job flagged as needing a rate has been
+        weighed but has no matching rate on the client record, so there is
+        nothing to charge for it yet. Revenue, profit and margin live under{" "}
         <Link href="/finance" className="text-accent hover:underline">
           Finance
         </Link>

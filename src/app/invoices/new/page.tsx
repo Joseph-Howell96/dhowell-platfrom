@@ -7,7 +7,7 @@ import { todayISO } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
 import { invoicedJobIds, readInvoices } from "@/lib/invoices";
 import { readJobs } from "@/lib/jobs";
-import { isBillable } from "@/lib/invoicing";
+import { isReadyToInvoice } from "@/lib/invoicing";
 import { haulageChargeFor, priceJob } from "@/lib/pricing";
 import RaiseInvoiceForm, { type BillableJob } from "./raise-invoice-form";
 
@@ -30,15 +30,12 @@ export default async function NewInvoicePage() {
   const billed = invoicedJobIds(invoices);
 
   // A job can be billed once it has been weighed, if we are charging for it
-  // and it is not already on an invoice.
+  // and it is not already on an invoice. A charge job bills its material; a
+  // rebate job only bills the haulage on it, so it belongs here too once
+  // haulage is being charged.
   const billable: BillableJob[] = jobs
-    .filter(
-      (job) =>
-        job.status !== "booked" &&
-        !billed.has(job.id) &&
-        // A charge job bills its material; a rebate job only bills the haulage
-        // on it, so it belongs here too once haulage is being charged.
-        isBillable(job, clientsById.get(job.customerId)),
+    .filter((job) =>
+      isReadyToInvoice(job, clientsById.get(job.customerId), billed),
     )
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((job) => ({

@@ -83,7 +83,7 @@ export default function BillingsChart({ months }: { months: MonthTotals[] }) {
 
       {everythingEmpty ? (
         <p className="py-20 text-center text-sm text-muted">
-          No completed jobs in this year yet.
+          No weighed jobs in this year yet.
         </p>
       ) : (
         <svg

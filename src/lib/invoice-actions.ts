@@ -18,7 +18,7 @@ import {
   readInvoices,
   updateInvoice,
 } from "./invoices";
-import { isBillable } from "./invoicing";
+import { isReadyToInvoice } from "./invoicing";
 import { readJobs } from "./jobs";
 import { readSettings } from "./settings";
 import { INVOICE_STATUSES, type InvoiceStatus } from "./types";
@@ -55,14 +55,13 @@ export async function createInvoice(
   const chosen = formData.getAll("jobId").map(String);
   const [jobs, invoices] = await Promise.all([readJobs(), readInvoices()]);
   const alreadyBilled = invoicedJobIds(invoices);
+  const client = customers.find((c) => c.id === customerId);
   const billable = new Set(
     jobs
       .filter(
         (job) =>
           job.customerId === customerId &&
-          job.status !== "booked" &&
-          !alreadyBilled.has(job.id) &&
-          isBillable(job, customers.find((c) => c.id === customerId)),
+          isReadyToInvoice(job, client, alreadyBilled),
       )
       .map((job) => job.id),
   );
@@ -170,9 +169,7 @@ export async function generateWeekInvoices(weekStartISO: string): Promise<void> 
     (job) =>
       job.date >= weekStartISO &&
       job.date <= weekEnd &&
-      job.status !== "booked" &&
-      !alreadyBilled.has(job.id) &&
-      isBillable(job, clientsById.get(job.customerId)),
+      isReadyToInvoice(job, clientsById.get(job.customerId), alreadyBilled),
   );
   if (thisWeek.length === 0) return;
 

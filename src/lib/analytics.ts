@@ -169,8 +169,14 @@ export function marginPercent(totals: Totals): number | null {
   return (totals.profitPence / totals.revenueOfProfitableJobs) * 100;
 }
 
-/** A job counts as done once it has been weighed; before that it is scheduled. */
-export function isCompleted(job: Job): boolean {
+/**
+ * Has this job been done?
+ *
+ * Weighed is what "done" means: the load is off site and the weighbridge
+ * ticket is in, so there is a figure to put against it. Before that it is
+ * still in the diary and counts as scheduled.
+ */
+export function isWeighed(job: Job): boolean {
   return isWeighedOrLater(job.status);
 }
 

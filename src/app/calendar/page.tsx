@@ -14,7 +14,7 @@ import {
 } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
 import { invoicedJobIds, readInvoices } from "@/lib/invoices";
-import { isBillable } from "@/lib/invoicing";
+import { isAwaitingInvoice, isBillable } from "@/lib/invoicing";
 import { readJobs } from "@/lib/jobs";
 import {
   jobStanding,
@@ -70,24 +70,31 @@ export default async function CalendarPage({
     weeks.push(cells.slice(start, start + 7));
   }
 
-  // What each week has waiting to be billed: done, priced, and not already on
-  // an invoice. Counted here so the button can say so before it is pressed.
+  // What each week has waiting to be billed: weighed and not already on an
+  // invoice. Counted here so the button can say so before it is pressed.
+  //
+  // A weighed job whose material has no matching rate on the client record is
+  // counted separately rather than quietly left out. It cannot go on an
+  // invoice - there would be nothing to charge - but it should not vanish
+  // either, or a job sits there unbilled with nothing to say why.
   const clientsById = new Map(customers.map((c) => [c.id, c]));
   const alreadyBilled = invoicedJobIds(invoices);
   const waitingByWeek = weeks.map((week) => {
     const first = week[0].iso;
     const last = week[week.length - 1].iso;
-    const ready = jobs.filter(
+    const waiting = jobs.filter(
       (job) =>
         job.date >= first &&
         job.date <= last &&
-        job.status !== "booked" &&
-        !alreadyBilled.has(job.id) &&
-        isBillable(job, clientsById.get(job.customerId)),
+        isAwaitingInvoice(job, alreadyBilled),
+    );
+    const ready = waiting.filter((job) =>
+      isBillable(job, clientsById.get(job.customerId)),
     );
     return {
       weekStart: first,
       waiting: ready.length,
+      unpriced: waiting.length - ready.length,
       clients: new Set(ready.map((job) => job.customerId)).size,
     };
   });
@@ -232,6 +239,7 @@ export default async function CalendarPage({
                 <GenerateWeekButton
                   weekStart={waitingByWeek[weekIndex].weekStart}
                   waiting={waitingByWeek[weekIndex].waiting}
+                  unpriced={waitingByWeek[weekIndex].unpriced}
                   clients={waitingByWeek[weekIndex].clients}
                 />
               </div>,
