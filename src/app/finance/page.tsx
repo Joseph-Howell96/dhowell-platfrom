@@ -4,7 +4,7 @@ import { connection } from "next/server";
 
 import MarkPaidButton from "./mark-paid-button";
 import MoneyChart, { type MonthMoney } from "./money-chart";
-import InvoiceSearch from "@/components/invoice-search";
+import SearchForm from "@/components/search-form";
 import PageHeader from "@/components/page-header";
 import { requireSession } from "@/lib/guard";
 import { isWeighed, totalsFor } from "@/lib/analytics";
@@ -428,7 +428,13 @@ export default async function FinancePage({
       </p>
 
       <div className="mb-6">
-        <InvoiceSearch value={term} />
+        <SearchForm
+          action="/finance"
+          name="find"
+          label="Find an invoice"
+          placeholder="Client name or invoice number"
+          value={term}
+        />
       </div>
 
       {/* items-start so a long column does not stretch the short ones. */}

@@ -4,7 +4,7 @@ import { connection } from "next/server";
 
 import { requireSession } from "@/lib/guard";
 
-import InvoiceSearch from "@/components/invoice-search";
+import SearchForm from "@/components/search-form";
 import PageHeader from "@/components/page-header";
 import { monthKeyOf, todayISO, weekStartOf } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
@@ -166,8 +166,17 @@ export default async function DashboardPage() {
       <PageHeader
         title="Dashboard"
         description={`What needs doing today. ${formatDateGB(today)}.`}
-        // Searching from here lands on Finance with the answer already up.
-        action={<InvoiceSearch compact />}
+        // Searching from here looks at everything - clients, jobs and
+        // invoices - not just the money.
+        action={
+          <SearchForm
+            action="/search"
+            name="q"
+            label="Search for anything"
+            placeholder="Client, job, invoice"
+            compact
+          />
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">

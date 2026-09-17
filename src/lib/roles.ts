@@ -21,8 +21,15 @@ export const ROLE_HINTS: Record<Role, string> = {
   standard: "Clients and the calendar only",
 };
 
-/** The sections a standard user can open. Admin is not on a list; it is all. */
-const STANDARD_SECTIONS = ["/clients", "/calendar"];
+/**
+ * The sections a standard user can open. Admin is not on a list; it is all.
+ *
+ * Search is on here because everyone can search. What comes back is a
+ * different matter: the search page leaves out anything the role could not
+ * open, so a standard user searching a client's name is not shown their
+ * invoices.
+ */
+const STANDARD_SECTIONS = ["/clients", "/calendar", "/search"];
 
 /**
  * Is this role allowed on this address?
