@@ -43,13 +43,16 @@ export default function InvoiceActions({
           {LABELS[option]}
         </button>
       ))}
-      <button
-        type="button"
-        onClick={() => window.print()}
+      {/* A plain link to the PDF: asking for it builds the file, files a copy
+          and opens it, so an invoice cannot go out unrecorded. */}
+      <a
+        href={`/invoices/${invoiceId}/pdf`}
+        target="_blank"
+        rel="noreferrer"
         className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover"
       >
-        Print / PDF
-      </button>
+        PDF
+      </a>
     </div>
   );
 }

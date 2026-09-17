@@ -5,6 +5,7 @@
  * client's rates when the invoice is opened.
  */
 import { findRateLine, HAULAGE, haulageChargeFor, priceJob } from "./pricing";
+import { formatPence } from "./money";
 import { materialCode, type Customer, type Job } from "./types";
 
 export type InvoiceLine = {
@@ -14,13 +15,29 @@ export type InvoiceLine = {
   /** The stock code, from the material. */
   sku: string;
   description: string;
-  /** Tonnes on a per-tonne rate, otherwise one lift or one job. */
+  /** Tonnes on a material line, one collection on a haulage line. */
   quantity: number;
+  /** The quantity as it reads on the document, e.g. "3.00 t". */
+  quantityLabel: string;
   /** What a single one of those costs, in pence. */
   unitPricePence: number;
+  /** The unit price as it reads, e.g. "£42.00 per tonne". */
+  unitPriceLabel: string;
   /** quantity times unit price, in pence. */
   amountPence: number;
 };
+
+/**
+ * How a skip size reads on an invoice.
+ *
+ * A plain size gets the word skip after it, so "40 yard" reads "40 yard skip".
+ * Anything already naming what it is - a RoRo, a grab lorry - is left alone.
+ */
+export function describeSkipSize(skipSize: string): string {
+  const size = skipSize.trim();
+  if (size === "") return "";
+  return /^\d+\s*(yard|yd)s?$/i.test(size) ? `${size} skip` : size;
+}
 
 export type InvoiceTotals = {
   netPence: number;
@@ -39,12 +56,14 @@ export function lineForJob(
   const rate = findRateLine(customer, job);
 
   // The material is always billed by weight, so the quantity is the tonnage
-  // and the unit price is the rate per tonne.
+  // and the unit price is the rate per tonne. Both are spelled out, because an
+  // invoice that only shows a total invites a phone call.
   const quantity = job.weightKg !== null ? job.weightKg / 1000 : 1;
   const unitPricePence = rate?.ratePerTonnePence ?? price.pence;
 
   const parts = [job.material];
-  if (job.skipSize) parts.push(job.skipSize);
+  const size = describeSkipSize(job.skipSize);
+  if (size) parts.push(size);
 
   return {
     jobId: job.id,
@@ -52,7 +71,9 @@ export function lineForJob(
     sku: materialCode(job.material),
     description: parts.join(", "),
     quantity,
+    quantityLabel: `${quantity.toFixed(2)} t`,
     unitPricePence,
+    unitPriceLabel: `${formatPence(unitPricePence)} per tonne`,
     // Taken from the priced job rather than multiplied again here, so the
     // invoice can never disagree with the rest of the app by a penny.
     amountPence: price.pence,
@@ -68,15 +89,19 @@ export function haulageLineForJob(
   if (!price) return null;
 
   const parts = [HAULAGE];
-  if (job.skipSize) parts.push(job.skipSize);
+  const size = describeSkipSize(job.skipSize);
+  if (size) parts.push(size);
 
   return {
     jobId: job.id,
     key: `${job.id}-haulage`,
     sku: materialCode(HAULAGE),
     description: parts.join(", "),
+    // Haulage is one flat charge for the lorry, not a rate against the load.
     quantity: 1,
+    quantityLabel: "1",
     unitPricePence: price.pence,
+    unitPriceLabel: formatPence(price.pence),
     amountPence: price.pence,
   };
 }

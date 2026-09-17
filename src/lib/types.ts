@@ -445,5 +445,11 @@ export type Invoice = {
   jobIds: string[];
   status: InvoiceStatus;
   paidDate: string | null;
+  /**
+   * When the PDF was last written out, as an ISO timestamp. Null until one has
+   * been. Once an invoice is sent the saved file is kept and served as it was,
+   * so what the client received is what stays on record.
+   */
+  pdfSavedAt: string | null;
   createdAt: string;
 };

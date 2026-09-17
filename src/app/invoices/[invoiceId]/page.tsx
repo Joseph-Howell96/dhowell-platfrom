@@ -157,12 +157,10 @@ export default async function InvoicePage({
                   <td className="py-2.5 align-top">{line.sku}</td>
                   <td className="py-2.5 align-top">{line.description}</td>
                   <td className="py-2.5 text-right align-top tabular-nums">
-                    {line.quantity % 1 === 0
-                      ? line.quantity
-                      : line.quantity.toFixed(2)}
+                    {line.quantityLabel}
                   </td>
-                  <td className="py-2.5 text-right align-top tabular-nums">
-                    {formatPence(line.unitPricePence)}
+                  <td className="py-2.5 text-right align-top whitespace-nowrap">
+                    {line.unitPriceLabel}
                   </td>
                   <td className="py-2.5 text-right align-top tabular-nums">
                     {formatPence(line.amountPence)}

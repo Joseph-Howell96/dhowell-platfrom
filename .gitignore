@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Generated invoice PDFs. Made from the records, and full of client details.
+/data/invoices/

@@ -6,6 +6,8 @@ import PageHeader from "@/components/page-header";
 import { todayISO } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
 import { addCalendarDays, daysBetween, formatDateGB } from "@/lib/dates";
+import { readInvoices } from "@/lib/invoices";
+import { formatInvoiceNumber, linesForJobs, totalsForLines } from "@/lib/invoicing";
 import { readJobs } from "@/lib/jobs";
 import { formatPence } from "@/lib/money";
 import { priceJob, type JobPrice } from "@/lib/pricing";
@@ -166,10 +168,11 @@ export default async function FinancePage() {
   await connection();
 
   const today = todayISO();
-  const [jobs, customers, settings] = await Promise.all([
+  const [jobs, customers, settings, invoices] = await Promise.all([
     readJobs(),
     readCustomers(),
     readSettings(),
+    readInvoices(),
   ]);
   const clientsById = new Map(customers.map((c) => [c.id, c]));
 
@@ -225,6 +228,37 @@ export default async function FinancePage() {
     .sort(soonestFirst);
 
   const outstandingOut = weOwe.filter((row) => !row.settled);
+
+  /**
+   * Every invoice that has had a PDF written out, gathered under the client it
+   * went to, so a client's paperwork is in one place rather than scattered
+   * down a list by date.
+   */
+  const filed = new Map<
+    string,
+    { reference: string; invoice: (typeof invoices)[number]; grossPence: number }[]
+  >();
+  for (const invoice of invoices) {
+    if (!invoice.pdfSavedAt) continue;
+    const client = clientsById.get(invoice.customerId);
+    const name = client?.businessName ?? "Unknown client";
+    const billed = invoice.jobIds
+      .map((id) => jobs.find((job) => job.id === id))
+      .filter((job) => job !== undefined);
+    const totals = totalsForLines(
+      linesForJobs(billed, client),
+      settings.vatPercent,
+    );
+    const rows = filed.get(name) ?? [];
+    rows.push({
+      reference: formatInvoiceNumber(settings.invoiceNumberPrefix, invoice.number),
+      invoice,
+      grossPence: totals.grossPence,
+    });
+    filed.set(name, rows);
+  }
+  const filedByClient = [...filed.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const filedCount = filedByClient.reduce((n, [, rows]) => n + rows.length, 0);
   const overdueIn = owedToUs.filter((row) => row.daysRemaining < 0).length;
   const overdueOut = outstandingOut.filter((row) => row.daysRemaining < 0).length;
 
@@ -283,6 +317,74 @@ export default async function FinancePage() {
           emptyTitle="No purchase orders yet"
           emptyBody="Move a purchase to “PO raised” on the calendar and it will show up here."
         />
+      </section>
+
+      <section className="mt-10">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-lg font-semibold">Invoice documents</h2>
+          <p className="text-sm text-muted">
+            {filedCount === 0
+              ? "None saved yet"
+              : `${filedCount} saved, across ${filedByClient.length} ${
+                  filedByClient.length === 1 ? "client" : "clients"
+                }`}
+          </p>
+        </div>
+
+        {filedByClient.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-line bg-surface px-6 py-14 text-center">
+            <p className="font-medium">Nothing filed yet</p>
+            <p className="mx-auto mt-1 max-w-md text-sm text-muted">
+              Opening an invoice&rsquo;s PDF saves a copy. They are gathered
+              here under the client they went to.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filedByClient.map(([name, rows]) => (
+              <div
+                key={name}
+                className="overflow-hidden rounded-xl border border-line bg-surface"
+              >
+                <h3 className="border-b border-line bg-elevated px-4 py-2.5 text-sm font-semibold">
+                  {name}
+                  <span className="ml-2 font-normal text-muted">
+                    {rows.length} {rows.length === 1 ? "invoice" : "invoices"}
+                  </span>
+                </h3>
+                <ul className="divide-y divide-line">
+                  {rows.map((row) => (
+                    <li
+                      key={row.invoice.id}
+                      className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm"
+                    >
+                      <a
+                        href={`/invoices/${row.invoice.id}/pdf`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-28 shrink-0 font-medium tabular-nums text-accent hover:underline"
+                      >
+                        {row.reference}
+                      </a>
+                      <span className="w-24 shrink-0 text-muted">
+                        {formatDateGB(row.invoice.issueDate)}
+                      </span>
+                      <span className="flex-1 tabular-nums">
+                        {formatPence(row.grossPence)}
+                      </span>
+                      <Link
+                        href={`/invoices/${row.invoice.id}`}
+                        className="shrink-0 text-muted transition-colors hover:text-ink"
+                      >
+                        Open
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <p className="mt-8 text-xs text-muted">

@@ -92,6 +92,7 @@ export async function createInvoice(
       jobIds,
       status: "draft",
       paidDate: null,
+      pdfSavedAt: null,
     });
   } catch (error) {
     console.error("Could not raise the invoice", error);

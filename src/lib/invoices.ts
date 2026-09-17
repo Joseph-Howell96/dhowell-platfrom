@@ -52,6 +52,7 @@ function toInvoice(raw: unknown): Invoice | null {
       typeof record.paidDate === "string" && isValidISODate(record.paidDate)
         ? record.paidDate
         : null,
+    pdfSavedAt: typeof record.pdfSavedAt === "string" ? record.pdfSavedAt : null,
     createdAt: text("createdAt") || new Date().toISOString(),
   };
 }

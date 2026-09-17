@@ -83,24 +83,3 @@ body {
   color: var(--ink);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
-
-/**
- * Printing.
- *
- * Only the invoice is ever printed. The sidebar and the buttons around it are
- * marked print:hidden where they sit; this strips the dark background so the
- * page does not come out as a sheet of black ink, and trims the margins.
- */
-@media print {
-  html,
-  body {
-    background: #ffffff;
-    color: #000000;
-  }
-  aside {
-    display: none !important;
-  }
-  @page {
-    margin: 14mm;
-  }
-}

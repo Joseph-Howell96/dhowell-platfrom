@@ -35,7 +35,8 @@ All six sidebar sections do something.
 | `/finance` | Money in and money out, with due dates and anything overdue in red. |
 | `/invoices` | Every invoice raised, with what is outstanding and overdue. |
 | `/invoices/new` | Raise an invoice covering a week's jobs for one client. |
-| `/invoices/[id]` | The invoice itself, laid out to print. |
+| `/invoices/[id]` | The invoice itself. |
+| `/invoices/[id]/pdf` | Builds the PDF, files a copy, and opens it. |
 | `/settings` | The company's own details, as they belong on an invoice. |
 
 Clients are saved to `data/clients.json` and jobs to `data/jobs.json`, plain
@@ -104,6 +105,16 @@ path, so a job three steps along stays three steps along.
   correcting a weight or a rate corrects the invoice. The invoice number is the
   one thing fixed for good. Marking an invoice sent moves every job on it to
   "invoice sent", and a job already on an invoice cannot be billed again.
+- **Invoice lines spell out the tonnage**: the quantity reads "6.75 t" and the
+  unit price "£110.00 per tonne", so a client can check the sum rather than
+  ringing up about it. A plain skip size reads "40 yard skip"; anything already
+  naming itself, like a RoRo or a grab lorry, is left as typed.
+- **Opening an invoice's PDF files a copy of it**, under `data/invoices`. There
+  is no way to send one without a copy being kept. Finance lists them grouped
+  by client, so a client's paperwork is in one place. A draft is rebuilt each
+  time it is opened, since it is still changing; once an invoice is sent the
+  saved file is served untouched, so what the client received stays on record
+  even if a rate is corrected later.
 - **VAT is charged on the whole invoice** at the rate set under Settings,
   rounded to the penny once on the total rather than line by line.
 - **Our invoices fall due a set number of calendar days after the invoice
@@ -147,6 +158,7 @@ path, so a job three steps along stays three steps along.
 | `data/outlets.json` | The outlets and their material income. Back this up. |
 | `data/settings.json` | The company's own details, VAT rate and payment terms. |
 | `data/invoices.json` | The invoices raised. Back this up. |
+| `data/invoices/` | The generated PDFs. Not kept in git; made from the records. |
 | `public/` | Images and files served as-is (e.g. `/logo.png`). |
 | `package.json` | Project settings and the list of commands below. |
 
