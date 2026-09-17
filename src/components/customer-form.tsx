@@ -31,7 +31,7 @@ const inputClass =
 const labelClass = "mb-1.5 block text-sm font-medium";
 const errorClass = "mt-1 text-sm text-danger";
 /** Each group of fields sits on its own card, as on the clients list. */
-const cardClass = "space-y-4 rounded-xl border border-line bg-surface p-6";
+const cardClass = "space-y-4 glass-solid rounded-xl p-6";
 
 /** Everything about the customer apart from their rates. */
 type Details = {

@@ -40,6 +40,26 @@
   --series-revenue: #3987e5;
   --series-profit: #d95926;
   --grid: #2b3130; /* hairlines on the chart, one step off the surface */
+
+  /* Glass. Cards are a translucent fill with the background blurred behind
+     them, edged in a faint green-tinted line. Only the FILL is see-through -
+     text keeps its own colour at full strength everywhere, which is why the
+     ink and muted values above are untouched. */
+  --glass: rgba(44, 56, 52, 0.42); /* ordinary cards */
+  --glass-deep: rgba(52, 68, 62, 0.34); /* the dashboard, where it goes furthest */
+  --glass-solid: rgba(22, 28, 26, 0.88); /* tables and forms, kept near-opaque */
+  --glass-line: rgba(120, 230, 165, 0.22); /* the edge, green by a hair */
+  --glass-line-lit: rgba(74, 222, 128, 0.6); /* the same edge under the cursor */
+  --glass-top: rgba(255, 255, 255, 0.09); /* the highlight along the top edge */
+  --glow: rgba(34, 197, 94, 0.22);
+  --glow-lit: rgba(34, 197, 94, 0.38);
+  /* The sheen that makes a pane read as glass rather than a see-through box. */
+  --glass-sheen: linear-gradient(
+    152deg,
+    rgba(255, 255, 255, 0.07) 0%,
+    rgba(255, 255, 255, 0.02) 34%,
+    rgba(255, 255, 255, 0) 62%
+  );
 }
 
 @theme inline {
@@ -81,7 +101,228 @@ html {
 }
 
 body {
-  background: var(--canvas);
+  /* Transparent on purpose. The gradient below is a child of the body, sitting
+     behind the content, and a background on the body itself would paint over
+     it. The dark base colour lives on the html element instead. */
+  background: transparent;
   color: var(--ink);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/**
+ * The gradient behind everything.
+ *
+ * Fixed rather than scrolling, so the glass has the same thing behind it
+ * wherever you are on a long page, and behind the content rather than over it
+ * so nothing has to be made see-through to let it show. It takes no clicks.
+ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      1200px 760px at 8% -14%,
+      rgba(34, 197, 94, 0.26),
+      transparent 60%
+    ),
+    radial-gradient(
+      1000px 680px at 96% -6%,
+      rgba(56, 132, 229, 0.2),
+      transparent 58%
+    ),
+    radial-gradient(
+      900px 900px at 62% 108%,
+      rgba(34, 197, 94, 0.14),
+      transparent 60%
+    ),
+    radial-gradient(
+      700px 500px at 24% 62%,
+      rgba(120, 90, 230, 0.1),
+      transparent 62%
+    ),
+    linear-gradient(165deg, #0a1512 0%, #0c1211 38%, #080c0b 72%, #0a100e 100%);
+}
+
+/**
+ * A glass panel: translucent fill, the background blurred behind it, a faint
+ * lit edge and a soft glow sitting under it.
+ *
+ * The inset highlight along the top is what makes it read as a pane of glass
+ * rather than a flat see-through box. Rounding is left to whatever the element
+ * already carries.
+ */
+.glass {
+  background: var(--glass);
+  background-image: var(--glass-sheen);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  border: 1px solid var(--glass-line);
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    0 0 0 1px rgba(0, 0, 0, 0.18),
+    0 10px 34px -18px rgba(0, 0, 0, 0.8),
+    0 0 24px -12px var(--glow);
+}
+
+/** The dashboard's version: thinner fill, more blur, a wider glow. */
+.glass-deep {
+  background: var(--glass-deep);
+  background-image: var(--glass-sheen);
+  backdrop-filter: blur(26px) saturate(150%);
+  -webkit-backdrop-filter: blur(26px) saturate(150%);
+  border: 1px solid var(--glass-line);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 0 0 1px rgba(0, 0, 0, 0.18),
+    0 16px 44px -22px rgba(0, 0, 0, 0.85),
+    0 0 34px -10px var(--glow);
+}
+
+/**
+ * The version for anything you have to read closely or type into: tables,
+ * forms, lists of figures. Nearly opaque on purpose. A column of numbers over
+ * a moving background is the one place glass stops being decoration and starts
+ * being a nuisance.
+ */
+.glass-solid {
+  background: var(--glass-solid);
+  backdrop-filter: blur(20px) saturate(120%);
+  -webkit-backdrop-filter: blur(20px) saturate(120%);
+  border: 1px solid var(--glass-line);
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    0 10px 34px -18px rgba(0, 0, 0, 0.8);
+}
+
+/**
+ * The dashed variant, for a panel saying there is nothing here yet.
+ *
+ * Its own class rather than glass plus a Tailwind border utility: these rules
+ * sit outside Tailwind's layer, so the border shorthand above would win over
+ * one and quietly turn it solid again.
+ */
+.glass-dashed {
+  background: var(--glass);
+  background-image: var(--glass-sheen);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  border: 1px dashed var(--glass-line);
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    0 10px 34px -18px rgba(0, 0, 0, 0.8);
+}
+
+/** The navigation rail: glass, edged on the right only. */
+.glass-rail {
+  background: var(--glass);
+  background-image: var(--glass-sheen);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  border-right: 1px solid var(--glass-line);
+  box-shadow: 1px 0 30px -18px rgba(0, 0, 0, 0.9);
+}
+
+/** Lights the edge under the cursor. The only movement in the whole theme. */
+.glass-hover {
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.glass-hover:hover {
+  border-color: var(--glass-line-lit);
+  box-shadow:
+    inset 0 1px 0 var(--glass-top),
+    0 0 0 1px rgba(0, 0, 0, 0.18),
+    0 10px 34px -18px rgba(0, 0, 0, 0.8),
+    0 0 30px -8px var(--glow-lit);
+}
+
+/**
+ * A number lit from behind.
+ *
+ * A shadow only - the letters keep their own colour at full strength, so this
+ * adds light rather than taking contrast away.
+ */
+.neon {
+  text-shadow:
+    0 0 18px rgba(34, 197, 94, 0.55),
+    0 0 44px rgba(34, 197, 94, 0.25);
+}
+
+/** The same, in red, for a figure that means something is wrong. */
+.neon-danger {
+  text-shadow:
+    0 0 18px rgba(248, 113, 113, 0.5),
+    0 0 44px rgba(248, 113, 113, 0.22);
+}
+
+/** A green edge, for the tile that is worth looking at. */
+.ring-neon {
+  border-color: rgba(34, 197, 94, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 16px 44px -22px rgba(0, 0, 0, 0.85),
+    0 0 36px -8px rgba(34, 197, 94, 0.35);
+}
+
+/** The same in red, for the overdue tile. */
+.ring-danger {
+  border-color: rgba(248, 113, 113, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 16px 44px -22px rgba(0, 0, 0, 0.85),
+    0 0 36px -8px rgba(248, 113, 113, 0.32);
+}
+
+/**
+ * The month grid.
+ *
+ * Its hairlines are drawn by a one-pixel gap letting the grid's own background
+ * through, so the cells need a fill of their own or the lines disappear. Both
+ * fills are translucent, which keeps the gradient faintly visible through the
+ * whole grid while a day full of jobs stays perfectly readable.
+ */
+.cal-grid {
+  background: rgba(120, 230, 165, 0.12);
+}
+
+.cal-head {
+  background: rgba(38, 47, 43, 0.82);
+}
+
+.cal-cell {
+  background: rgba(28, 35, 32, 0.74);
+}
+
+/* The days either side of the month, sunk a shade to read as not-this-month. */
+.cal-cell-out {
+  background: rgba(12, 16, 15, 0.6);
+}
+
+/* Paper has no gradient behind it and no glass on it. */
+@media print {
+  body::before {
+    display: none;
+  }
+
+  .glass,
+  .glass-deep,
+  .glass-solid,
+  .glass-dashed,
+  .glass-rail {
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .neon,
+  .neon-danger {
+    text-shadow: none;
+  }
 }

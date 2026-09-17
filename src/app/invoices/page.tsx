@@ -83,7 +83,7 @@ export default async function InvoicesPage() {
       />
 
       {rows.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-line bg-surface px-6 py-20 text-center">
+        <div className="glass-dashed rounded-xl px-6 py-20 text-center">
           <p className="font-medium">No invoices yet</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-muted">
             Raise one to bill a week&rsquo;s jobs for a client. A job can be

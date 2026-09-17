@@ -31,7 +31,7 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="sticky top-0 flex h-screen w-16 shrink-0 flex-col border-r border-line bg-surface lg:w-60">
+    <aside className="glass-rail sticky top-0 flex h-screen w-16 shrink-0 flex-col lg:w-60">
       <div className="flex h-16 items-center gap-3 border-b border-line px-3 lg:px-5">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent text-base font-bold text-canvas">
           D

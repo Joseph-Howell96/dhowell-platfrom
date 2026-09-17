@@ -48,7 +48,7 @@ const inputClass =
   "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
 const labelClass = "mb-1.5 block text-sm font-medium";
 const errorClass = "mt-1 text-sm text-danger";
-const cardClass = "space-y-4 rounded-xl border border-line bg-surface p-6";
+const cardClass = "space-y-4 glass-solid rounded-xl p-6";
 
 /**
  * The invoice a job has been billed on, where it has been.

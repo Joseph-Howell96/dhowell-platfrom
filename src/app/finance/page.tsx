@@ -43,7 +43,7 @@ function Card({
   note?: string;
 }) {
   return (
-    <div className="rounded-xl border border-line bg-surface p-5">
+    <div className="glass rounded-xl p-5">
       <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
       <p className="mt-2 text-2xl font-semibold tabular-nums">{value}</p>
       {note ? <p className="mt-1 text-xs text-muted">{note}</p> : null}
@@ -245,7 +245,7 @@ export default async function FinancePage({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">
-        <section className="rounded-xl border border-line bg-surface p-6 lg:col-span-3">
+        <section className="glass rounded-xl p-6 lg:col-span-3">
           <h2 className="mb-1 text-base font-semibold">Monthly billings</h2>
           <p className="mb-4 text-sm text-muted">
             Weighed jobs in {year}, by the month the job was done.
@@ -253,7 +253,7 @@ export default async function FinancePage({
           <BillingsChart months={months} />
         </section>
 
-        <section className="rounded-xl border border-line bg-surface p-6 lg:col-span-2">
+        <section className="glass rounded-xl p-6 lg:col-span-2">
           <h2 className="mb-1 text-base font-semibold">By material</h2>
           <p className="mb-4 text-sm text-muted">
             Where the money came from in {year}.
@@ -343,7 +343,7 @@ export default async function FinancePage({
         </div>
 
         {filedByClient.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-line bg-surface px-6 py-14 text-center">
+          <div className="glass-dashed rounded-xl px-6 py-14 text-center">
             <p className="font-medium">No invoices yet</p>
             <p className="mx-auto mt-1 max-w-md text-sm text-muted">
               Raise one from the calendar and it appears here under the client
@@ -355,7 +355,7 @@ export default async function FinancePage({
             {filedByClient.map(([name, rows]) => (
               <div
                 key={name}
-                className="overflow-hidden rounded-xl border border-line bg-surface"
+                className="overflow-hidden glass rounded-xl"
               >
                 <h3 className="border-b border-line bg-elevated px-4 py-2.5 text-sm font-semibold">
                   {name}
@@ -432,7 +432,7 @@ export default async function FinancePage({
             </p>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-dashed border-line bg-surface">
+          <div className="overflow-hidden glass-dashed rounded-xl">
             <ul className="divide-y divide-line">
               {deletedRows.map((row) => (
                 <li

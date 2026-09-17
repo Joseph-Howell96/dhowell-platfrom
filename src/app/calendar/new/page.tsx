@@ -47,7 +47,7 @@ export default async function NewJobPage({
       </div>
 
       {customers.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-line bg-surface px-6 py-16 text-center">
+        <div className="glass-dashed rounded-xl px-6 py-16 text-center">
           <p className="font-medium">No clients yet</p>
           <p className="mt-1 text-sm text-muted">
             A job is booked against a client, so add one first.

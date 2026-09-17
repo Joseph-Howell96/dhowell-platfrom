@@ -75,7 +75,7 @@ export default async function OutletsPage() {
       />
 
       {outlets.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-line bg-surface px-6 py-20 text-center">
+        <div className="glass-dashed rounded-xl px-6 py-20 text-center">
           <p className="font-medium">No outlets yet</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-muted">
             An outlet is a reprocessor we sell material to, such as Edwards.
@@ -87,7 +87,7 @@ export default async function OutletsPage() {
           {outlets.map((outlet) => (
             <li
               key={outlet.id}
-              className="rounded-xl border border-line bg-surface p-6"
+              className="glass rounded-xl p-6"
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h2 className="text-lg font-semibold">{outlet.name}</h2>

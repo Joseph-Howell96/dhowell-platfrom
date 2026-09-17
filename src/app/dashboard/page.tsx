@@ -23,6 +23,11 @@ export const metadata: Metadata = {
  *
  * The whole tile is the link rather than a separate "view" button: the number
  * is what you are reading, so the number is what you should be able to click.
+ *
+ * A figure that is not zero is lit from behind - green as a rule, red where it
+ * means money is late. The glow is a shadow only, so the digits keep their own
+ * colour at full strength and nothing is harder to read for it. A zero is left
+ * unlit: there is nothing there to draw the eye to.
  */
 function Tile({
   label,
@@ -40,20 +45,19 @@ function Tile({
   /** "alert" marks the one that means someone owes us money and is late. */
   tone?: "plain" | "alert";
 }) {
-  const alert = tone === "alert" && value !== "0";
+  const something = value !== "0";
+  const alert = tone === "alert" && something;
   return (
     <Link
       href={href}
-      className={`group flex flex-col rounded-xl border bg-surface p-5 transition-colors ${
-        alert
-          ? "border-danger/40 hover:border-danger"
-          : "border-line hover:border-accent"
+      className={`glass-deep glass-hover group flex flex-col rounded-xl p-5 ${
+        alert ? "ring-danger" : ""
       }`}
     >
       <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
       <p
         className={`mt-2 text-3xl font-semibold tabular-nums ${
-          alert ? "text-danger" : ""
+          alert ? "neon-danger text-danger" : something ? "neon text-accent" : ""
         }`}
       >
         {value}
@@ -61,9 +65,7 @@ function Tile({
       <p className="mt-1 text-sm text-muted">{note}</p>
       <p
         className={`mt-4 text-sm font-medium transition-colors ${
-          alert
-            ? "text-danger"
-            : "text-muted group-hover:text-accent"
+          alert ? "text-danger" : "text-muted group-hover:text-accent"
         }`}
       >
         {linkLabel} →

@@ -105,7 +105,7 @@ export default async function ClientsPage() {
       />
 
       {customers.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-line bg-surface px-6 py-20 text-center">
+        <div className="glass-dashed rounded-xl px-6 py-20 text-center">
           <p className="font-medium">No clients yet</p>
           <p className="mt-1 text-sm text-muted">
             Add your first one to get started.
@@ -116,7 +116,7 @@ export default async function ClientsPage() {
           {customers.map((customer) => (
             <li
               key={customer.id}
-              className="rounded-xl border border-line bg-surface p-6"
+              className="glass rounded-xl p-6"
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold">
@@ -172,7 +172,7 @@ export default async function ClientsPage() {
             Kept because their jobs and invoices still name them, but out of the
             way and not offered when booking.
           </p>
-          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
+          <ul className="divide-y divide-line overflow-hidden glass rounded-xl">
             {archived.map((customer) => (
               <li
                 key={customer.id}

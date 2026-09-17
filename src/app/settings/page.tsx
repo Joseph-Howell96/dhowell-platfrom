@@ -23,7 +23,7 @@ export default async function SettingsPage() {
       />
 
       {missing.length > 0 ? (
-        <p className="mb-6 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-muted">
+        <p className="mb-6 glass rounded-lg px-4 py-3 text-sm text-muted">
           Still to fill in before an invoice would look right:{" "}
           <span className="text-ink">{missing.join(", ")}</span>. Saving part of
           it now is fine.

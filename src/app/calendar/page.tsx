@@ -149,7 +149,7 @@ export default async function CalendarPage({
       </div>
 
       {customers.length === 0 ? (
-        <p className="mb-4 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-muted">
+        <p className="mb-4 glass rounded-lg px-4 py-3 text-sm text-muted">
           Jobs are booked against a client, and there are none yet.{" "}
           <Link href="/clients/new" className="text-accent hover:underline">
             Add a client first
@@ -159,22 +159,22 @@ export default async function CalendarPage({
       ) : null}
 
       <div className="overflow-x-auto">
-        <div className="min-w-[56rem]">
-          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_9rem] gap-px rounded-t-xl border border-line bg-line">
+        <div className="glass-solid min-w-[56rem] overflow-hidden rounded-xl">
+          <div className="cal-grid grid grid-cols-[repeat(7,minmax(0,1fr))_9rem] gap-px pb-px">
             {WEEKDAY_NAMES.map((name) => (
               <div
                 key={name}
-                className="bg-elevated px-2 py-2 text-center text-xs font-medium uppercase tracking-wide text-muted"
+                className="cal-head px-2 py-2 text-center text-xs font-medium uppercase tracking-wide text-muted"
               >
                 {name}
               </div>
             ))}
-            <div className="bg-elevated px-2 py-2 text-center text-xs font-medium uppercase tracking-wide text-muted">
+            <div className="cal-head px-2 py-2 text-center text-xs font-medium uppercase tracking-wide text-muted">
               Generate invoices
             </div>
           </div>
 
-          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_9rem] gap-px rounded-b-xl border border-t-0 border-line bg-line">
+          <div className="cal-grid grid grid-cols-[repeat(7,minmax(0,1fr))_9rem] gap-px">
             {weeks.flatMap((week, weekIndex) => [
               ...week.map((cell) => {
               const dayJobs = jobsByDate.get(cell.iso) ?? [];
@@ -184,7 +184,7 @@ export default async function CalendarPage({
                 <div
                   key={cell.iso}
                   className={`min-h-28 p-1.5 ${
-                    cell.inMonth ? "bg-surface" : "bg-canvas"
+                    cell.inMonth ? "cal-cell" : "cal-cell-out"
                   }`}
                 >
                   <Link
@@ -238,7 +238,7 @@ export default async function CalendarPage({
               }),
               // The end of the week: everything on these seven days that has
               // been checked off, turned into one invoice per client.
-              <div key={`bill-${week[0].iso}`} className="bg-surface">
+              <div key={`bill-${week[0].iso}`} className="cal-cell">
                 <GenerateWeekButton
                   weekStart={waitingByWeek[weekIndex].weekStart}
                   waiting={waitingByWeek[weekIndex].waiting}
