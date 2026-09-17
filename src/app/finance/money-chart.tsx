@@ -132,13 +132,13 @@ export default function MoneyChart({ months }: { months: MonthMoney[] }) {
 
         const bars = [
           {
-            name: "Came in",
+            name: "Revenue",
             pence: month.revenuePence,
             colour: "var(--series-revenue)",
             x: pairX,
           },
           {
-            name: "Made",
+            name: "Profit",
             pence: month.profitPence,
             colour: "var(--series-profit)",
             x: pairX + BAR + GAP,
@@ -165,7 +165,7 @@ export default function MoneyChart({ months }: { months: MonthMoney[] }) {
                       which collide the moment the two are a similar height;
                       every other figure is in the table underneath, which is
                       where numbers are easier to read anyway. */}
-                  {last && bar.name === "Came in" ? (
+                  {last && bar.name === "Revenue" ? (
                     <text
                       x={bar.x + BAR / 2}
                       y={

@@ -9,12 +9,13 @@ import { requireSession } from "@/lib/guard";
 import { isWeighed, totalsFor } from "@/lib/analytics";
 import { monthKeyOf, monthLabel, todayISO } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
-import { formatDateGB } from "@/lib/dates";
+import { daysBetween, formatDateGB } from "@/lib/dates";
 import { readDeletedInvoices, readInvoices } from "@/lib/invoices";
 import { formatInvoiceNumber, invoiceGrossPence } from "@/lib/invoicing";
 import { readJobs } from "@/lib/jobs";
 import { formatPence } from "@/lib/money";
 import { readSettings } from "@/lib/settings";
+import { invoiceDueDate } from "@/lib/terms";
 
 export const metadata: Metadata = {
   title: "Finance",
@@ -30,9 +31,22 @@ type Row = {
   reference: string;
   clientName: string;
   date: string;
+  /** When it falls due, which is what the list is ordered on. */
+  dueDate: string;
   grossPence: number;
   paid: boolean;
+  /** Not paid, and past its due date. */
+  overdue: boolean;
+  /** The plain-English line under the number: what is owed, or when it came. */
+  note: string;
 };
+
+/** Overdue, then not paid, then paid - and within each, soonest due first. */
+const ORDER = { overdue: 0, unpaid: 1, paid: 2 } as const;
+
+function rank(row: Row): number {
+  return ORDER[row.paid ? "paid" : row.overdue ? "overdue" : "unpaid"];
+}
 
 /** How many months of the chart to show, newest last. */
 const MONTHS_SHOWN = 12;
@@ -64,13 +78,17 @@ function Figure({
   label,
   value,
   note,
+  above,
 }: {
   label: string;
   value: string;
   note: string;
+  /** A small line sitting over the figure. */
+  above?: string;
 }) {
   return (
     <div className="glass rounded-xl p-6">
+      {above ? <p className="mb-2 text-xs text-muted">{above}</p> : null}
       <p className="text-base text-muted">{label}</p>
       <p className="mt-1 text-4xl font-semibold tabular-nums">{value}</p>
       <p className="mt-2 text-sm text-muted">{note}</p>
@@ -130,11 +148,12 @@ export default async function FinancePage() {
 
   // Only jobs that have been weighed. A job still in the diary has no figure
   // against it, and counting it would be counting money nobody has earned.
+  const today = todayISO();
   const done = jobs.filter(isWeighed);
-  const thisMonth = monthKeyOf(todayISO());
+  const thisMonth = monthKeyOf(today);
   const earliest = done.reduce(
     (oldest, job) => (job.date < oldest ? job.date : oldest),
-    done[0]?.date ?? todayISO(),
+    done[0]?.date ?? today,
   );
   const monthKeys = done.length === 0 ? [] : monthsUpTo(monthKeyOf(earliest), thisMonth);
 
@@ -167,26 +186,50 @@ export default async function FinancePage() {
         : `${monthLabel(monthKeys[0])} to ${monthLabel(monthKeys[monthKeys.length - 1])}`;
 
   const rows: Row[] = invoices
-    .map((invoice) => ({
-      id: invoice.id,
-      number: invoice.number,
-      reference: formatInvoiceNumber(
-        settings.invoiceNumberPrefix,
-        invoice.number,
-      ),
-      clientName: named(invoice.customerId),
-      date: invoice.issueDate,
-      grossPence: invoiceGrossPence(
-        invoice,
-        jobsById,
-        clientsById.get(invoice.customerId),
-        settings.vatPercent,
-      ),
-      paid: invoice.status === "paid",
-    }))
-    // Newest at the bottom, so the list reads like a ledger and the invoice
-    // just raised is the last thing on the page.
-    .sort((a, b) => a.date.localeCompare(b.date) || a.number - b.number);
+    .map((invoice) => {
+      const dueDate = invoiceDueDate(
+        invoice.issueDate,
+        settings.paymentTermsDays,
+      );
+      const paid = invoice.status === "paid";
+      const overdue = !paid && today > dueDate;
+      return {
+        id: invoice.id,
+        number: invoice.number,
+        reference: formatInvoiceNumber(
+          settings.invoiceNumberPrefix,
+          invoice.number,
+        ),
+        clientName: named(invoice.customerId),
+        date: invoice.issueDate,
+        dueDate,
+        grossPence: invoiceGrossPence(
+          invoice,
+          jobsById,
+          clientsById.get(invoice.customerId),
+          settings.vatPercent,
+        ),
+        paid,
+        overdue,
+        note: paid
+          ? invoice.paidDate
+            ? `paid ${formatDateGB(invoice.paidDate)}`
+            : "settled"
+          : overdue
+            ? `${Math.abs(daysBetween(today, dueDate))} days late`
+            : `due ${formatDateGB(dueDate)}`,
+      };
+    })
+    // The money to chase comes first: what is late, then what is closest to
+    // falling due, then what is already in. Inside each of those the soonest
+    // due date leads, so the invoice that has been waiting longest sits at the
+    // very top of the page.
+    .sort(
+      (a, b) =>
+        rank(a) - rank(b) ||
+        a.dueDate.localeCompare(b.dueDate) ||
+        a.number - b.number,
+    );
 
   const unpaid = rows.filter((row) => !row.paid);
   const owed = unpaid.reduce((sum, row) => sum + row.grossPence, 0);
@@ -207,12 +250,13 @@ export default async function FinancePage() {
         <section className="mb-12">
           <div className="grid gap-4 sm:grid-cols-2">
             <Figure
-              label="Money in"
+              label="Revenue"
               value={formatPence(overall.revenuePence)}
               note={`Across ${overall.jobs} ${overall.jobs === 1 ? "job" : "jobs"}, ${period}`}
             />
             <Figure
-              label="Money made"
+              above="always listen to Jojo"
+              label="Profit"
               value={
                 overall.jobsWithProfit === 0
                   ? "Not known yet"
@@ -222,7 +266,7 @@ export default async function FinancePage() {
                 overall.jobsWithProfit === 0
                   ? "No job has a tip charge recorded against it"
                   : uncosted === 0
-                    ? "What came in, less what the tip charged"
+                    ? "Revenue, less what the tip charged"
                     : `Leaves out ${uncosted} ${uncosted === 1 ? "job" : "jobs"} with no tip charge recorded`
               }
             />
@@ -238,14 +282,14 @@ export default async function FinancePage() {
                   aria-hidden
                   className="inline-block h-3.5 w-3.5 rounded-sm bg-series-revenue"
                 />
-                Money in
+                Revenue
               </span>
               <span className="flex items-center gap-2">
                 <span
                   aria-hidden
                   className="inline-block h-3.5 w-3.5 rounded-sm bg-series-profit"
                 />
-                Money made
+                Profit
               </span>
             </div>
 
@@ -259,8 +303,8 @@ export default async function FinancePage() {
               <thead>
                 <tr className="border-b border-line text-left text-muted">
                   <th className="pb-2 font-medium">Month</th>
-                  <th className="pb-2 text-right font-medium">Money in</th>
-                  <th className="pb-2 text-right font-medium">Money made</th>
+                  <th className="pb-2 text-right font-medium">Revenue</th>
+                  <th className="pb-2 text-right font-medium">Profit</th>
                 </tr>
               </thead>
               <tbody>
@@ -281,17 +325,21 @@ export default async function FinancePage() {
             </table>
 
             <p className="mt-4 text-sm text-muted">
-              Money in is what the client is charged: the material at their rate
-              for it, plus the haulage fee on every collection. Money made is
-              that less what the tip charged to take the load. A job with no tip
-              charge typed against it is left out of money made rather than
-              counted as costing nothing.
+              Revenue is what the client is charged: the material at their rate
+              for it, plus the haulage fee on every collection. Profit is that
+              less what the tip charged to take the load. A job with no tip
+              charge typed against it is left out of profit rather than counted
+              as costing nothing.
             </p>
           </div>
         </section>
       ) : null}
 
-      <h2 className="mb-2 text-lg font-semibold">Invoices</h2>
+      <h2 className="text-lg font-semibold">Invoices</h2>
+      <p className="mb-2 text-base text-muted">
+        Late first, then whatever falls due soonest, then the ones already
+        paid.
+      </p>
 
       {rows.length === 0 ? (
         <div className="glass-dashed rounded-xl px-6 py-16 text-center">
@@ -334,7 +382,7 @@ export default async function FinancePage() {
                       >
                         {row.reference}
                       </Link>{" "}
-                      · {formatDateGB(row.date)}
+                      · {formatDateGB(row.date)} · {row.note}
                     </p>
                   </div>
 
@@ -346,10 +394,12 @@ export default async function FinancePage() {
                       className={`whitespace-nowrap rounded-full px-3 py-1.5 text-base font-semibold ${
                         row.paid
                           ? "bg-sent-soft text-sent"
-                          : "bg-attention-soft text-attention"
+                          : row.overdue
+                            ? "bg-danger-soft text-danger"
+                            : "bg-attention-soft text-attention"
                       }`}
                     >
-                      {row.paid ? "Paid" : "Not paid"}
+                      {row.paid ? "Paid" : row.overdue ? "Overdue" : "Not paid"}
                     </p>
                   </div>
                 </div>
@@ -417,9 +467,6 @@ export default async function FinancePage() {
         </section>
       ) : null}
 
-      <p className="mt-16 text-right text-xs text-muted">
-        always listen to Jojo
-      </p>
     </main>
   );
 }
