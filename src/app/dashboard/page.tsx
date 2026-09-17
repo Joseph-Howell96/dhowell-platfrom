@@ -24,10 +24,13 @@ export const metadata: Metadata = {
  * The whole tile is the link rather than a separate "view" button: the number
  * is what you are reading, so the number is what you should be able to click.
  *
- * A figure that is not zero is lit from behind - green as a rule, red where it
- * means money is late. The glow is a shadow only, so the digits keep their own
- * colour at full strength and nothing is harder to read for it. A zero is left
- * unlit: there is nothing there to draw the eye to.
+ * A figure that is not zero is lit from behind. The glow is a shadow only, so
+ * the digits keep their own colour at full strength and nothing is harder to
+ * read for it. A zero is left unlit: there is nothing there to draw the eye to.
+ *
+ * The overdue tile is the paler red of a warning rather than the accent, and
+ * carries a ring the others do not, since the accent is now red as well and
+ * colour on its own no longer says "this one is a problem".
  */
 function Tile({
   label,
