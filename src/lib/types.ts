@@ -341,4 +341,77 @@ export type CompanySettings = {
   bankSortCode: string;
   /** How many days a client has to pay, counted from the invoice date. */
   paymentTermsDays: number;
+  /** VAT charged on an invoice, as a percentage. */
+  vatPercent: number;
+  /** What goes in front of an invoice number, e.g. "INV-". */
+  invoiceNumberPrefix: string;
+  /** Where numbering starts, so an existing series can be carried on. */
+  invoiceNumberStart: number;
+};
+
+/* ---------------------------------------------------------------------------
+ * Invoices
+ * ------------------------------------------------------------------------- */
+
+/** Short codes for the stock column, so a line reads like a product. */
+const MATERIAL_CODES: Record<string, string> = {
+  wood: "WOOD",
+  "general rubbish": "GEN",
+  "mixed paper": "PAPER",
+  corex: "COREX",
+  cardboard: "CARD",
+  metal: "METAL",
+  "green waste": "GREEN",
+};
+
+/** The stock code for a material, made up from its name where none is known. */
+export function materialCode(material: string): string {
+  const known = MATERIAL_CODES[material.trim().toLowerCase()];
+  if (known) return known;
+  return material.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+}
+
+/**
+ * Where an invoice has got to.
+ * "draft"  - put together, not sent, still changeable.
+ * "sent"   - gone to the client, the clock is running.
+ * "paid"   - settled.
+ */
+export const INVOICE_STATUSES = ["draft", "sent", "paid"] as const;
+
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+
+export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
+  draft: "Draft",
+  sent: "Sent",
+  paid: "Paid",
+};
+
+export const INVOICE_STATUS_CLASSES: Record<InvoiceStatus, string> = {
+  draft: "bg-elevated text-muted",
+  sent: "bg-sent-soft text-sent",
+  paid: "bg-paid-soft text-paid",
+};
+
+/**
+ * One invoice, covering a week's work for a client.
+ *
+ * It holds which jobs it covers rather than a copy of their figures. The lines
+ * are worked out from those jobs each time the invoice is opened, so
+ * correcting a weight or a rate corrects the invoice too.
+ */
+export type Invoice = {
+  id: string;
+  /** The number that goes on the document, unique and never reused. */
+  number: number;
+  customerId: string;
+  /** The invoice date. Payment terms run from this. */
+  issueDate: string;
+  /** The client's own purchase order reference, where they use one. */
+  customerPO: string;
+  /** The jobs being billed. */
+  jobIds: string[];
+  status: InvoiceStatus;
+  paidDate: string | null;
+  createdAt: string;
 };

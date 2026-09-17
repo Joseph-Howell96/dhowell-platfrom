@@ -1,0 +1,145 @@
+"use server";
+
+/**
+ * Raising an invoice and moving it along. As everywhere else, what the browser
+ * sends is checked again here.
+ */
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+import { isValidISODate, todayISO } from "./calendar";
+import { readCustomers } from "./customers";
+import type { FormState } from "./form-state";
+import {
+  addInvoice,
+  invoicedJobIds,
+  nextInvoiceNumber,
+  readInvoices,
+  updateInvoice,
+} from "./invoices";
+import { readJobs, updateJob } from "./jobs";
+import { readSettings } from "./settings";
+import { INVOICE_STATUSES, type InvoiceStatus } from "./types";
+
+function text(formData: FormData, name: string): string {
+  const value = formData.get(name);
+  if (typeof value !== "string") return "";
+  return value.replace(/\r\n/g, "\n").trim();
+}
+
+export async function createInvoice(
+  _previousState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const fieldErrors: Record<string, string> = {};
+
+  const customerId = text(formData, "customerId");
+  const customers = await readCustomers();
+  if (customerId === "") {
+    fieldErrors.customerId = "Choose a client.";
+  } else if (!customers.some((customer) => customer.id === customerId)) {
+    fieldErrors.customerId = "That client no longer exists.";
+  }
+
+  const issueDate = text(formData, "issueDate");
+  if (issueDate === "") {
+    fieldErrors.issueDate = "Choose the invoice date.";
+  } else if (!isValidISODate(issueDate)) {
+    fieldErrors.issueDate = "That is not a real date.";
+  }
+
+  // Only jobs that belong to this client, are ready to bill, and are not
+  // already on another invoice.
+  const chosen = formData.getAll("jobId").map(String);
+  const [jobs, invoices] = await Promise.all([readJobs(), readInvoices()]);
+  const alreadyBilled = invoicedJobIds(invoices);
+  const billable = new Set(
+    jobs
+      .filter(
+        (job) =>
+          job.customerId === customerId &&
+          job.direction === "sale" &&
+          job.status !== "booked" &&
+          !alreadyBilled.has(job.id),
+      )
+      .map((job) => job.id),
+  );
+  const jobIds = chosen.filter((id) => billable.has(id));
+
+  if (jobIds.length === 0) {
+    fieldErrors.jobId = "Tick at least one job to bill.";
+  } else if (jobIds.length !== chosen.length) {
+    fieldErrors.jobId =
+      "Some of those jobs cannot be billed any more. Check the list and try again.";
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return {
+      fieldErrors,
+      formError: "Some details need fixing before this can be raised.",
+    };
+  }
+
+  const settings = await readSettings();
+  let invoice;
+  try {
+    invoice = await addInvoice({
+      number: nextInvoiceNumber(invoices, settings.invoiceNumberStart),
+      customerId,
+      issueDate,
+      customerPO: text(formData, "customerPO"),
+      jobIds,
+      status: "draft",
+      paidDate: null,
+    });
+  } catch (error) {
+    console.error("Could not raise the invoice", error);
+    return {
+      fieldErrors: {},
+      formError: "Could not raise the invoice. Please try again.",
+    };
+  }
+
+  revalidatePath("/invoices");
+  revalidatePath("/finance");
+  redirect(`/invoices/${invoice.id}`);
+}
+
+/**
+ * Move an invoice on. Sending it also moves every job it covers to "invoice
+ * sent", so the calendar and the invoice never disagree.
+ */
+export async function setInvoiceStatus(
+  invoiceId: string,
+  status: InvoiceStatus,
+): Promise<void> {
+  if (!INVOICE_STATUSES.includes(status)) return;
+
+  const invoices = await readInvoices();
+  const invoice = invoices.find((entry) => entry.id === invoiceId);
+  if (!invoice) return;
+
+  const today = todayISO();
+  await updateInvoice(invoiceId, {
+    status,
+    paidDate: status === "paid" ? (invoice.paidDate ?? today) : null,
+  });
+
+  if (status !== "draft") {
+    const jobs = await readJobs();
+    for (const jobId of invoice.jobIds) {
+      const job = jobs.find((entry) => entry.id === jobId);
+      if (!job) continue;
+      await updateJob(jobId, {
+        ...job,
+        status: "invoice-sent",
+        invoiceSentDate: invoice.issueDate,
+      });
+    }
+  }
+
+  revalidatePath("/invoices");
+  revalidatePath(`/invoices/${invoiceId}`);
+  revalidatePath("/finance");
+  revalidatePath("/calendar");
+}

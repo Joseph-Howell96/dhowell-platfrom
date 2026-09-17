@@ -33,6 +33,9 @@ All six sidebar sections do something.
 | `/calendar` | Month view of jobs, colour-coded by status. Click a day to book. |
 | `/calendar/new` | Form for booking a job. |
 | `/finance` | Money in and money out, with due dates and anything overdue in red. |
+| `/invoices` | Every invoice raised, with what is outstanding and overdue. |
+| `/invoices/new` | Raise an invoice covering a week's jobs for one client. |
+| `/invoices/[id]` | The invoice itself, laid out to print. |
 | `/settings` | The company's own details, as they belong on an invoice. |
 
 Clients are saved to `data/clients.json` and jobs to `data/jobs.json`, plain
@@ -73,6 +76,13 @@ path, so a job three steps along stays three steps along.
 
 - **Weights are whole kilograms** (2.45 tonnes is `2450`), for the same reason
   as pence.
+- **An invoice covers a week's jobs for one client**, since that is how billing
+  runs. It stores which jobs it covers, not a copy of their figures, so
+  correcting a weight or a rate corrects the invoice. The invoice number is the
+  one thing fixed for good. Marking an invoice sent moves every job on it to
+  "invoice sent", and a job already on an invoice cannot be billed again.
+- **VAT is charged on the whole invoice** at the rate set under Settings,
+  rounded to the penny once on the total rather than line by line.
 - **Our invoices fall due a set number of calendar days after the invoice
   date**, the same for every client. The number is edited under Settings, not
   written into the code; it starts at 14. Weekends and bank holidays are not
@@ -112,7 +122,8 @@ path, so a job three steps along stays three steps along.
 | `data/clients.json` | The client records. Back this up. |
 | `data/jobs.json` | The booked jobs. Back this up. |
 | `data/outlets.json` | The outlets and their material income. Back this up. |
-| `data/settings.json` | The company's own details and payment terms. |
+| `data/settings.json` | The company's own details, VAT rate and payment terms. |
+| `data/invoices.json` | The invoices raised. Back this up. |
 | `public/` | Images and files served as-is (e.g. `/logo.png`). |
 | `package.json` | Project settings and the list of commands below. |
 

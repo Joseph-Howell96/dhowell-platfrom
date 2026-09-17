@@ -57,15 +57,43 @@ export async function saveCompanySettings(
     }
   }
 
-  const termsInput = text(formData, "paymentTermsDays");
-  let paymentTermsDays = 14;
-  if (termsInput === "") {
-    fieldErrors.paymentTermsDays = "Enter how many days clients have to pay.";
-  } else if (!/^\d+$/.test(termsInput)) {
-    fieldErrors.paymentTermsDays = "Enter a whole number of days, e.g. 14.";
-  } else {
-    paymentTermsDays = Number(termsInput);
+  /** A whole number that has to be there. */
+  function wholeNumber(name: string, missing: string, wrong: string, fallback: number) {
+    const raw = text(formData, name);
+    if (raw === "") {
+      fieldErrors[name] = missing;
+      return fallback;
+    }
+    if (!/^\d+$/.test(raw)) {
+      fieldErrors[name] = wrong;
+      return fallback;
+    }
+    return Number(raw);
   }
+
+  const paymentTermsDays = wholeNumber(
+    "paymentTermsDays",
+    "Enter how many days clients have to pay.",
+    "Enter a whole number of days, e.g. 14.",
+    14,
+  );
+
+  const vatInput = text(formData, "vatPercent");
+  let vatPercent = 20;
+  if (vatInput === "") {
+    fieldErrors.vatPercent = "Enter the VAT rate, e.g. 20.";
+  } else if (!/^\d+(\.\d{1,2})?$/.test(vatInput)) {
+    fieldErrors.vatPercent = "Enter a percentage, e.g. 20.";
+  } else {
+    vatPercent = Number(vatInput);
+  }
+
+  const invoiceNumberStart = wholeNumber(
+    "invoiceNumberStart",
+    "Enter the number to start invoices at.",
+    "Enter a whole number, e.g. 1001.",
+    1001,
+  );
 
   if (Object.keys(fieldErrors).length > 0) {
     return {
@@ -86,6 +114,9 @@ export async function saveCompanySettings(
       bankAccountNumber,
       bankSortCode,
       paymentTermsDays,
+      vatPercent,
+      invoiceNumberPrefix: text(formData, "invoiceNumberPrefix"),
+      invoiceNumberStart,
     });
   } catch (error) {
     console.error("Could not save the settings", error);
@@ -100,6 +131,7 @@ export async function saveCompanySettings(
   revalidatePath("/settings");
   revalidatePath("/finance");
   revalidatePath("/calendar");
+  revalidatePath("/invoices");
 
   // No redirect: you stay on the page, which is why this says so out loud.
   return { fieldErrors: {}, formError: null, success: "Settings saved." };

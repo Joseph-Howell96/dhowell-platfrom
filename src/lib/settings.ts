@@ -22,7 +22,16 @@ export const DEFAULT_SETTINGS: CompanySettings = {
   bankAccountNumber: "",
   bankSortCode: "",
   paymentTermsDays: 14,
+  vatPercent: 20,
+  invoiceNumberPrefix: "INV-",
+  invoiceNumberStart: 1001,
 };
+
+function wholeNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.round(value)
+    : fallback;
+}
 
 export async function readSettings(): Promise<CompanySettings> {
   const record = await readJsonRecord(FILE);
@@ -41,12 +50,21 @@ export async function readSettings(): Promise<CompanySettings> {
     bankAccountName: text("bankAccountName"),
     bankAccountNumber: text("bankAccountNumber"),
     bankSortCode: text("bankSortCode"),
-    paymentTermsDays:
-      typeof record.paymentTermsDays === "number" &&
-      Number.isFinite(record.paymentTermsDays) &&
-      record.paymentTermsDays >= 0
-        ? Math.round(record.paymentTermsDays)
-        : DEFAULT_SETTINGS.paymentTermsDays,
+    paymentTermsDays: wholeNumber(record.paymentTermsDays, DEFAULT_SETTINGS.paymentTermsDays),
+    vatPercent:
+      typeof record.vatPercent === "number" &&
+      Number.isFinite(record.vatPercent) &&
+      record.vatPercent >= 0
+        ? record.vatPercent
+        : DEFAULT_SETTINGS.vatPercent,
+    invoiceNumberPrefix:
+      typeof record.invoiceNumberPrefix === "string"
+        ? record.invoiceNumberPrefix
+        : DEFAULT_SETTINGS.invoiceNumberPrefix,
+    invoiceNumberStart: wholeNumber(
+      record.invoiceNumberStart,
+      DEFAULT_SETTINGS.invoiceNumberStart,
+    ),
   };
 }
 

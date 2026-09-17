@@ -233,6 +233,14 @@ export default async function FinancePage() {
       <PageHeader
         title="Finance"
         description="What clients owe us, and what we owe clients for material bought off them."
+        action={
+          <Link
+            href="/invoices"
+            className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+          >
+            Invoices
+          </Link>
+        }
       />
 
       <section className="mb-10">
@@ -250,8 +258,9 @@ export default async function FinancePage() {
           rows={owedToUs}
           startLabel="Sent"
           emptyTitle="Nothing sent yet"
-          emptyBody="Move a sale to “Invoice sent” on the calendar and it will show up here."
+          emptyBody="Raise an invoice and mark it sent, and the jobs on it show up here."
         />
+
       </section>
 
       <section>

@@ -77,6 +77,8 @@ export default function SettingsForm({
   const [values, setValues] = useState({
     ...settings,
     paymentTermsDays: String(settings.paymentTermsDays),
+    vatPercent: String(settings.vatPercent),
+    invoiceNumberStart: String(settings.invoiceNumberStart),
   });
 
   function update(field: keyof typeof values, value: string) {
@@ -203,6 +205,39 @@ export default function SettingsForm({
             error={state.fieldErrors.bankSortCode}
             placeholder="12-34-56"
             hint="Six digits. Dashes optional."
+          />
+        </div>
+      </section>
+
+      <section className={cardClass}>
+        <h2 className="text-base font-semibold">Invoicing</h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            name="vatPercent"
+            label="VAT rate (%)"
+            value={values.vatPercent}
+            onChange={(value) => update("vatPercent", value)}
+            error={state.fieldErrors.vatPercent}
+            placeholder="20"
+            hint="Charged on the whole invoice."
+          />
+          <div />
+          <Field
+            name="invoiceNumberPrefix"
+            label="Invoice number prefix"
+            value={values.invoiceNumberPrefix}
+            onChange={(value) => update("invoiceNumberPrefix", value)}
+            error={state.fieldErrors.invoiceNumberPrefix}
+            placeholder="INV-"
+          />
+          <Field
+            name="invoiceNumberStart"
+            label="Start numbering at"
+            value={values.invoiceNumberStart}
+            onChange={(value) => update("invoiceNumberStart", value)}
+            error={state.fieldErrors.invoiceNumberStart}
+            placeholder="1001"
+            hint="Set this to carry on an existing series. Ignored once invoices exist."
           />
         </div>
       </section>
