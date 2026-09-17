@@ -130,6 +130,11 @@ path, so a job three steps along stays three steps along.
   not whether the week has finished, so a week part way through can be billed
   early for whatever is already weighed. Jobs still only booked wait for the
   next run.
+- **A job can be deleted** from its own screen on the calendar, which asks
+  twice before it does. Not once it is on an invoice, though: an invoice holds
+  the jobs it covers rather than a copy of their figures, so deleting one would
+  quietly drop a line and change what an already-sent invoice comes to. It says
+  which invoice is in the way.
 - Pressing it twice does nothing the second time: a job already on an invoice
   is skipped, checked against what invoices actually hold rather than a flag on
   the job that could fall out of step.

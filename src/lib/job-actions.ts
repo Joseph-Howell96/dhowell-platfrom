@@ -10,8 +10,9 @@ import { redirect } from "next/navigation";
 
 import { isValidISODate, monthKeyOf } from "./calendar";
 import { readCustomers } from "./customers";
+import { invoicedJobIds, readInvoices } from "./invoices";
 import type { FormState } from "./form-state";
-import { addJob, updateJob } from "./jobs";
+import { addJob, deleteJob, readJobs, updateJob } from "./jobs";
 import {
   isStatusValidFor,
   isWeighedOrLater,
@@ -311,4 +312,41 @@ export async function saveJob(
   revalidatePath("/finance");
   revalidatePath(`/calendar/${jobId}`);
   redirect(`/calendar?month=${monthKeyOf(parsed.job.date)}`);
+}
+
+
+/**
+ * Delete a job.
+ *
+ * Refused once the job is on an invoice. An invoice holds the jobs it covers
+ * rather than a copy of their figures, so deleting one would quietly drop a
+ * line and change the total - on an invoice that may already have been sent.
+ * Take the job off the invoice first, or scrap the invoice.
+ *
+ * Returns a reason when it will not go ahead, or null when it has.
+ */
+export async function removeJob(jobId: string): Promise<string | null> {
+  if (jobId === "") return "Could not tell which job this is.";
+
+  const [invoices, jobs] = await Promise.all([readInvoices(), readJobs()]);
+  const job = jobs.find((entry) => entry.id === jobId);
+  if (!job) return "That job no longer exists.";
+
+  if (invoicedJobIds(invoices).has(jobId)) {
+    const invoice = invoices.find((entry) => entry.jobIds.includes(jobId));
+    return `This job is on invoice ${invoice ? `number ${invoice.number}` : "one already raised"}, so deleting it would change what that invoice comes to. Remove it from the invoice first.`;
+  }
+
+  try {
+    await deleteJob(jobId);
+  } catch (error) {
+    console.error("Could not delete the job", error);
+    return "Could not delete the job. Please try again.";
+  }
+
+  revalidatePath("/calendar");
+  revalidatePath("/finance");
+  revalidatePath("/dashboard");
+  revalidatePath("/invoices");
+  redirect(`/calendar?month=${monthKeyOf(job.date)}`);
 }

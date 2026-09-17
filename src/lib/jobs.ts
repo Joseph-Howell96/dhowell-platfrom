@@ -170,3 +170,17 @@ export async function updateJob(
   );
   return updated;
 }
+
+/**
+ * Remove a job for good. Returns false where the id matches nothing, which
+ * happens if it was already deleted in another tab.
+ */
+export async function deleteJob(id: string): Promise<boolean> {
+  const jobs = await readJobs();
+  if (!jobs.some((job) => job.id === id)) return false;
+  await writeJsonList(
+    FILE,
+    jobs.filter((job) => job.id !== id),
+  );
+  return true;
+}

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
+import DeleteJobButton from "./delete-job-button";
 import JobForm from "@/components/job-form";
 import PageHeader from "@/components/page-header";
 import { monthKeyOf, todayISO } from "@/lib/calendar";
@@ -53,6 +54,8 @@ export default async function JobPage({
         <PageHeader
           title={client?.businessName ?? "Unknown client"}
           description={formatDateGB(job.date)}
+          // Kept up here, well away from Save, so the two cannot be confused.
+          action={<DeleteJobButton jobId={job.id} />}
         />
       </div>
 
