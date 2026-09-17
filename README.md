@@ -121,11 +121,16 @@ path, so a job three steps along stays three steps along.
   records the day it was marked. Due and overdue are deliberately not offered
   as buttons: a status set by hand would sooner or later disagree with the
   calendar.
-- **The button at the end of a week on the calendar** raises that week's
-  invoices. Every job that week which is done, priced and not already billed is
-  gathered up and split by client, one draft invoice each. It says how many
-  jobs are waiting before you press it, and goes quiet when there are none.
-  Pressing it twice does nothing the second time: a job already on an invoice
+- **"Generate invoices" at the end of a week on the calendar** raises that
+  week's invoices. Every job that week which is done, priced and not already
+  billed is gathered up and split by client, one draft invoice each, filed in
+  Finance under that client straight away. It says how many jobs are waiting
+  before you press it.
+- **A week does not have to be over.** What counts is whether a job is done,
+  not whether the week has finished, so a week part way through can be billed
+  early for whatever is already weighed. Jobs still only booked wait for the
+  next run.
+- Pressing it twice does nothing the second time: a job already on an invoice
   is skipped, checked against what invoices actually hold rather than a flag on
   the job that could fall out of step.
 - **Clients can be edited and archived.** Archiving keeps the record - their

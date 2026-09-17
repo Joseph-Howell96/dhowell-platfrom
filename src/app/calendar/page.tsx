@@ -95,7 +95,7 @@ export default async function CalendarPage({
     <main className="mx-auto w-full max-w-6xl px-6 py-10 lg:px-10">
       <PageHeader
         title="Calendar"
-        description="Click a day to book a job, or a job to open it. The button at the end of a week raises that week's invoices."
+        description="Click a day to book a job, or a job to open it. The button at the end of a week raises a draft invoice for each client with work that week, whether or not the week has finished."
         action={
           <div className="flex items-center gap-2">
             <Link
@@ -148,8 +148,8 @@ export default async function CalendarPage({
       ) : null}
 
       <div className="overflow-x-auto">
-        <div className="min-w-[50rem]">
-          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_5.5rem] gap-px rounded-t-xl border border-line bg-line">
+        <div className="min-w-[56rem]">
+          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_9rem] gap-px rounded-t-xl border border-line bg-line">
             {WEEKDAY_NAMES.map((name) => (
               <div
                 key={name}
@@ -159,11 +159,11 @@ export default async function CalendarPage({
               </div>
             ))}
             <div className="bg-elevated px-2 py-2 text-center text-xs font-medium uppercase tracking-wide text-muted">
-              Bill
+              Generate invoices
             </div>
           </div>
 
-          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_5.5rem] gap-px rounded-b-xl border border-t-0 border-line bg-line">
+          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_9rem] gap-px rounded-b-xl border border-t-0 border-line bg-line">
             {weeks.flatMap((week, weekIndex) => [
               ...week.map((cell) => {
               const dayJobs = jobsByDate.get(cell.iso) ?? [];

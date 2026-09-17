@@ -235,9 +235,10 @@ export default async function FinancePage() {
   const outstandingOut = weOwe.filter((row) => !row.settled);
 
   /**
-   * Every invoice that has had a PDF written out, gathered under the client it
-   * went to, so a client's paperwork is in one place rather than scattered
-   * down a list by date.
+   * Every invoice gathered under the client it is for, so a client's paperwork
+   * is in one place rather than scattered down a list by date. Drafts included:
+   * an invoice raised from the calendar belongs here straight away, not only
+   * once someone has opened its PDF.
    */
   const filed = new Map<
     string,
@@ -251,7 +252,6 @@ export default async function FinancePage() {
     }[]
   >();
   for (const invoice of invoices) {
-    if (!invoice.pdfSavedAt) continue;
     const client = clientsById.get(invoice.customerId);
     const name = client?.businessName ?? "Unknown client";
     const billed = invoice.jobIds
@@ -337,11 +337,11 @@ export default async function FinancePage() {
 
       <section className="mt-10">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-semibold">Invoice documents</h2>
+          <h2 className="text-lg font-semibold">Invoices by client</h2>
           <p className="text-sm text-muted">
             {filedCount === 0
-              ? "None saved yet"
-              : `${filedCount} saved, across ${filedByClient.length} ${
+              ? "None raised yet"
+              : `${filedCount} across ${filedByClient.length} ${
                   filedByClient.length === 1 ? "client" : "clients"
                 }`}
           </p>
@@ -349,10 +349,10 @@ export default async function FinancePage() {
 
         {filedByClient.length === 0 ? (
           <div className="rounded-xl border border-dashed border-line bg-surface px-6 py-14 text-center">
-            <p className="font-medium">Nothing filed yet</p>
+            <p className="font-medium">No invoices yet</p>
             <p className="mx-auto mt-1 max-w-md text-sm text-muted">
-              Opening an invoice&rsquo;s PDF saves a copy. They are gathered
-              here under the client they went to.
+              Raise one from the calendar and it appears here under the client
+              it is for. The number opens its PDF, which files a copy.
             </p>
           </div>
         ) : (
@@ -398,6 +398,14 @@ export default async function FinancePage() {
                             : ""}
                         </span>
                       </span>
+                      {row.invoice.pdfSavedAt ? (
+                        <span
+                          className="shrink-0 text-xs text-muted"
+                          title="A copy of this PDF is on file"
+                        >
+                          filed
+                        </span>
+                      ) : null}
                       <Link
                         href={`/invoices/${row.invoice.id}`}
                         className="shrink-0 text-muted transition-colors hover:text-ink"
