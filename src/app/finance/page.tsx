@@ -3,8 +3,11 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import MarkPaidButton from "./mark-paid-button";
+import MoneyChart, { type MonthMoney } from "./money-chart";
 import PageHeader from "@/components/page-header";
 import { requireSession } from "@/lib/guard";
+import { isWeighed, totalsFor } from "@/lib/analytics";
+import { monthKeyOf, monthLabel, todayISO } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
 import { formatDateGB } from "@/lib/dates";
 import { readDeletedInvoices, readInvoices } from "@/lib/invoices";
@@ -30,6 +33,50 @@ type Row = {
   grossPence: number;
   paid: boolean;
 };
+
+/** How many months of the chart to show, newest last. */
+const MONTHS_SHOWN = 12;
+
+/**
+ * Every month from the first one with work in it up to this one, so a quiet
+ * month reads as a quiet month rather than being skipped over and making the
+ * one beside it look like its neighbour.
+ */
+function monthsUpTo(earliest: string, latest: string): string[] {
+  const keys: string[] = [];
+  let year = Number(earliest.slice(0, 4));
+  let month = Number(earliest.slice(5, 7));
+  for (let guard = 0; guard < 600; guard += 1) {
+    const key = `${year}-${String(month).padStart(2, "0")}`;
+    keys.push(key);
+    if (key >= latest) break;
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+  }
+  return keys.slice(-MONTHS_SHOWN);
+}
+
+/** One big figure, said in words a reader does not have to translate. */
+function Figure({
+  label,
+  value,
+  note,
+}: {
+  label: string;
+  value: string;
+  note: string;
+}) {
+  return (
+    <div className="glass rounded-xl p-6">
+      <p className="text-base text-muted">{label}</p>
+      <p className="mt-1 text-4xl font-semibold tabular-nums">{value}</p>
+      <p className="mt-2 text-sm text-muted">{note}</p>
+    </div>
+  );
+}
 
 /**
  * A button that is really a link: opening or saving a PDF is a plain request
@@ -79,6 +126,46 @@ export default async function FinancePage() {
   const named = (customerId: string) =>
     clientsById.get(customerId)?.businessName ?? "Unknown client";
 
+  /* --- What came in, and what was left of it ---------------------------- */
+
+  // Only jobs that have been weighed. A job still in the diary has no figure
+  // against it, and counting it would be counting money nobody has earned.
+  const done = jobs.filter(isWeighed);
+  const thisMonth = monthKeyOf(todayISO());
+  const earliest = done.reduce(
+    (oldest, job) => (job.date < oldest ? job.date : oldest),
+    done[0]?.date ?? todayISO(),
+  );
+  const monthKeys = done.length === 0 ? [] : monthsUpTo(monthKeyOf(earliest), thisMonth);
+
+  const shown = done.filter((job) => monthKeys.includes(monthKeyOf(job.date)));
+  const overall = totalsFor(shown, clientsById);
+  const uncosted = overall.jobs - overall.jobsWithProfit;
+
+  const months: MonthMoney[] = monthKeys.map((key) => {
+    const totals = totalsFor(
+      shown.filter((job) => monthKeyOf(job.date) === key),
+      clientsById,
+    );
+    const long = monthLabel(key);
+    return {
+      key,
+      short: long.slice(0, 3),
+      long,
+      revenuePence: totals.revenuePence,
+      // No job that month had both halves recorded, so there is no profit to
+      // draw. A zero would be a claim nobody has made.
+      profitPence: totals.jobsWithProfit === 0 ? null : totals.profitPence,
+    };
+  });
+
+  const period =
+    monthKeys.length === 0
+      ? ""
+      : monthKeys.length === 1
+        ? monthLabel(monthKeys[0])
+        : `${monthLabel(monthKeys[0])} to ${monthLabel(monthKeys[monthKeys.length - 1])}`;
+
   const rows: Row[] = invoices
     .map((invoice) => ({
       id: invoice.id,
@@ -106,7 +193,105 @@ export default async function FinancePage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-10 lg:px-10">
-      <PageHeader title="Finance" description="Every invoice, oldest first." />
+      <PageHeader
+        title="Finance"
+        description="What the work has brought in, and every invoice."
+      />
+
+      {/* Joseph put this here for his dad. */}
+      <p className="neon mb-8 text-2xl font-bold tracking-wide text-accent">
+        DAD YOU&rsquo;RE FUCKING RICH!
+      </p>
+
+      {months.length > 0 ? (
+        <section className="mb-12">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Figure
+              label="Money in"
+              value={formatPence(overall.revenuePence)}
+              note={`Across ${overall.jobs} ${overall.jobs === 1 ? "job" : "jobs"}, ${period}`}
+            />
+            <Figure
+              label="Money made"
+              value={
+                overall.jobsWithProfit === 0
+                  ? "Not known yet"
+                  : formatPence(overall.profitPence)
+              }
+              note={
+                overall.jobsWithProfit === 0
+                  ? "No job has a tip charge recorded against it"
+                  : uncosted === 0
+                    ? "What came in, less what the tip charged"
+                    : `Leaves out ${uncosted} ${uncosted === 1 ? "job" : "jobs"} with no tip charge recorded`
+              }
+            />
+          </div>
+
+          <div className="glass mt-4 rounded-xl p-6">
+            <h2 className="text-lg font-semibold">Month by month</h2>
+            <div className="mt-1 flex flex-wrap items-center gap-x-5 gap-y-1 text-base text-muted">
+              {/* The colour sits in the square, never in the words, so the
+                  writing stays as readable as everything else on the page. */}
+              <span className="flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className="inline-block h-3.5 w-3.5 rounded-sm bg-series-revenue"
+                />
+                Money in
+              </span>
+              <span className="flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className="inline-block h-3.5 w-3.5 rounded-sm bg-series-profit"
+                />
+                Money made
+              </span>
+            </div>
+
+            <div className="mt-5 overflow-x-auto">
+              <MoneyChart months={months} />
+            </div>
+
+            {/* Every figure in the chart, written out. Nobody should have to
+                read a number off a bar. */}
+            <table className="mt-6 w-full text-base">
+              <thead>
+                <tr className="border-b border-line text-left text-muted">
+                  <th className="pb-2 font-medium">Month</th>
+                  <th className="pb-2 text-right font-medium">Money in</th>
+                  <th className="pb-2 text-right font-medium">Money made</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...months].reverse().map((month) => (
+                  <tr key={month.key} className="border-b border-line last:border-0">
+                    <td className="py-2.5">{month.long}</td>
+                    <td className="py-2.5 text-right tabular-nums">
+                      {formatPence(month.revenuePence)}
+                    </td>
+                    <td className="py-2.5 text-right tabular-nums">
+                      {month.profitPence === null
+                        ? "Not known"
+                        : formatPence(month.profitPence)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <p className="mt-4 text-sm text-muted">
+              Money in is what the client is charged: the material at their rate
+              for it, plus the haulage fee on every collection. Money made is
+              that less what the tip charged to take the load. A job with no tip
+              charge typed against it is left out of money made rather than
+              counted as costing nothing.
+            </p>
+          </div>
+        </section>
+      ) : null}
+
+      <h2 className="mb-2 text-lg font-semibold">Invoices</h2>
 
       {rows.length === 0 ? (
         <div className="glass-dashed rounded-xl px-6 py-16 text-center">
@@ -231,6 +416,10 @@ export default async function FinancePage() {
           </ul>
         </section>
       ) : null}
+
+      <p className="mt-16 text-right text-xs text-muted">
+        always listen to Jojo
+      </p>
     </main>
   );
 }

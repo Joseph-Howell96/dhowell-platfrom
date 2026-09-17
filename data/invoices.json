@@ -1,48 +1,226 @@
 [
   {
-    "id": "i-1003",
-    "number": 1003,
-    "customerId": "c-bermondsey",
-    "issueDate": "2026-09-12",
+    "id": "i-1001",
+    "number": 1001,
+    "customerId": "c-aldgate",
+    "issueDate": "2026-06-13",
     "customerPO": "",
     "jobIds": [
-      "j-ber-1"
+      "j-01",
+      "j-03"
     ],
-    "status": "sent",
-    "paidDate": null,
+    "status": "paid",
+    "paidDate": "2026-06-30",
     "pdfSavedAt": null,
     "deletedAt": null,
-    "createdAt": "2026-08-01T09:00:00.000Z"
+    "createdAt": "2026-06-01T09:00:00.000Z"
   },
   {
     "id": "i-1002",
     "number": 1002,
-    "customerId": "c-aldgate",
-    "issueDate": "2026-09-12",
+    "customerId": "c-croydon",
+    "issueDate": "2026-06-13",
     "customerPO": "",
     "jobIds": [
-      "j-ald-1",
-      "j-ald-2"
+      "j-02",
+      "j-04"
     ],
     "status": "paid",
-    "paidDate": "2026-09-16",
-    "pdfSavedAt": "2026-09-17T22:04:40.883Z",
+    "paidDate": "2026-07-02",
+    "pdfSavedAt": null,
     "deletedAt": null,
-    "createdAt": "2026-08-01T09:00:00.000Z"
+    "createdAt": "2026-06-01T09:00:00.000Z"
   },
   {
-    "id": "i-1001",
-    "number": 1001,
-    "customerId": "c-croydon",
-    "issueDate": "2026-08-08",
+    "id": "i-1003",
+    "number": 1003,
+    "customerId": "c-bermondsey",
+    "issueDate": "2026-06-27",
     "customerPO": "",
     "jobIds": [
-      "j-cro-1"
+      "j-05",
+      "j-07"
+    ],
+    "status": "paid",
+    "paidDate": "2026-07-14",
+    "pdfSavedAt": null,
+    "deletedAt": null,
+    "createdAt": "2026-06-01T09:00:00.000Z"
+  },
+  {
+    "id": "i-1004",
+    "number": 1004,
+    "customerId": "c-shoreditch",
+    "issueDate": "2026-06-27",
+    "customerPO": "",
+    "jobIds": [
+      "j-06",
+      "j-08"
+    ],
+    "status": "paid",
+    "paidDate": "2026-07-20",
+    "pdfSavedAt": null,
+    "deletedAt": null,
+    "createdAt": "2026-06-01T09:00:00.000Z"
+  },
+  {
+    "id": "i-1005",
+    "number": 1005,
+    "customerId": "c-aldgate",
+    "issueDate": "2026-07-11",
+    "customerPO": "",
+    "jobIds": [
+      "j-09",
+      "j-11"
+    ],
+    "status": "paid",
+    "paidDate": "2026-07-28",
+    "pdfSavedAt": null,
+    "deletedAt": null,
+    "createdAt": "2026-06-01T09:00:00.000Z"
+  },
+  {
+    "id": "i-1006",
+    "number": 1006,
+    "customerId": "c-wandsworth",
+    "issueDate": "2026-07-11",
+    "customerPO": "",
+    "jobIds": [
+      "j-10",
+      "j-12"
     ],
     "status": "sent",
     "paidDate": null,
     "pdfSavedAt": null,
     "deletedAt": null,
-    "createdAt": "2026-08-01T09:00:00.000Z"
+    "createdAt": "2026-06-01T09:00:00.000Z"
+  },
+  {
+    "id": "i-1007",
+    "number": 1007,
+    "customerId": "c-croydon",
+    "issueDate": "2026-07-25",
+    "customerPO": "",
+    "jobIds": [
+      "j-13",
+      "j-15"
+    ],
+    "status": "paid",
+    "paidDate": "2026-08-11",
+    "pdfSavedAt": null,
+    "deletedAt": null,
+    "createdAt": "2026-06-01T09:00:00.000Z"
+  },
+  {
+    "id": "i-1008",
+    "number": 1008,
+    "customerId": "c-bermondsey",
+    "issueDate": "2026-07-25",
+    "customerPO": "",
+    "jobIds": [
+      "j-14",
+      "j-16"
+    ],
+    "status": "paid",
+    "paidDate": "2026-08-06",
+    "pdfSavedAt": null,
+    "deletedAt": null,
+    "createdAt": "2026-06-01T09:00:00.000Z"
+  },
+  {
+    "id": "i-1009",
+    "number": 1009,
+    "customerId": "c-shoreditch",
+    "issueDate": "2026-08-15",
+    "customerPO": "",
+    "jobIds": [
+      "j-17",
+      "j-19"
+    ],
+    "status": "paid",
+    "paidDate": "2026-09-01",
+    "pdfSavedAt": null,
+    "deletedAt": null,
+    "createdAt": "2026-06-01T09:00:00.000Z"
+  },
+  {
+    "id": "i-1010",
+    "number": 1010,
+    "customerId": "c-aldgate",
+    "issueDate": "2026-08-15",
+    "customerPO": "",
+    "jobIds": [
+      "j-18",
+      "j-20"
+    ],
+    "status": "paid",
+    "paidDate": "2026-09-03",
+    "pdfSavedAt": null,
+    "deletedAt": null,
+    "createdAt": "2026-06-01T09:00:00.000Z"
+  },
+  {
+    "id": "i-1011",
+    "number": 1011,
+    "customerId": "c-wandsworth",
+    "issueDate": "2026-08-29",
+    "customerPO": "",
+    "jobIds": [
+      "j-21",
+      "j-23"
+    ],
+    "status": "sent",
+    "paidDate": null,
+    "pdfSavedAt": null,
+    "deletedAt": null,
+    "createdAt": "2026-06-01T09:00:00.000Z"
+  },
+  {
+    "id": "i-1012",
+    "number": 1012,
+    "customerId": "c-croydon",
+    "issueDate": "2026-08-29",
+    "customerPO": "",
+    "jobIds": [
+      "j-22",
+      "j-24"
+    ],
+    "status": "sent",
+    "paidDate": null,
+    "pdfSavedAt": null,
+    "deletedAt": null,
+    "createdAt": "2026-06-01T09:00:00.000Z"
+  },
+  {
+    "id": "i-1013",
+    "number": 1013,
+    "customerId": "c-bermondsey",
+    "issueDate": "2026-09-12",
+    "customerPO": "",
+    "jobIds": [
+      "j-25",
+      "j-27"
+    ],
+    "status": "sent",
+    "paidDate": null,
+    "pdfSavedAt": null,
+    "deletedAt": null,
+    "createdAt": "2026-06-01T09:00:00.000Z"
+  },
+  {
+    "id": "i-1014",
+    "number": 1014,
+    "customerId": "c-shoreditch",
+    "issueDate": "2026-09-12",
+    "customerPO": "",
+    "jobIds": [
+      "j-26",
+      "j-28"
+    ],
+    "status": "sent",
+    "paidDate": null,
+    "pdfSavedAt": null,
+    "deletedAt": null,
+    "createdAt": "2026-06-01T09:00:00.000Z"
   }
 ]

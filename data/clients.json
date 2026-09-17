@@ -31,7 +31,7 @@
       }
     ],
     "archivedAt": null,
-    "createdAt": "2026-08-01T09:00:00.000Z"
+    "createdAt": "2026-06-01T09:00:00.000Z"
   },
   {
     "id": "c-bermondsey",
@@ -56,10 +56,16 @@
         "material": "Corex",
         "ratePerTonnePence": 11000,
         "direction": "charge"
+      },
+      {
+        "id": "c-bermondsey-r3",
+        "material": "Wood",
+        "ratePerTonnePence": 11500,
+        "direction": "charge"
       }
     ],
     "archivedAt": null,
-    "createdAt": "2026-08-01T09:00:00.000Z"
+    "createdAt": "2026-06-01T09:00:00.000Z"
   },
   {
     "id": "c-croydon",
@@ -87,6 +93,68 @@
       }
     ],
     "archivedAt": null,
-    "createdAt": "2026-08-01T09:00:00.000Z"
+    "createdAt": "2026-06-01T09:00:00.000Z"
+  },
+  {
+    "id": "c-shoreditch",
+    "businessName": "Shoreditch Studios Ltd",
+    "contactName": "Dan Whitfield",
+    "siteAddress": "40 Rivington Street\nLondon EC2A 3LX",
+    "billingAddress": "",
+    "phone": "020 7000 0004",
+    "email": "dan@example.co.uk",
+    "paymentTermsDays": 30,
+    "notes": "",
+    "haulageFeePence": 9000,
+    "rateLines": [
+      {
+        "id": "c-shoreditch-r1",
+        "material": "General rubbish",
+        "ratePerTonnePence": 14200,
+        "direction": "charge"
+      },
+      {
+        "id": "c-shoreditch-r2",
+        "material": "Corex",
+        "ratePerTonnePence": 10500,
+        "direction": "charge"
+      }
+    ],
+    "archivedAt": null,
+    "createdAt": "2026-06-01T09:00:00.000Z"
+  },
+  {
+    "id": "c-wandsworth",
+    "businessName": "Wandsworth Estates",
+    "contactName": "Maria Costa",
+    "siteAddress": "8 Ram Quarter\nLondon SW18 1TL",
+    "billingAddress": "",
+    "phone": "020 8000 0005",
+    "email": "maria@example.co.uk",
+    "paymentTermsDays": 30,
+    "notes": "",
+    "haulageFeePence": 8000,
+    "rateLines": [
+      {
+        "id": "c-wandsworth-r1",
+        "material": "General rubbish",
+        "ratePerTonnePence": 14800,
+        "direction": "charge"
+      },
+      {
+        "id": "c-wandsworth-r2",
+        "material": "Wood",
+        "ratePerTonnePence": 11800,
+        "direction": "charge"
+      },
+      {
+        "id": "c-wandsworth-r3",
+        "material": "Mixed paper",
+        "ratePerTonnePence": 6000,
+        "direction": "pay"
+      }
+    ],
+    "archivedAt": null,
+    "createdAt": "2026-06-01T09:00:00.000Z"
   }
 ]
