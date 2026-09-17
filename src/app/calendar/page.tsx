@@ -70,23 +70,25 @@ export default async function CalendarPage({
     weeks.push(cells.slice(start, start + 7));
   }
 
-  // What each week has waiting to be billed: weighed and not already on an
-  // invoice. Counted here so the button can say so before it is pressed.
+  // What each week has waiting to be billed: marked complete and not already
+  // on an invoice. Counted here so the button can say so before it is pressed.
   //
-  // A weighed job whose material has no matching rate on the client record is
-  // counted separately rather than quietly left out. It cannot go on an
-  // invoice - there would be nothing to charge - but it should not vanish
-  // either, or a job sits there unbilled with nothing to say why.
+  // Two things are counted alongside it rather than quietly left out. A job
+  // weighed but not yet checked off is work the office still has to sign
+  // before it can be billed. A complete job whose material has no matching
+  // rate on the client record cannot go on an invoice - there would be nothing
+  // to charge - but it should not vanish either, or a job sits there unbilled
+  // with nothing on screen to say why.
   const clientsById = new Map(customers.map((c) => [c.id, c]));
   const alreadyBilled = invoicedJobIds(invoices);
   const waitingByWeek = weeks.map((week) => {
     const first = week[0].iso;
     const last = week[week.length - 1].iso;
-    const waiting = jobs.filter(
-      (job) =>
-        job.date >= first &&
-        job.date <= last &&
-        isAwaitingInvoice(job, alreadyBilled),
+    const thisWeek = jobs.filter(
+      (job) => job.date >= first && job.date <= last,
+    );
+    const waiting = thisWeek.filter((job) =>
+      isAwaitingInvoice(job, alreadyBilled),
     );
     const ready = waiting.filter((job) =>
       isBillable(job, clientsById.get(job.customerId)),
@@ -95,6 +97,7 @@ export default async function CalendarPage({
       weekStart: first,
       waiting: ready.length,
       unpriced: waiting.length - ready.length,
+      toCheck: thisWeek.filter((job) => job.status === "weighed").length,
       clients: new Set(ready.map((job) => job.customerId)).size,
     };
   });
@@ -103,7 +106,7 @@ export default async function CalendarPage({
     <main className="mx-auto w-full max-w-6xl px-6 py-10 lg:px-10">
       <PageHeader
         title="Calendar"
-        description="Click a day to book a job, or a job to open it. The button at the end of a week raises a draft invoice for each client with work that week, whether or not the week has finished."
+        description="Click a day to book a job, or a job to open it. The button at the end of a week raises a draft invoice for each client whose jobs that week have been marked complete, whether or not the week has finished."
         action={
           <div className="flex items-center gap-2">
             <Link
@@ -233,13 +236,14 @@ export default async function CalendarPage({
                 </div>
                 );
               }),
-              // The end of the week: everything on these seven days that is
-              // ready to bill, turned into one invoice per client.
+              // The end of the week: everything on these seven days that has
+              // been checked off, turned into one invoice per client.
               <div key={`bill-${week[0].iso}`} className="bg-surface">
                 <GenerateWeekButton
                   weekStart={waitingByWeek[weekIndex].weekStart}
                   waiting={waitingByWeek[weekIndex].waiting}
                   unpriced={waitingByWeek[weekIndex].unpriced}
+                  toCheck={waitingByWeek[weekIndex].toCheck}
                   clients={waitingByWeek[weekIndex].clients}
                 />
               </div>,

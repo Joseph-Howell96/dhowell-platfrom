@@ -22,6 +22,7 @@ import {
   isWeighedOrLater,
   JOB_DIRECTIONS,
   JOB_MATERIALS,
+  isCompleteOrLater,
   isStatusValidFor,
   JOB_STANDING_CLASSES,
   JOB_STANDING_LABELS,
@@ -41,7 +42,7 @@ import {
 } from "@/lib/types";
 import { formatPence, penceToInputValue } from "@/lib/money";
 import { findHaulageRate } from "@/lib/pricing";
-import { kgToInputValue } from "@/lib/weight";
+import { kgToInputValue, parseTonnesToKg } from "@/lib/weight";
 
 const inputClass =
   "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
@@ -166,6 +167,14 @@ export default function JobForm({
     );
     if (rate) chooseDirection(directionForRate(rate.direction));
   }
+
+  /**
+   * Is there a weight on this job yet?
+   *
+   * Read from the box rather than from what was saved, so ticking a job off
+   * works the moment the weighbridge figure is typed in, without saving first.
+   */
+  const hasWeight = parseTonnesToKg(weightTonnes) !== null;
 
   /**
    * Set the status, filling in the dates that go with it. Each of those is
@@ -505,28 +514,40 @@ export default function JobForm({
         <input type="hidden" name="status" value={status} />
         <div
           className={`grid gap-2 ${
-            direction === "sale" ? "sm:grid-cols-2" : "sm:grid-cols-4"
+            direction === "sale" ? "sm:grid-cols-3" : "sm:grid-cols-5"
           }`}
         >
           {statusesFor(direction).map((option) => {
             const chosen = status === option;
+            // Everything from "complete" on is a statement about a figure, so
+            // it cannot be picked until there is a figure. The server refuses
+            // it too; this just stops the button being a dead end.
+            const blocked = isCompleteOrLater(option) && !hasWeight;
             return (
               <button
                 key={option}
                 type="button"
                 onClick={() => chooseStatus(option)}
                 aria-pressed={chosen}
+                disabled={blocked}
+                title={
+                  blocked
+                    ? "Enter the weight in tonnes first. A job cannot be checked off without one."
+                    : undefined
+                }
                 className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
                   chosen
                     ? `border-transparent ${STATUS_CLASSES[option]}`
-                    : "border-line text-muted hover:border-muted hover:text-ink"
+                    : blocked
+                      ? "cursor-not-allowed border-line text-muted/40"
+                      : "border-line text-muted hover:border-muted hover:text-ink"
                 }`}
               >
                 <span className="block text-sm font-semibold">
                   {STATUS_LABELS[option]}
                 </span>
                 <span className="mt-0.5 block text-xs opacity-80">
-                  {STATUS_HINTS[option]}
+                  {blocked ? "Needs a weight first" : STATUS_HINTS[option]}
                 </span>
               </button>
             );

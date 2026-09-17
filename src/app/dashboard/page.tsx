@@ -105,9 +105,9 @@ export default async function DashboardPage() {
   ).length;
 
   // --- Waiting to be billed ----------------------------------------------
-  // Weighed and not on an invoice. Worked out from what the invoices actually
-  // hold rather than from anything written on the job, so a job can never sit
-  // here after it has been billed.
+  // Marked complete and not on an invoice. Whether it is on one is worked out
+  // from what the invoices actually hold rather than from anything written on
+  // the job, so a job can never sit here after it has been billed.
   const alreadyBilled = invoicedJobIds(invoices);
   const awaitingInvoice = jobs.filter((job) =>
     isAwaitingInvoice(job, alreadyBilled),
@@ -118,6 +118,14 @@ export default async function DashboardPage() {
     (job) => !isBillable(job, clientsById.get(job.customerId)),
   ).length;
   const oldestWaiting = awaitingInvoice.reduce<string | null>(
+    (oldest, job) => (oldest === null || job.date < oldest ? job.date : oldest),
+    null,
+  );
+
+  // Weighed but not yet checked off. Not waiting to be invoiced - waiting on
+  // the office to look at it - which is a different job and its own tile.
+  const toCheck = jobs.filter((job) => job.status === "weighed");
+  const oldestToCheck = toCheck.reduce<string | null>(
     (oldest, job) => (oldest === null || job.date < oldest ? job.date : oldest),
     null,
   );
@@ -154,7 +162,7 @@ export default async function DashboardPage() {
         description={`What needs doing today. ${formatDateGB(today)}.`}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Tile
           label="Booked today"
           value={String(todaysJobs.length)}
@@ -178,11 +186,25 @@ export default async function DashboardPage() {
         />
 
         <Tile
+          label="To check off"
+          value={String(toCheck.length)}
+          note={
+            toCheck.length === 0
+              ? "Nothing waiting on a check"
+              : `Oldest ${formatDateGB(oldestToCheck as string)}`
+          }
+          href={`/calendar?month=${
+            oldestToCheck ? monthKeyOf(oldestToCheck) : thisMonth
+          }`}
+          linkLabel="Open the calendar"
+        />
+
+        <Tile
           label="Waiting to invoice"
           value={String(awaitingInvoice.length)}
           note={
             awaitingInvoice.length === 0
-              ? "Everything weighed is billed"
+              ? "Everything complete is billed"
               : unpriced > 0
                 ? `Oldest ${formatDateGB(oldestWaiting as string)} · ${unpriced} ${unpriced === 1 ? "needs" : "need"} a rate`
                 : `Oldest ${formatDateGB(oldestWaiting as string)}`
@@ -208,11 +230,13 @@ export default async function DashboardPage() {
       </div>
 
       <p className="mt-8 text-xs text-muted">
-        Waiting to invoice counts every job that has been weighed and is not
-        already on an invoice. Raise them a week at a time from the button on
-        the end of a calendar week. A job flagged as needing a rate has been
-        weighed but has no matching rate on the client record, so there is
-        nothing to charge for it yet. Revenue, profit and margin live under{" "}
+        A weighed job waits under &ldquo;to check off&rdquo; until someone
+        opens it and marks it complete, which is what says the ticket has been
+        looked at. Only then does it count as waiting to invoice, and only
+        those are picked up by the button on the end of a calendar week. A job
+        flagged as needing a rate is complete but has no matching rate on the
+        client record, so there is nothing to charge for it yet. Revenue,
+        profit and margin live under{" "}
         <Link href="/finance" className="text-accent hover:underline">
           Finance
         </Link>

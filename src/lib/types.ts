@@ -129,19 +129,22 @@ export function directionForRate(rateDirection: Direction): JobDirection {
 /**
  * The run of work for a job we are invoicing out.
  *
- * Just the two: it is in the diary, or it has been weighed. Whether it has
- * been billed is not recorded here. A job is invoiced because it appears on an
- * invoice, and that is the only place it is written down.
+ * In the diary, weighed, then checked and signed off as complete. Whether it
+ * has been billed is not recorded here. A job is invoiced because it appears
+ * on an invoice, and that is the only place it is written down.
  */
-export const SALE_STATUSES = ["booked", "weighed"] as const;
+export const SALE_STATUSES = ["booked", "weighed", "complete"] as const;
 
 /**
  * The run of work for material we are buying off the client and selling on.
- * Money going out: do the job, weigh it, raise a purchase order, pay them.
+ * Money going out: do the job, weigh it, check it, raise a purchase order,
+ * pay them. The same sign-off as a sale, for the same reason - nothing leaves
+ * the office on a figure nobody has looked at.
  */
 export const PURCHASE_STATUSES = [
   "booked",
   "weighed",
+  "complete",
   "po-raised",
   "paid",
 ] as const;
@@ -150,6 +153,7 @@ export const PURCHASE_STATUSES = [
 export const JOB_STATUSES = [
   "booked",
   "weighed",
+  "complete",
   "po-raised",
   "paid",
 ] as const;
@@ -171,17 +175,17 @@ export function isStatusValidFor(
 /**
  * Where a job lands when it is switched between a sale and a purchase.
  *
- * Booked and weighed mean the same on both paths, so they carry across. The
- * purchase-only steps have no sale equivalent - there is no purchase order on
- * a job we are invoicing - so those fall back to weighed, which is as far
- * along as a sale job goes on its own.
+ * Booked, weighed and complete mean the same on both paths, so they carry
+ * across. The purchase-only steps have no sale equivalent - there is no
+ * purchase order on a job we are invoicing - so those fall back to complete,
+ * which is as far along as a sale job goes on its own.
  */
 export function equivalentStatus(
   status: JobStatus,
   newDirection: JobDirection,
 ): JobStatus {
   if (isStatusValidFor(status, newDirection)) return status;
-  return status === "booked" ? "booked" : "weighed";
+  return "complete";
 }
 
 /**
@@ -193,6 +197,7 @@ export function equivalentStatus(
 export const JOB_STANDINGS = [
   "booked",
   "weighed",
+  "complete",
   "invoiced",
   "po-raised",
   "paid",
@@ -203,6 +208,7 @@ export type JobStanding = (typeof JOB_STANDINGS)[number];
 export const JOB_STANDING_LABELS: Record<JobStanding, string> = {
   booked: "Booked",
   weighed: "Weighed",
+  complete: "Complete",
   invoiced: "Invoiced",
   "po-raised": "PO raised",
   paid: "Paid",
@@ -211,6 +217,7 @@ export const JOB_STANDING_LABELS: Record<JobStanding, string> = {
 export const JOB_STANDING_CLASSES: Record<JobStanding, string> = {
   booked: "bg-booked-soft text-booked",
   weighed: "bg-weighed-soft text-weighed",
+  complete: "bg-attention-soft text-attention",
   invoiced: "bg-sent-soft text-sent",
   "po-raised": "bg-po-soft text-po",
   paid: "bg-paid-soft text-paid",
@@ -224,13 +231,15 @@ export function jobStanding(status: JobStatus, invoiced: boolean): JobStanding {
 export const STATUS_LABELS: Record<JobStatus, string> = {
   booked: "Booked",
   weighed: "Weighed",
+  complete: "Complete",
   "po-raised": "PO raised",
   paid: "Paid",
 };
 
 export const STATUS_HINTS: Record<JobStatus, string> = {
   booked: "In the diary, not done yet",
-  weighed: "Weighbridge ticket in, ready to bill",
+  weighed: "Weighbridge ticket in, not checked",
+  complete: "Checked and ready to invoice",
   "po-raised": "Order out to them, not paid yet",
   paid: "We have paid them",
 };
@@ -238,9 +247,25 @@ export const STATUS_HINTS: Record<JobStatus, string> = {
 /**
  * Statuses a job has already been weighed at. From "weighed" onwards the
  * weight is known, so the form asks for it and keeps showing it.
+ *
+ * This is also what stops a job being marked complete off the back of nothing:
+ * complete is one of these statuses, so it cannot be saved without a weight.
  */
 export function isWeighedOrLater(status: JobStatus): boolean {
   return status !== "booked";
+}
+
+/**
+ * Statuses a job has been signed off at.
+ *
+ * "Complete" is the point someone has checked the ticket and said the figures
+ * are right. Nothing is invoiced or paid before that, which is the whole point
+ * of having the step: a weight on its own is a weighbridge reading, not a
+ * decision. The later statuses count too, because a job cannot reach them
+ * without having passed through it.
+ */
+export function isCompleteOrLater(status: JobStatus): boolean {
+  return status !== "booked" && status !== "weighed";
 }
 
 /**
@@ -251,6 +276,7 @@ export function isWeighedOrLater(status: JobStatus): boolean {
 export const STATUS_CLASSES: Record<JobStatus, string> = {
   booked: "bg-booked-soft text-booked",
   weighed: "bg-weighed-soft text-weighed",
+  complete: "bg-attention-soft text-attention",
   "po-raised": "bg-po-soft text-po",
   paid: "bg-paid-soft text-paid",
 };
@@ -475,7 +501,7 @@ export const STANDING_LABELS: Record<InvoiceStanding, string> = {
 
 export const STANDING_CLASSES: Record<InvoiceStanding, string> = {
   draft: "bg-elevated text-muted",
-  due: "bg-generate-soft text-generate",
+  due: "bg-attention-soft text-attention",
   overdue: "bg-danger-soft text-danger",
   paid: "bg-sent-soft text-sent",
 };

@@ -7,7 +7,7 @@
 import { findRateLine, HAULAGE, haulageChargeFor, priceJob } from "./pricing";
 import { formatPence } from "./money";
 import {
-  isWeighedOrLater,
+  isCompleteOrLater,
   materialCode,
   type Customer,
   type Invoice,
@@ -138,10 +138,13 @@ export function isBillable(job: Job, customer: Customer | undefined): boolean {
 /**
  * Is this job waiting to be invoiced?
  *
- * Two conditions, and only two: it has been weighed, and it is not already on
- * an invoice. Being on one is checked against what the invoices actually hold,
- * never against anything written on the job, which is what stops a job being
- * billed twice.
+ * Two conditions, and only two: someone has marked it complete, and it is not
+ * already on an invoice. A weighed job is not enough - a weight is a reading
+ * off the bridge, and complete is somebody saying they have checked it.
+ *
+ * Whether it is already on an invoice is checked against what the invoices
+ * actually hold, never against anything written on the job, which is what
+ * stops a job being billed twice.
  *
  * Kept here, in one function, because every screen that offers to bill has to
  * agree on the answer: the week button on the calendar, the invoice form, the
@@ -149,13 +152,13 @@ export function isBillable(job: Job, customer: Customer | undefined): boolean {
  * how they drift apart.
  */
 export function isAwaitingInvoice(job: Job, alreadyBilled: Set<string>): boolean {
-  return isWeighedOrLater(job.status) && !alreadyBilled.has(job.id);
+  return isCompleteOrLater(job.status) && !alreadyBilled.has(job.id);
 }
 
 /**
  * Can this job be put on an invoice today?
  *
- * Waiting to be invoiced, and priced. A weighed job whose material has no
+ * Waiting to be invoiced, and priced. A complete job whose material has no
  * matching rate on the client record has nothing to bill, so it is held back
  * rather than put on an invoice as a blank line - but it is still waiting, and
  * the screens say so rather than letting it disappear.

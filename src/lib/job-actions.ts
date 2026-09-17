@@ -18,6 +18,7 @@ import {
   isWeighedOrLater,
   JOB_DIRECTIONS,
   JOB_STATUSES,
+  STATUS_LABELS,
   type JobDirection,
   type JobStatus,
 } from "./types";
@@ -120,11 +121,18 @@ async function parseJob(
 
   // Once a job is weighed the weighbridge figure is the whole point of the
   // status, so it has to be there. Before that it is not asked for.
+  //
+  // This is also what enforces the rule that a job cannot be marked complete
+  // without a weight: complete is one of these statuses, so the save is
+  // refused here whatever the browser sent.
   let weightKg: number | null = null;
   if (statusIsKnown && isWeighedOrLater(status)) {
     const weightInput = text(formData, "weightTonnes");
     if (weightInput === "") {
-      fieldErrors.weightTonnes = "Enter the weight in tonnes.";
+      fieldErrors.weightTonnes =
+        status === "booked"
+          ? "Enter the weight in tonnes."
+          : `Enter the weight in tonnes. A job cannot be marked ${STATUS_LABELS[status].toLowerCase()} without one.`;
     } else {
       weightKg = parseTonnesToKg(weightInput);
       if (weightKg === null) {

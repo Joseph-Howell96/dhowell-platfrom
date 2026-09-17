@@ -11,6 +11,7 @@ import { isValidISODate } from "./calendar";
 import { readJsonList, writeJsonList } from "./store";
 import {
   isStatusValidFor,
+  isWeighedOrLater,
   JOB_DIRECTIONS,
   JOB_STATUSES,
   type Job,
@@ -26,15 +27,18 @@ const FILE = "jobs.json";
  * "booked" and lose its place in the run of work.
  */
 const RENAMED_STATUSES: Record<string, JobStatus> = {
-  // "Completed" meant collected but not yet weighed, which is where a booked
-  // job sits under the current list.
+  // Not the same word as today's "complete", despite how it reads. The old
+  // "completed" meant the skip had been collected, before any weight existed;
+  // today's "complete" means someone has checked the weighed ticket and signed
+  // it off. A collected job that was never weighed is back at booked.
   completed: "booked",
   // Billing is no longer a status. A job that had reached one of the old
-  // billing steps had certainly been weighed, so that is where it lands; if it
-  // is on an invoice it reads as invoiced anyway, worked out from the invoice.
-  invoiced: "weighed",
-  "generate-invoice": "weighed",
-  "invoice-sent": "weighed",
+  // billing steps had been checked and sent out, which is what complete means
+  // now; if it is on an invoice it reads as invoiced anyway, worked out from
+  // the invoice rather than from this.
+  invoiced: "complete",
+  "generate-invoice": "complete",
+  "invoice-sent": "complete",
 };
 
 function toStatus(value: unknown): JobStatus | null {
@@ -99,8 +103,14 @@ function toJob(raw: unknown): Job | null {
   const status = toStatus(record.status) ?? "booked";
   // A status from the other path cannot apply here. Falling back to the start
   // of this one is the safe answer: it understates progress rather than
-  // claiming an invoice went out when it did not.
-  const safeStatus = isStatusValidFor(status, direction) ? status : "booked";
+  // claiming a job was signed off when it was not.
+  //
+  // The same goes for a weight. Everything from "weighed" onwards is a claim
+  // about a figure, and a record making that claim without the figure is not
+  // one to believe, however it got into the file.
+  const onThisPath = isStatusValidFor(status, direction) ? status : "booked";
+  const safeStatus =
+    isWeighedOrLater(onThisPath) && weightKg === null ? "booked" : onThisPath;
 
   return {
     id: typeof record.id === "string" ? record.id : randomUUID(),
