@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { requireSession } from "@/lib/guard";
 
 import SearchForm from "@/components/search-form";
+import Hologram from "./hologram";
 import PageHeader from "@/components/page-header";
 import { monthKeyOf, todayISO, weekStartOf } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
@@ -246,7 +247,15 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <p className="mt-8 text-xs text-muted">
+      {/* The bottom of the page was empty. Joseph asked for this. */}
+      <div className="mt-14 flex flex-col items-center">
+        <Hologram className="h-56 w-auto" />
+        <p className="neon mt-2 text-2xl font-bold tracking-wide text-accent">
+          WELCOME DAD
+        </p>
+      </div>
+
+      <p className="mt-14 text-xs text-muted">
         A weighed job waits under &ldquo;to check off&rdquo; until someone
         opens it and marks it complete, which is what says the ticket has been
         looked at. Only then does it count as waiting to invoice, and only
