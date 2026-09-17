@@ -32,8 +32,10 @@ type Row = {
   reference: string;
   clientName: string;
   date: string;
-  /** When it falls due, which is what the list is ordered on. */
+  /** When it falls due, which is what the unpaid ones are ordered on. */
   dueDate: string;
+  /** When the money came in. Null while it has not. */
+  paidDate: string | null;
   grossPence: number;
   paid: boolean;
   /** Not paid, and past its due date. */
@@ -60,12 +62,64 @@ function matches(row: Row, term: string): boolean {
   );
 }
 
-/** Overdue, then not paid, then paid - and within each, soonest due first. */
-const ORDER = { overdue: 0, unpaid: 1, paid: 2 } as const;
+/** Which of the three an invoice is in. Every invoice is in exactly one. */
+const COLUMNS = ["overdue", "unpaid", "paid"] as const;
+
+type Column = (typeof COLUMNS)[number];
+
+const COLUMN_TITLES: Record<Column, string> = {
+  overdue: "Overdue",
+  unpaid: "Awaiting payment",
+  paid: "Paid",
+};
+
+const COLUMN_NOTES: Record<Column, string> = {
+  overdue: "Past its due date. Longest wait first.",
+  unpaid: "Not due yet. Closest to falling due first.",
+  paid: "Settled. Most recent first.",
+};
+
+const COLUMN_CLASSES: Record<Column, string> = {
+  overdue: "bg-danger-soft text-danger",
+  unpaid: "bg-attention-soft text-attention",
+  paid: "bg-sent-soft text-sent",
+};
+
+function columnOf(row: Row): Column {
+  return row.paid ? "paid" : row.overdue ? "overdue" : "unpaid";
+}
+
+/**
+ * Where a row sits inside its own column.
+ *
+ * The two that are owed read by due date, earliest first, which puts the
+ * longest-overdue at the top of one and the next to fall due at the top of the
+ * other - the same rule, doing the right thing in both. The paid one reads by
+ * when the money actually arrived, newest first, because a payment matters
+ * most on the day it lands.
+ */
+function within(a: Row, b: Row): number {
+  if (a.paid && b.paid) {
+    return (
+      (b.paidDate ?? b.dueDate).localeCompare(a.paidDate ?? a.dueDate) ||
+      b.number - a.number
+    );
+  }
+  return a.dueDate.localeCompare(b.dueDate) || a.number - b.number;
+}
 
 function rank(row: Row): number {
-  return ORDER[row.paid ? "paid" : row.overdue ? "overdue" : "unpaid"];
+  return COLUMNS.indexOf(columnOf(row));
 }
+
+/**
+ * How many invoices a column shows before it says "and N more".
+ *
+ * Without this the paid column grows for ever and the board stops being
+ * something you can take in at a glance. The whole lot is in the list
+ * underneath either way.
+ */
+const COLUMN_LIMIT = 8;
 
 /** How many months of the chart to show, newest last. */
 const MONTHS_SHOWN = 12;
@@ -236,6 +290,7 @@ export default async function FinancePage({
           settings.vatPercent,
         ),
         paid,
+        paidDate: invoice.paidDate,
         overdue,
         note: paid
           ? invoice.paidDate
@@ -250,14 +305,19 @@ export default async function FinancePage({
     // falling due, then what is already in. Inside each of those the soonest
     // due date leads, so the invoice that has been waiting longest sits at the
     // very top of the page.
-    .sort(
-      (a, b) =>
-        rank(a) - rank(b) ||
-        a.dueDate.localeCompare(b.dueDate) ||
-        a.number - b.number,
-    );
+    .sort((a, b) => rank(a) - rank(b) || within(a, b));
 
   const found = rows.filter((row) => matches(row, term));
+
+  /** The same invoices again, in three columns. Already in the right order. */
+  const board = COLUMNS.map((column) => {
+    const inColumn = found.filter((row) => columnOf(row) === column);
+    return {
+      column,
+      rows: inColumn,
+      totalPence: inColumn.reduce((sum, row) => sum + row.grossPence, 0),
+    };
+  });
   const unpaid = found.filter((row) => !row.paid);
   const owed = unpaid.reduce((sum, row) => sum + row.grossPence, 0);
 
@@ -364,13 +424,76 @@ export default async function FinancePage({
 
       <h2 className="text-lg font-semibold">Invoices</h2>
       <p className="mb-4 text-base text-muted">
-        Late first, most overdue at the top, then whatever falls due soonest,
-        then the ones already paid.
+        What is late, what is waiting, and what has been paid.
       </p>
 
-      <div className="mb-5">
+      <div className="mb-6">
         <InvoiceSearch value={term} />
       </div>
+
+      {/* items-start so a long column does not stretch the short ones. */}
+      {found.length > 0 ? (
+        <div className="mb-10 grid items-start gap-4 lg:grid-cols-3">
+          {board.map(({ column, rows: columnRows, totalPence }) => (
+            <section key={column} className="glass rounded-xl p-5">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                <h3 className="text-lg font-semibold">
+                  {COLUMN_TITLES[column]}
+                </h3>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-sm font-semibold ${COLUMN_CLASSES[column]}`}
+                >
+                  {columnRows.length}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-muted">{COLUMN_NOTES[column]}</p>
+              <p className="mt-3 text-2xl font-semibold tabular-nums">
+                {formatPence(totalPence)}
+              </p>
+
+              {columnRows.length === 0 ? (
+                <p className="mt-4 text-base text-muted">
+                  {column === "overdue"
+                    ? "Nothing is late."
+                    : column === "unpaid"
+                      ? "Nothing waiting."
+                      : "Nothing paid yet."}
+                </p>
+              ) : (
+                <ul className="mt-4 space-y-2">
+                  {columnRows.slice(0, COLUMN_LIMIT).map((row) => (
+                    <li key={row.id}>
+                      {/* The whole card is the link, so there is nothing small
+                          to aim at and nothing that appears on hover. */}
+                      <Link
+                        href={`/invoices/${row.id}`}
+                        className="glass-hover block rounded-lg border border-line px-3 py-2.5"
+                      >
+                        <span className="flex flex-wrap items-baseline justify-between gap-x-3">
+                          <span className="font-semibold">{row.clientName}</span>
+                          <span className="font-semibold tabular-nums">
+                            {formatPence(row.grossPence)}
+                          </span>
+                        </span>
+                        <span className="mt-0.5 block text-sm text-muted">
+                          {row.reference} · {row.note}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {columnRows.length > COLUMN_LIMIT ? (
+                <p className="mt-3 text-sm text-muted">
+                  and {columnRows.length - COLUMN_LIMIT} more, in the list
+                  below
+                </p>
+              ) : null}
+            </section>
+          ))}
+        </div>
+      ) : null}
 
       {rows.length === 0 ? (
         <div className="glass-dashed rounded-xl px-6 py-16 text-center">
@@ -392,6 +515,9 @@ export default async function FinancePage({
         </div>
       ) : (
         <>
+          <h3 className="text-base font-semibold">
+            All of them, one under the other
+          </h3>
           <p className="mb-4 text-base text-muted">
             {term === ""
               ? `${found.length} ${found.length === 1 ? "invoice" : "invoices"}. `
