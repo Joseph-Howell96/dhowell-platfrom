@@ -24,6 +24,26 @@ export default async function LoginPage() {
             Dennis
           </h1>
           <p className="mt-1 text-sm text-muted">D Howell &amp; Sons</p>
+
+          {/* For Dad, who has not seen this screen before. The arrow points at
+              the username box directly underneath it, so the two must stay in
+              this order: sign-post, then arrow, then the form. */}
+          <p className="neon mt-6 text-sm font-bold tracking-widest text-accent">
+            DAD SIGN IN HERE
+          </p>
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 40"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="mt-2 h-9 w-5 text-accent"
+          >
+            <path d="M12 3 v29" />
+            <path d="M5 25 l7 8 7-8" />
+          </svg>
         </div>
 
         <SignInForm />

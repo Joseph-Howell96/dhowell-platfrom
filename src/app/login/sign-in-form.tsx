@@ -20,7 +20,7 @@ export default function SignInForm() {
   const [password, setPassword] = useState("");
 
   return (
-    <form action={formAction} noValidate className="mt-8 space-y-4">
+    <form action={formAction} noValidate className="mt-3 space-y-4">
       <div>
         <label className={labelClass} htmlFor="username">
           Username
