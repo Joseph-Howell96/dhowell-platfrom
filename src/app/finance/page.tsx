@@ -4,6 +4,7 @@ import { connection } from "next/server";
 
 import MarkPaidButton from "./mark-paid-button";
 import MoneyChart, { type MonthMoney } from "./money-chart";
+import InvoiceSearch from "@/components/invoice-search";
 import PageHeader from "@/components/page-header";
 import { requireSession } from "@/lib/guard";
 import { isWeighed, totalsFor } from "@/lib/analytics";
@@ -40,6 +41,24 @@ type Row = {
   /** The plain-English line under the number: what is owed, or when it came. */
   note: string;
 };
+
+/**
+ * Does this invoice answer what was typed into the search box?
+ *
+ * The client's name or the invoice number, either of them part-typed. The
+ * number matches on its digits alone, so "1006", "INV-1006" and "inv 1006"
+ * all find the same invoice - nobody should have to remember the prefix.
+ */
+function matches(row: Row, term: string): boolean {
+  if (term === "") return true;
+  const needle = term.toLowerCase();
+  const digits = needle.replace(/\D/g, "");
+  return (
+    row.clientName.toLowerCase().includes(needle) ||
+    row.reference.toLowerCase().includes(needle) ||
+    (digits !== "" && String(row.number).includes(digits))
+  );
+}
 
 /** Overdue, then not paid, then paid - and within each, soonest due first. */
 const ORDER = { overdue: 0, unpaid: 1, paid: 2 } as const;
@@ -126,7 +145,11 @@ function LinkButton({
   );
 }
 
-export default async function FinancePage() {
+export default async function FinancePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   // Read the files on every visit, so the list is what is on disk now.
   await connection();
   await requireSession("/finance");
@@ -140,6 +163,9 @@ export default async function FinancePage() {
   ]);
   const clientsById = new Map(customers.map((c) => [c.id, c]));
   const jobsById = new Map(jobs.map((job) => [job.id, job]));
+
+  const asked = (await searchParams).find;
+  const term = (Array.isArray(asked) ? asked[0] : asked)?.trim() ?? "";
 
   const named = (customerId: string) =>
     clientsById.get(customerId)?.businessName ?? "Unknown client";
@@ -216,7 +242,7 @@ export default async function FinancePage() {
             ? `paid ${formatDateGB(invoice.paidDate)}`
             : "settled"
           : overdue
-            ? `${Math.abs(daysBetween(today, dueDate))} days late`
+            ? `due ${formatDateGB(dueDate)} · ${Math.abs(daysBetween(today, dueDate))} days late`
             : `due ${formatDateGB(dueDate)}`,
       };
     })
@@ -231,7 +257,8 @@ export default async function FinancePage() {
         a.number - b.number,
     );
 
-  const unpaid = rows.filter((row) => !row.paid);
+  const found = rows.filter((row) => matches(row, term));
+  const unpaid = found.filter((row) => !row.paid);
   const owed = unpaid.reduce((sum, row) => sum + row.grossPence, 0);
 
   return (
@@ -336,10 +363,14 @@ export default async function FinancePage() {
       ) : null}
 
       <h2 className="text-lg font-semibold">Invoices</h2>
-      <p className="mb-2 text-base text-muted">
-        Late first, then whatever falls due soonest, then the ones already
-        paid.
+      <p className="mb-4 text-base text-muted">
+        Late first, most overdue at the top, then whatever falls due soonest,
+        then the ones already paid.
       </p>
+
+      <div className="mb-5">
+        <InvoiceSearch value={term} />
+      </div>
 
       {rows.length === 0 ? (
         <div className="glass-dashed rounded-xl px-6 py-16 text-center">
@@ -349,10 +380,22 @@ export default async function FinancePage() {
             invoices&rdquo; at the end of that week. The invoice appears here.
           </p>
         </div>
+      ) : found.length === 0 ? (
+        <div className="glass-dashed rounded-xl px-6 py-16 text-center">
+          <p className="text-lg font-medium">
+            Nothing found for &ldquo;{term}&rdquo;
+          </p>
+          <p className="mx-auto mt-2 max-w-md text-base text-muted">
+            Try part of the client&rsquo;s name, or the invoice number on its
+            own. Press &ldquo;Show all&rdquo; to get the whole list back.
+          </p>
+        </div>
       ) : (
         <>
           <p className="mb-4 text-base text-muted">
-            {rows.length} {rows.length === 1 ? "invoice" : "invoices"}.{" "}
+            {term === ""
+              ? `${found.length} ${found.length === 1 ? "invoice" : "invoices"}. `
+              : `${found.length} of ${rows.length} ${rows.length === 1 ? "invoice" : "invoices"} match “${term}”. `}
             {unpaid.length === 0 ? (
               "All paid."
             ) : (
@@ -367,7 +410,7 @@ export default async function FinancePage() {
           </p>
 
           <ul className="space-y-3">
-            {rows.map((row) => (
+            {found.map((row) => (
               <li key={row.id} className="glass rounded-xl p-5">
                 <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
                   <div className="min-w-0">

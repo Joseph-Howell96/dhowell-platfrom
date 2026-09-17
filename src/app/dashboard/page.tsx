@@ -4,6 +4,7 @@ import { connection } from "next/server";
 
 import { requireSession } from "@/lib/guard";
 
+import InvoiceSearch from "@/components/invoice-search";
 import PageHeader from "@/components/page-header";
 import { monthKeyOf, todayISO, weekStartOf } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
@@ -165,6 +166,8 @@ export default async function DashboardPage() {
       <PageHeader
         title="Dashboard"
         description={`What needs doing today. ${formatDateGB(today)}.`}
+        // Searching from here lands on Finance with the answer already up.
+        action={<InvoiceSearch compact />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -240,8 +243,8 @@ export default async function DashboardPage() {
         looked at. Only then does it count as waiting to invoice, and only
         those are picked up by the button on the end of a calendar week. A job
         flagged as needing a rate is complete but has no matching rate on the
-        client record, so there is nothing to charge for it yet. Revenue,
-        profit and margin live under{" "}
+        client record, so there is nothing to charge for it yet. Revenue and
+        profit live under{" "}
         <Link href="/finance" className="text-accent hover:underline">
           Finance
         </Link>
