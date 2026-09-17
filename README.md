@@ -21,7 +21,7 @@ Press `Ctrl+C` in the terminal to stop it.
 
 ## Sections
 
-The sidebar has five sections. Only Settings is still a stub.
+All six sidebar sections do something.
 
 | Address | What it does |
 | --- | --- |
@@ -33,7 +33,7 @@ The sidebar has five sections. Only Settings is still a stub.
 | `/calendar` | Month view of jobs, colour-coded by status. Click a day to book. |
 | `/calendar/new` | Form for booking a job. |
 | `/finance` | Money in and money out, with due dates and anything overdue in red. |
-| `/settings` | Placeholder. |
+| `/settings` | The company's own details, as they belong on an invoice. |
 
 Clients are saved to `data/clients.json` and jobs to `data/jobs.json`, plain
 text files you can open and read. There is no database yet.
@@ -73,10 +73,12 @@ path, so a job three steps along stays three steps along.
 
 - **Weights are whole kilograms** (2.45 tonnes is `2450`), for the same reason
   as pence.
-- **Our invoices fall due 14 calendar days after the invoice date**, the same
-  for every client. Weekends and bank holidays are not skipped: an invoice sent
-  on the 1st is due on the 15th whatever day that lands on. The rule lives in
-  `src/lib/terms.ts`.
+- **Our invoices fall due a set number of calendar days after the invoice
+  date**, the same for every client. The number is edited under Settings, not
+  written into the code; it starts at 14. Weekends and bank holidays are not
+  skipped, so 14-day terms on an invoice sent on the 1st fall due on the 15th
+  whatever day that lands on. Changing it moves the due date on every invoice,
+  including ones already sent.
 - **What we owe a client** for material bought off them is separate, and falls
   due on the payment terms recorded against that client, counted from the date
   the purchase order went out. Bank holidays are worked out from the rules
@@ -110,6 +112,7 @@ path, so a job three steps along stays three steps along.
 | `data/clients.json` | The client records. Back this up. |
 | `data/jobs.json` | The booked jobs. Back this up. |
 | `data/outlets.json` | The outlets and their material income. Back this up. |
+| `data/settings.json` | The company's own details and payment terms. |
 | `public/` | Images and files served as-is (e.g. `/logo.png`). |
 | `package.json` | Project settings and the list of commands below. |
 

@@ -9,6 +9,11 @@ export type FormState = {
   fieldErrors: Record<string, string>;
   /** A problem with the form as a whole, shown at the top. */
   formError: string | null;
+  /**
+   * Set when a save went through on a form that stays put afterwards, such as
+   * settings. Forms that move you on somewhere else never need it.
+   */
+  success?: string;
 };
 
 export const EMPTY_FORM_STATE: FormState = { fieldErrors: {}, formError: null };

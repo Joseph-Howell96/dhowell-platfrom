@@ -36,7 +36,7 @@ import {
 } from "@/lib/types";
 import { penceToInputValue } from "@/lib/money";
 import { kgToInputValue } from "@/lib/weight";
-import { invoiceDueDate, PAYMENT_DAYS } from "@/lib/terms";
+import { invoiceDueDate } from "@/lib/terms";
 
 const inputClass =
   "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
@@ -58,6 +58,8 @@ type Props = {
   defaultDate?: string;
   /** Today's date, worked out on the server so both sides agree on it. */
   today: string;
+  /** How many days a client has to pay, from Settings. */
+  paymentDays: number;
 };
 
 export default function JobForm({
@@ -69,6 +71,7 @@ export default function JobForm({
   job,
   defaultDate,
   today,
+  paymentDays,
 }: Props) {
   const [state, formAction, pending] = useActionState(action, EMPTY_FORM_STATE);
   const skipListId = useId();
@@ -629,8 +632,8 @@ export default function JobForm({
                 find out when payment is due. */}
             <p className="mt-1.5 text-xs text-muted">
               {invoiceSentDate
-                ? `Due ${formatDateGB(invoiceDueDate(invoiceSentDate))} — ${PAYMENT_DAYS} days after the invoice date.`
-                : `Payment falls due ${PAYMENT_DAYS} days after this date.`}
+                ? `Due ${formatDateGB(invoiceDueDate(invoiceSentDate, paymentDays))} — ${paymentDays} days after the invoice date.`
+                : `Payment falls due ${paymentDays} days after this date.`}
             </p>
             {state.fieldErrors.invoiceSentDate ? (
               <p className={errorClass}>{state.fieldErrors.invoiceSentDate}</p>

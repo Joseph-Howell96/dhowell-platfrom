@@ -49,3 +49,39 @@ export async function writeJsonList(
   await writeFile(temporaryFile, `${JSON.stringify(items, null, 2)}\n`, "utf8");
   await rename(temporaryFile, target);
 }
+
+/**
+ * A file holding one record rather than a list, such as the company settings.
+ * Returns null when nothing has been saved yet.
+ */
+export async function readJsonRecord(
+  fileName: string,
+): Promise<Record<string, unknown> | null> {
+  let contents: string;
+  try {
+    contents = await readFile(path.join(DATA_DIR, fileName), "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+
+  if (contents.trim() === "") return null;
+
+  const parsed: unknown = JSON.parse(contents);
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return null;
+  }
+  return parsed as Record<string, unknown>;
+}
+
+/** Save one record, written to a temporary file and renamed as above. */
+export async function writeJsonRecord(
+  fileName: string,
+  value: Record<string, unknown>,
+): Promise<void> {
+  await mkdir(DATA_DIR, { recursive: true });
+  const target = path.join(DATA_DIR, fileName);
+  const temporaryFile = `${target}.${randomUUID()}.tmp`;
+  await writeFile(temporaryFile, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  await rename(temporaryFile, target);
+}

@@ -10,7 +10,8 @@ import { readJobs } from "@/lib/jobs";
 import { formatPence } from "@/lib/money";
 import { priceJob, type JobPrice } from "@/lib/pricing";
 import type { Job } from "@/lib/types";
-import { invoiceDueDate, PAYMENT_DAYS } from "@/lib/terms";
+import { readSettings } from "@/lib/settings";
+import { invoiceDueDate } from "@/lib/terms";
 
 export const metadata: Metadata = {
   title: "Finance",
@@ -165,7 +166,11 @@ export default async function FinancePage() {
   await connection();
 
   const today = todayISO();
-  const [jobs, customers] = await Promise.all([readJobs(), readCustomers()]);
+  const [jobs, customers, settings] = await Promise.all([
+    readJobs(),
+    readCustomers(),
+    readSettings(),
+  ]);
   const clientsById = new Map(customers.map((c) => [c.id, c]));
 
   const soonestFirst = (a: Row, b: Row) => a.dueDate.localeCompare(b.dueDate);
@@ -180,7 +185,7 @@ export default async function FinancePage() {
     )
     .map((job) => {
       const sent = job.invoiceSentDate as string;
-      const dueDate = invoiceDueDate(sent);
+      const dueDate = invoiceDueDate(sent, settings.paymentTermsDays);
       return {
         job,
         clientName: clientsById.get(job.customerId)?.businessName ?? "Unknown client",
@@ -274,8 +279,9 @@ export default async function FinancePage() {
       <p className="mt-8 text-xs text-muted">
         Amounts are worked out from each client&rsquo;s rate for the material,
         not stored, so correcting a rate corrects every job priced off it. Our
-        invoices fall due {PAYMENT_DAYS} days after the invoice date; what we
-        owe runs on the payment terms recorded against the client.{" "}
+        invoices fall due {settings.paymentTermsDays} days after the invoice
+        date, as set under Settings; what we owe runs on the payment terms
+        recorded against the client.{" "}
         <Link href="/clients" className="text-accent hover:underline">
           Clients
         </Link>

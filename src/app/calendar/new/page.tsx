@@ -7,6 +7,7 @@ import PageHeader from "@/components/page-header";
 import { isValidISODate, monthKeyOf, todayISO } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
 import { readOutlets } from "@/lib/outlets";
+import { readSettings } from "@/lib/settings";
 import { createJob } from "@/lib/job-actions";
 import { formatDateGB } from "@/lib/dates";
 
@@ -26,9 +27,10 @@ export default async function NewJobPage({
   const date =
     requested && isValidISODate(requested) ? requested : todayISO();
 
-  const [customers, outlets] = await Promise.all([
+  const [customers, outlets, settings] = await Promise.all([
     readCustomers(),
     readOutlets(),
+    readSettings(),
   ]);
 
   return (
@@ -68,6 +70,7 @@ export default async function NewJobPage({
           cancelHref={`/calendar?month=${monthKeyOf(date)}`}
           defaultDate={date}
           today={todayISO()}
+          paymentDays={settings.paymentTermsDays}
         />
       )}
     </main>

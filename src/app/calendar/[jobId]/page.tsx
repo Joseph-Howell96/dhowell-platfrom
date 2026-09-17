@@ -8,6 +8,7 @@ import PageHeader from "@/components/page-header";
 import { monthKeyOf, todayISO } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
 import { readOutlets } from "@/lib/outlets";
+import { readSettings } from "@/lib/settings";
 import { formatDateGB } from "@/lib/dates";
 import { saveJob } from "@/lib/job-actions";
 import { readJob } from "@/lib/jobs";
@@ -28,9 +29,10 @@ export default async function JobPage({
   // An address for a job that is not there shows the standard not-found page.
   if (!job) notFound();
 
-  const [customers, outlets] = await Promise.all([
+  const [customers, outlets, settings] = await Promise.all([
     readCustomers(),
     readOutlets(),
+    readSettings(),
   ]);
   const client = customers.find((customer) => customer.id === job.customerId);
 
@@ -57,6 +59,7 @@ export default async function JobPage({
         cancelHref={`/calendar?month=${monthKeyOf(job.date)}`}
         job={job}
         today={todayISO()}
+        paymentDays={settings.paymentTermsDays}
       />
     </main>
   );

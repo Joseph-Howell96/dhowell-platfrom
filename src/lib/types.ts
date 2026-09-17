@@ -317,3 +317,28 @@ export type Outlet = {
   materials: OutletMaterial[];
   createdAt: string;
 };
+
+/* ---------------------------------------------------------------------------
+ * Company settings
+ * ------------------------------------------------------------------------- */
+
+/**
+ * The details that belong on an invoice: who we are, how to pay us, and how
+ * long a client has to do it.
+ *
+ * Held as data rather than written into the code so that a change of address
+ * or bank account is a thing someone types in, not a change a developer makes.
+ */
+export type CompanySettings = {
+  companyName: string;
+  address: string;
+  phone: string;
+  email: string;
+  vatNumber: string;
+  companyNumber: string;
+  bankAccountName: string;
+  bankAccountNumber: string;
+  bankSortCode: string;
+  /** How many days a client has to pay, counted from the invoice date. */
+  paymentTermsDays: number;
+};
