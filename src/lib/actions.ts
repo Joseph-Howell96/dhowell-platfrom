@@ -73,7 +73,6 @@ function parseCustomer(
   // Rate lines arrive as lists that line up by position: the first material
   // goes with the first size, the first pair of rates and the first direction.
   const materials = formData.getAll("rateMaterial");
-  const sizes = formData.getAll("rateSkipSize");
   const tonnageRates = formData.getAll("ratePerTonne");
   const haulageRates = formData.getAll("rateHaulage");
   const directions = formData.getAll("rateDirection");
@@ -131,7 +130,6 @@ function parseCustomer(
       rateLines.push({
         id: randomUUID(),
         material,
-        skipSize: String(sizes[index] ?? "").trim(),
         ratePerTonnePence,
         haulageRatePence,
         // Only the tonnage rate has a direction; haulage is always charged.

@@ -8,7 +8,7 @@
  * A rate line carries both figures at once. Wood might be rebated at £42 a
  * tonne - money out - while still being charged £95 to come and collect it.
  * The tonnage rate follows the line's direction; the haulage rate is always
- * charged to the client.
+ * charged to the client, and a job may override the amount.
  */
 import type { Customer, Job, RateLine } from "./types";
 
@@ -30,34 +30,15 @@ function same(a: string, b: string): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
-/**
- * The best line for a skip size out of a set already narrowed to one material.
- *
- * A rate for the exact size wins. Failing that, a rate left blank applies
- * whatever size turned up. If a client only has an 8 yard rate and a 12 yard
- * job comes through, nothing matches and the job goes unpriced - better a
- * blank on the invoice than quietly charging the wrong size.
- */
-function bestForSize(lines: RateLine[], skipSize: string): RateLine | undefined {
-  const exact =
-    skipSize.trim() !== ""
-      ? lines.find((line) => same(line.skipSize, skipSize))
-      : undefined;
-  return exact ?? lines.find((line) => line.skipSize.trim() === "");
-}
-
 /** The line that prices the material itself, whichever way the money runs. */
 export function findMaterialRate(
   customer: Customer | undefined,
-  job: Pick<Job, "material" | "skipSize">,
+  job: Pick<Job, "material">,
 ): RateLine | undefined {
   if (!customer) return undefined;
-  return bestForSize(
-    customer.rateLines.filter(
-      (line) =>
-        same(line.material, job.material) && line.ratePerTonnePence !== null,
-    ),
-    job.skipSize,
+  return customer.rateLines.find(
+    (line) =>
+      same(line.material, job.material) && line.ratePerTonnePence !== null,
   );
 }
 
@@ -70,22 +51,27 @@ export function findMaterialRate(
  */
 export function findHaulageRate(
   customer: Customer | undefined,
-  job: Pick<Job, "material" | "skipSize">,
+  job: Pick<Job, "material">,
 ): RateLine | undefined {
   if (!customer) return undefined;
   const haulageLines = customer.rateLines.filter(
     (line) => line.haulageRatePence !== null,
   );
   return (
-    bestForSize(
-      haulageLines.filter((line) => same(line.material, job.material)),
-      job.skipSize,
-    ) ??
-    bestForSize(
-      haulageLines.filter((line) => same(line.material, HAULAGE)),
-      job.skipSize,
-    )
+    haulageLines.find((line) => same(line.material, job.material)) ??
+    haulageLines.find((line) => same(line.material, HAULAGE))
   );
+}
+
+/**
+ * What haulage costs on this job before any override: the client's rate for
+ * the material, or null where they have none.
+ */
+export function standardHaulagePence(
+  customer: Customer | undefined,
+  job: Pick<Job, "material">,
+): number | null {
+  return findHaulageRate(customer, job)?.haulageRatePence ?? null;
 }
 
 /** Kept for anywhere that just wants the material's line. */
@@ -127,8 +113,17 @@ export function haulageChargeFor(
   customer: Customer | undefined,
 ): JobPrice | null {
   if (!job.chargeHaulage) return null;
-  const line = findHaulageRate(customer, job);
-  if (!line || line.haulageRatePence === null) return null;
+  // An amount set on the job wins over the client's rate. It is what somebody
+  // decided this particular run was worth, and a standing rate is only ever a
+  // starting point.
+  if (job.haulageRateOverridePence !== null) {
+    return {
+      pence: job.haulageRateOverridePence,
+      workedOut: "haulage, set on this job",
+    };
+  }
+  const standard = standardHaulagePence(customer, job);
+  if (standard === null) return null;
   // A flat charge for the lorry, whatever the load weighs.
-  return { pence: line.haulageRatePence, workedOut: "haulage" };
+  return { pence: standard, workedOut: "haulage, the client's rate" };
 }

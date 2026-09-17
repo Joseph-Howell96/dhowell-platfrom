@@ -43,7 +43,6 @@ export default async function NewInvoicePage() {
       customerId: job.customerId,
       date: job.date,
       material: job.material,
-      skipSize: job.skipSize,
       amountPence: (() => {
         const client = clientsById.get(job.customerId);
         const haulage = haulageChargeFor(job, client)?.pence ?? 0;

@@ -22,7 +22,6 @@ import {
   DIRECTION_LABELS,
   DIRECTIONS,
   MATERIALS,
-  SKIP_SIZES,
   type Customer,
 } from "@/lib/types";
 
@@ -60,7 +59,6 @@ const EMPTY_DETAILS: Details = {
 type RateRow = {
   key: string;
   material: string;
-  skipSize: string;
   /** What a tonne of it is worth. */
   perTonne: string;
   /** What we charge to collect it. Always a charge, never a rebate. */
@@ -78,7 +76,6 @@ function blankRow(sequence: number): RateRow {
   return {
     key: `row-${sequence}`,
     material: "",
-    skipSize: "",
     perTonne: "",
     haulage: "",
     direction: "charge",
@@ -115,7 +112,6 @@ export default function CustomerForm({
       ? customer.rateLines.map((line, index) => ({
           key: `row-${index}`,
           material: line.material,
-          skipSize: line.skipSize,
           perTonne:
             line.ratePerTonnePence === null
               ? ""
@@ -132,7 +128,6 @@ export default function CustomerForm({
     customer && customer.rateLines.length > 0 ? customer.rateLines.length : 1,
   );
   const materialListId = useId();
-  const skipListId = useId();
 
   function updateDetail(field: keyof Details, value: string) {
     setDetails((current) => ({ ...current, [field]: value }));
@@ -303,17 +298,12 @@ export default function CustomerForm({
             <option key={material} value={material} />
           ))}
         </datalist>
-        <datalist id={skipListId}>
-          {SKIP_SIZES.map((size) => (
-            <option key={size} value={size} />
-          ))}
-        </datalist>
 
         <div className="space-y-4">
           {rows.map((row, index) => (
             <div
               key={row.key}
-              className="grid gap-3 rounded-lg border border-line bg-elevated/40 p-4 sm:grid-cols-2 lg:grid-cols-[1.2fr_0.9fr_0.9fr_0.9fr_1.1fr_auto] lg:items-start"
+              className="grid gap-3 rounded-lg border border-line bg-elevated/40 p-4 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr_auto] lg:items-start"
             >
               <div>
                 <label
@@ -338,26 +328,6 @@ export default function CustomerForm({
                     {state.fieldErrors[`rateMaterial-${index}`]}
                   </p>
                 ) : null}
-              </div>
-
-              <div>
-                <label
-                  className={labelClass}
-                  htmlFor={`rateSkipSize-${row.key}`}
-                >
-                  Skip size
-                </label>
-                <input
-                  id={`rateSkipSize-${row.key}`}
-                  name="rateSkipSize"
-                  list={skipListId}
-                  className={inputClass}
-                  placeholder="Any size"
-                  value={row.skipSize}
-                  onChange={(event) =>
-                    updateRow(row.key, { skipSize: event.target.value })
-                  }
-                />
               </div>
 
               <div>

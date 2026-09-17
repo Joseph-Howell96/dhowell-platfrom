@@ -28,7 +28,6 @@ export type BillableJob = {
   customerId: string;
   date: string;
   material: string;
-  skipSize: string;
   amountPence: number | null;
 };
 
@@ -179,7 +178,6 @@ export default function RaiseInvoiceForm({
                     </span>
                     <span className="min-w-0 flex-1 truncate">
                       {job.material}
-                      {job.skipSize ? `, ${job.skipSize}` : ""}
                     </span>
                     <span className="shrink-0 tabular-nums">
                       {job.amountPence === null

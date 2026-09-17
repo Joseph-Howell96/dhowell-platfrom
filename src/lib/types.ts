@@ -52,10 +52,10 @@ export const DIRECTION_HINTS: Record<Direction, string> = {
 /**
  * What a client is charged or paid for one material.
  *
- * One row per material and skip size, holding both figures: what a tonne of
- * the material is worth, and what we charge to come and collect it. Either can
- * be left empty - a material we only haul has no tonnage rate, and a tonnage
- * rate with no haulage means the lorry is not charged separately.
+ * One row per material, holding both figures: what a tonne of the material is
+ * worth, and what we charge to come and collect it. Either can be left empty -
+ * a material we only haul has no tonnage rate, and a tonnage rate with no
+ * haulage means the lorry is not charged separately.
  *
  * The direction applies to the tonnage rate alone. Haulage is always charged
  * to the client, never paid to them.
@@ -63,11 +63,6 @@ export const DIRECTION_HINTS: Record<Direction, string> = {
 export type RateLine = {
   id: string;
   material: string;
-  /**
-   * Which skip this rate is for, e.g. "8 yard". Left blank the rate applies
-   * whatever size turns up.
-   */
-  skipSize: string;
   /** What a tonne of the material is worth, in pence. Null where unpriced. */
   ratePerTonnePence: number | null;
   /** What we charge to collect it, in pence. Null where not charged. */
@@ -236,19 +231,6 @@ export const JOB_MATERIALS = [
   "Other",
 ] as const;
 
-/** Common skip sizes, offered as suggestions rather than a fixed list. */
-export const SKIP_SIZES = [
-  "4 yard",
-  "6 yard",
-  "8 yard",
-  "12 yard",
-  "14 yard",
-  "16 yard",
-  "20 yard",
-  "35 yard RoRo",
-  "40 yard RoRo",
-] as const;
-
 export type Job = {
   id: string;
   /** Which client this is for, matching a Customer id. */
@@ -262,7 +244,6 @@ export type Job = {
    * format also sorts correctly when compared as plain text.
    */
   date: string;
-  skipSize: string;
   material: string;
   notes: string;
   status: JobStatus;
@@ -278,10 +259,20 @@ export type Job = {
    * Whether haulage is charged on this job as well as the material.
    *
    * One lorry movement is one job, so the haulage sits on the same record
-   * rather than needing a second one. It is priced from the client's Haulage
-   * rate for this skip size, and shows as its own line on the invoice.
+   * rather than needing a second one. It is priced from the client's haulage
+   * rate for the material, and shows as its own line on the invoice.
    */
   chargeHaulage: boolean;
+  /**
+   * What to charge for haulage on this job instead of the client's rate, in
+   * pence. Null means use their rate, which is the usual case.
+   *
+   * Here because a particular job can be harder than the standing rate
+   * allows for - a long run, a difficult access, a wasted journey - and
+   * changing the client's rate to bill one job would silently reprice every
+   * other job that ever used it.
+   */
+  haulageRateOverridePence: number | null;
 
   /* Purchase side. All stay null on a sale, and none of them is a status:
      they are the paperwork that follows a rebate job being checked off. */

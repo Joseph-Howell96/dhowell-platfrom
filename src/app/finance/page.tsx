@@ -20,17 +20,54 @@ import { readDeletedInvoices, readInvoices } from "@/lib/invoices";
 import { formatInvoiceNumber, invoiceGrossPence } from "@/lib/invoicing";
 import { readJobs } from "@/lib/jobs";
 import { formatPence } from "@/lib/money";
+import { haulageChargeFor, priceJob } from "@/lib/pricing";
+import { invoicedJobIds } from "@/lib/invoices";
+import { isAwaitingInvoice, isBillable } from "@/lib/invoicing";
+import { monthKeyOf, monthLabel } from "@/lib/calendar";
+import { sumKnown } from "@/lib/analytics";
+import ViewControls from "./view-controls";
+import {
+  BILLING_STATE_CLASSES,
+  BILLING_STATE_LABELS,
+  dateIsShown,
+  stateIsShown,
+  viewFromParams,
+  type BillingState,
+} from "@/lib/finance-view";
 import { readOutlets } from "@/lib/outlets";
 import { readSettings } from "@/lib/settings";
 import { invoiceDueDate } from "@/lib/terms";
-import {
-  invoiceStanding,
-  STANDING_CLASSES,
-  STANDING_LABELS,
-} from "@/lib/types";
+import { invoiceStanding } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Finance",
+};
+
+/**
+ * One line in the billing list.
+ *
+ * Deliberately the same shape whether it came from an invoice or from a job
+ * still waiting to be billed. The list is about money, and where a figure came
+ * from is a detail the reader can see from its state rather than something the
+ * layout has to fork on.
+ */
+type BillingRow = {
+  key: string;
+  kind: "invoice" | "job";
+  href: string;
+  /** The PDF, on an invoice. Null on a job, which has no document yet. */
+  pdfHref: string | null;
+  /** The invoice number, or the material on a job not yet billed. */
+  reference: string;
+  clientName: string;
+  /** The invoice date, or the job date. What the range filter works on. */
+  date: string;
+  grossPence: number;
+  state: BillingState;
+  /** The short line under the amount: when it is due, how late, and so on. */
+  note: string;
+  /** Whether a copy of the PDF is on file. */
+  filed: boolean;
 };
 
 function Card({
@@ -69,7 +106,7 @@ function missingNote(totals: Totals): string | undefined {
 export default async function FinancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   // Read the files on every visit, and work out "today" then too, so where an
   // invoice stands is right rather than frozen at whenever the site was built.
@@ -91,9 +128,11 @@ export default async function FinancePage({
 
   /* --- The year's trading ------------------------------------------------ */
 
+  const query = await searchParams;
   const years = yearsWithJobs(jobs, today.slice(0, 4));
-  const requested = (await searchParams).year;
-  const year = requested && years.includes(requested) ? requested : years[0];
+  const requestedYear = Array.isArray(query.year) ? query.year[0] : query.year;
+  const year =
+    requestedYear && years.includes(requestedYear) ? requestedYear : years[0];
 
   const inYear = jobs.filter((job) => job.date.startsWith(year));
   const weighed = inYear.filter(isWeighed);
@@ -111,59 +150,99 @@ export default async function FinancePage({
     ...materials.map((row) => Math.abs(marginPercent(row.totals) ?? 0)),
   );
 
-  /* --- The invoices ------------------------------------------------------ */
+  /* --- The billing list -------------------------------------------------- */
+
+  const chosen = viewFromParams(query);
 
   /**
-   * Every invoice gathered under the client it is for, so a client's paperwork
-   * is in one place rather than scattered down a list by date. Drafts
-   * included: an invoice raised from the calendar belongs here straight away,
-   * not only once someone has opened its PDF.
+   * One row per thing that has money attached to it.
+   *
+   * Mostly invoices. Also the jobs that have been checked off and not yet
+   * billed, which are not invoices at all - that is the point of putting them
+   * here. Work finished and never invoiced is the easiest money in the
+   * business to lose, and it is invisible on a screen that only lists
+   * invoices.
    */
-  const filed = new Map<
-    string,
-    {
-      reference: string;
-      invoice: (typeof invoices)[number];
-      grossPence: number;
-      dueDate: string;
-      standing: ReturnType<typeof invoiceStanding>;
-      daysLate: number;
-    }[]
-  >();
+  const rows: BillingRow[] = [];
+
   for (const invoice of invoices) {
     const client = clientsById.get(invoice.customerId);
-    const name = client?.businessName ?? "Unknown client";
-    const rows = filed.get(name) ?? [];
     const dueDate = invoiceDueDate(invoice.issueDate, settings.paymentTermsDays);
+    const standing = invoiceStanding(invoice.status, dueDate, today);
     rows.push({
+      key: invoice.id,
+      kind: "invoice",
+      href: `/invoices/${invoice.id}`,
+      pdfHref: `/invoices/${invoice.id}/pdf`,
       reference: formatInvoiceNumber(settings.invoiceNumberPrefix, invoice.number),
-      invoice,
-      grossPence: invoiceGrossPence(
-        invoice,
-        jobsById,
-        client,
-        settings.vatPercent,
-      ),
-      dueDate,
-      standing: invoiceStanding(invoice.status, dueDate, today),
-      daysLate: Math.abs(daysBetween(today, dueDate)),
+      clientName: client?.businessName ?? "Unknown client",
+      date: invoice.issueDate,
+      grossPence: invoiceGrossPence(invoice, jobsById, client, settings.vatPercent),
+      // "Draft" and "due" are both an invoice raised and not yet settled, and
+      // that is one thing to a person chasing money.
+      state: standing === "paid" ? "paid" : standing === "overdue" ? "overdue" : "invoiced",
+      note:
+        standing === "paid"
+          ? invoice.paidDate
+            ? `paid ${formatDateGB(invoice.paidDate)}`
+            : "settled"
+          : standing === "overdue"
+            ? `${Math.abs(daysBetween(today, dueDate))} days overdue`
+            : `due ${formatDateGB(dueDate)}`,
+      filed: invoice.pdfSavedAt !== null,
     });
-    filed.set(name, rows);
   }
-  // Newest invoice first within a client, clients in alphabetical order.
-  for (const rows of filed.values()) {
-    rows.sort((a, b) => b.invoice.issueDate.localeCompare(a.invoice.issueDate));
-  }
-  const filedByClient = [...filed.entries()].sort(([a], [b]) => a.localeCompare(b));
-  const filedCount = filedByClient.reduce((n, [, rows]) => n + rows.length, 0);
 
-  // Outstanding money, for the line above the list: what is unpaid, and how
-  // much of it is late.
-  const unpaid = [...filed.values()]
-    .flat()
-    .filter((row) => row.standing !== "paid");
-  const unpaidTotal = unpaid.reduce((sum, row) => sum + row.grossPence, 0);
-  const overdueCount = unpaid.filter((row) => row.standing === "overdue").length;
+  const billed = invoicedJobIds(invoices);
+  for (const job of jobs) {
+    if (!isAwaitingInvoice(job, billed)) continue;
+    const client = clientsById.get(job.customerId);
+    const price = priceJob(job, client);
+    const haulage = haulageChargeFor(job, client);
+    rows.push({
+      key: job.id,
+      kind: "job",
+      href: `/calendar/${job.id}`,
+      pdfHref: null,
+      reference: job.material,
+      clientName: client?.businessName ?? "Unknown client",
+      date: job.date,
+      // Net, since nothing has been invoiced yet and so no VAT has been added.
+      grossPence: sumKnown(price?.pence ?? null, haulage?.pence ?? null) ?? 0,
+      state: "uninvoiced",
+      note: isBillable(job, client) ? "ready to invoice" : "needs a rate",
+      filed: false,
+    });
+  }
+
+  const shown = rows
+    .filter(
+      (row) => stateIsShown(chosen, row.state) && dateIsShown(chosen, row.date),
+    )
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  /** The rows gathered under whatever heading was asked for. */
+  const grouped = new Map<string, BillingRow[]>();
+  for (const row of shown) {
+    const key =
+      chosen.grouping === "client"
+        ? row.clientName
+        : chosen.grouping === "month"
+          ? monthLabel(monthKeyOf(row.date))
+          : "";
+    grouped.set(key, [...(grouped.get(key) ?? []), row]);
+  }
+  const groups = [...grouped.entries()].sort(([a], [b]) =>
+    // Clients read alphabetically; months read newest first, which is the
+    // order the rows are already in, so the first row of each decides.
+    chosen.grouping === "month"
+      ? (grouped.get(b)?.[0].date ?? "").localeCompare(grouped.get(a)?.[0].date ?? "")
+      : a.localeCompare(b),
+  );
+
+  const shownTotal = shown.reduce((sum, row) => sum + row.grossPence, 0);
+  const owedRows = shown.filter((row) => row.state !== "paid");
+  const owedTotal = owedRows.reduce((sum, row) => sum + row.grossPence, 0);
 
   /**
    * Invoices that were withdrawn. Kept out of everything above - they are not
@@ -190,7 +269,7 @@ export default async function FinancePage({
     <main className="mx-auto w-full max-w-6xl px-6 py-10 lg:px-10">
       <PageHeader
         title="Finance"
-        description="What the year has earned, and every invoice raised."
+        description="What the year has earned, and every bit of billing - invoiced or not."
         action={
           <div className="flex items-center gap-1 rounded-lg border border-line p-1">
             {years.map((option) => (
@@ -328,93 +407,136 @@ export default async function FinancePage({
 
       <section className="mt-10">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-semibold">Invoices by client</h2>
+          <h2 className="text-lg font-semibold">Billing</h2>
           <p className="text-sm text-muted">
-            {filedCount === 0
-              ? "None raised yet"
-              : unpaid.length === 0
-                ? `${filedCount} raised, all paid`
-                : `${formatPence(unpaidTotal)} outstanding across ${
-                    unpaid.length
-                  } ${unpaid.length === 1 ? "invoice" : "invoices"}${
-                    overdueCount > 0 ? `, ${overdueCount} overdue` : ""
-                  }`}
+            {shown.length === 0
+              ? "Nothing matches these filters"
+              : `${shown.length} ${shown.length === 1 ? "item" : "items"}, ${formatPence(shownTotal)}${
+                  owedRows.length > 0
+                    ? ` · ${formatPence(owedTotal)} still owed`
+                    : ", all settled"
+                }`}
           </p>
         </div>
 
-        {filedByClient.length === 0 ? (
+        <ViewControls view={chosen} />
+
+        {shown.length === 0 ? (
           <div className="glass-dashed rounded-xl px-6 py-14 text-center">
-            <p className="font-medium">No invoices yet</p>
+            <p className="font-medium">Nothing to show</p>
             <p className="mx-auto mt-1 max-w-md text-sm text-muted">
-              Raise one from the calendar and it appears here under the client
-              it is for. The number opens its PDF, which files a copy.
+              {rows.length === 0
+                ? "Complete a job on the calendar and it appears here, waiting to be invoiced."
+                : "No billing matches the filters above. Clear them to see everything."}
             </p>
           </div>
         ) : (
           <div className="space-y-4">
-            {filedByClient.map(([name, rows]) => (
-              <div
-                key={name}
-                className="overflow-hidden glass rounded-xl"
-              >
-                <h3 className="border-b border-line bg-elevated px-4 py-2.5 text-sm font-semibold">
-                  {name}
-                  <span className="ml-2 font-normal text-muted">
-                    {rows.length} {rows.length === 1 ? "invoice" : "invoices"}
-                  </span>
-                </h3>
-                <ul className="divide-y divide-line">
-                  {rows.map((row) => (
-                    <li
-                      key={row.invoice.id}
-                      className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm"
-                    >
-                      <a
-                        href={`/invoices/${row.invoice.id}/pdf`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="w-28 shrink-0 font-medium tabular-nums text-accent hover:underline"
-                      >
-                        {row.reference}
-                      </a>
-                      <span className="w-24 shrink-0 text-muted">
-                        {formatDateGB(row.invoice.issueDate)}
-                      </span>
-                      <span className="w-24 shrink-0 tabular-nums">
-                        {formatPence(row.grossPence)}
-                      </span>
-                      <span className="w-28 shrink-0 text-xs text-muted">
-                        {row.standing === "paid"
-                          ? "Settled"
-                          : `due ${formatDateGB(row.dueDate)}`}
-                      </span>
-                      <span className="flex-1">
-                        <span
-                          className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${STANDING_CLASSES[row.standing]}`}
-                        >
-                          {STANDING_LABELS[row.standing]}
-                          {row.standing === "overdue"
-                            ? ` · ${row.daysLate} days overdue`
-                            : ""}
-                        </span>
-                      </span>
-                      {row.invoice.pdfSavedAt ? (
-                        <span
-                          className="shrink-0 text-xs text-muted"
-                          title="A copy of this PDF is on file"
-                        >
-                          filed
-                        </span>
-                      ) : null}
+            {groups.map(([heading, groupRows]) => (
+              <div key={heading || "all"}>
+                {heading ? (
+                  <h3 className="mb-2 flex flex-wrap items-baseline gap-x-2 text-sm font-semibold">
+                    {heading}
+                    <span className="font-normal text-muted">
+                      {groupRows.length}{" "}
+                      {groupRows.length === 1 ? "item" : "items"},{" "}
+                      {formatPence(
+                        groupRows.reduce((sum, row) => sum + row.grossPence, 0),
+                      )}
+                    </span>
+                  </h3>
+                ) : null}
+
+                {chosen.view === "cards" ? (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {groupRows.map((row) => (
                       <Link
-                        href={`/invoices/${row.invoice.id}`}
-                        className="shrink-0 text-muted transition-colors hover:text-ink"
+                        key={row.key}
+                        href={row.href}
+                        className="glass glass-hover flex flex-col rounded-xl p-4"
                       >
-                        Open
+                        <span className="flex items-baseline justify-between gap-2">
+                          <span className="font-medium tabular-nums">
+                            {row.reference}
+                          </span>
+                          <span
+                            className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${BILLING_STATE_CLASSES[row.state]}`}
+                          >
+                            {BILLING_STATE_LABELS[row.state]}
+                          </span>
+                        </span>
+                        <span className="mt-1 block truncate text-sm text-muted">
+                          {row.clientName}
+                        </span>
+                        <span className="mt-3 block text-xl font-semibold tabular-nums">
+                          {formatPence(row.grossPence)}
+                        </span>
+                        <span className="mt-1 block text-xs text-muted">
+                          {formatDateGB(row.date)} · {row.note}
+                        </span>
                       </Link>
-                    </li>
-                  ))}
-                </ul>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="glass overflow-hidden rounded-xl">
+                    <ul className="divide-y divide-line">
+                      {groupRows.map((row) => (
+                        <li
+                          key={row.key}
+                          className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm"
+                        >
+                          {row.pdfHref ? (
+                            <a
+                              href={row.pdfHref}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="w-28 shrink-0 truncate font-medium tabular-nums text-accent hover:underline"
+                            >
+                              {row.reference}
+                            </a>
+                          ) : (
+                            <span className="w-28 shrink-0 truncate font-medium">
+                              {row.reference}
+                            </span>
+                          )}
+                          <span className="w-24 shrink-0 text-muted">
+                            {formatDateGB(row.date)}
+                          </span>
+                          {chosen.grouping === "client" ? null : (
+                            <span className="min-w-0 flex-1 truncate text-muted">
+                              {row.clientName}
+                            </span>
+                          )}
+                          <span className="w-24 shrink-0 tabular-nums">
+                            {formatPence(row.grossPence)}
+                          </span>
+                          <span className="w-36 shrink-0 text-xs text-muted">
+                            {row.note}
+                          </span>
+                          <span
+                            className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${BILLING_STATE_CLASSES[row.state]}`}
+                          >
+                            {BILLING_STATE_LABELS[row.state]}
+                          </span>
+                          {row.filed ? (
+                            <span
+                              className="shrink-0 text-xs text-muted"
+                              title="A copy of this PDF is on file"
+                            >
+                              filed
+                            </span>
+                          ) : null}
+                          <Link
+                            href={row.href}
+                            className="ml-auto shrink-0 text-muted transition-colors hover:text-ink"
+                          >
+                            Open
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             ))}
           </div>

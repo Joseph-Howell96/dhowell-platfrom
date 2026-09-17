@@ -10,7 +10,7 @@
  * reveals a box to type it in.
  */
 import Link from "next/link";
-import { useActionState, useId, useState } from "react";
+import { useActionState, useState } from "react";
 
 import Select from "@/components/select";
 import { addCalendarDays, formatDateGB } from "@/lib/dates";
@@ -25,7 +25,6 @@ import {
   JOB_STANDING_CLASSES,
   JOB_STANDING_LABELS,
   JOB_STATUSES,
-  SKIP_SIZES,
   STATUS_CLASSES,
   STATUS_HINTS,
   STATUS_LABELS,
@@ -38,8 +37,12 @@ import {
   type JobStatus,
   type Outlet,
 } from "@/lib/types";
-import { formatPence, penceToInputValue } from "@/lib/money";
-import { findHaulageRate } from "@/lib/pricing";
+import {
+  formatPence,
+  parsePoundsToPence,
+  penceToInputValue,
+} from "@/lib/money";
+import { findMaterialRate, standardHaulagePence } from "@/lib/pricing";
 import { kgToInputValue, parseTonnesToKg } from "@/lib/weight";
 
 const inputClass =
@@ -90,7 +93,6 @@ export default function JobForm({
   invoice,
 }: Props) {
   const [state, formAction, pending] = useActionState(action, EMPTY_FORM_STATE);
-  const skipListId = useId();
 
   // A material that is not one of the listed ones must have been typed into
   // the "Other" box, so the form reopens in that state when you come back.
@@ -101,7 +103,6 @@ export default function JobForm({
   const [customerId, setCustomerId] = useState(job?.customerId ?? "");
   const [siteAddress, setSiteAddress] = useState(job?.siteAddress ?? "");
   const [date, setDate] = useState(job?.date ?? defaultDate ?? "");
-  const [skipSize, setSkipSize] = useState(job?.skipSize ?? "");
   const [material, setMaterial] = useState(
     job ? (savedMaterialIsListed ? job.material : "Other") : "",
   );
@@ -133,6 +134,11 @@ export default function JobForm({
   const [outletId, setOutletId] = useState(job?.outletId ?? "");
   const [chargeHaulage, setChargeHaulage] = useState(
     job?.chargeHaulage ?? false,
+  );
+  const [haulageOverride, setHaulageOverride] = useState(
+    job?.haulageRateOverridePence != null
+      ? penceToInputValue(job.haulageRateOverridePence)
+      : "",
   );
   const [haulageCost, setHaulageCost] = useState(
     job?.haulageCostPence != null ? penceToInputValue(job.haulageCostPence) : "",
@@ -176,13 +182,65 @@ export default function JobForm({
       ?.paymentTermsDays ?? null;
 
   /**
-   * The client's haulage rate for the size of skip on this job, so the form
-   * can say what ticking the box will actually charge.
+   * The client's own haulage rate for this material, in pence, or null where
+   * they have none. What the job charges unless it is overridden below.
    */
-  const haulageRate = findHaulageRate(
+  const standardHaulage = standardHaulagePence(
     customers.find((customer) => customer.id === customerId),
-    { material: material === "Other" ? otherMaterial : material, skipSize },
+    { material: material === "Other" ? otherMaterial : material },
   );
+
+  /** What haulage will actually bill at: the override if set, else the rate. */
+  const haulageNowPence =
+    parsePoundsToPence(haulageOverride) ??
+    (haulageOverride.trim() === "" ? standardHaulage : null);
+
+  /**
+   * What the material comes to, worked out from the weight in the box rather
+   * than the saved one, so the figures move as the ticket is typed in.
+   */
+  const materialRate = findMaterialRate(
+    customers.find((customer) => customer.id === customerId),
+    { material: material === "Other" ? otherMaterial : material },
+  );
+  const weightKgNow = parseTonnesToKg(weightTonnes);
+  const materialPence =
+    materialRate?.ratePerTonnePence != null && weightKgNow !== null
+      ? Math.round((materialRate.ratePerTonnePence * weightKgNow) / 1000)
+      : null;
+
+  /**
+   * The two charges on this job, kept apart on purpose.
+   *
+   * Haulage is a separate line here for the same reason it is a separate line
+   * on the invoice: it is a charge for the lorry, not for what was in it, and
+   * folding the two together loses the only figure worth arguing about when a
+   * client rings up.
+   */
+  const charges = [
+    materialPence !== null
+      ? {
+          key: "material",
+          label: material === "Other" ? otherMaterial || "Material" : material,
+          detail: `${(weightKgNow! / 1000).toFixed(2)} t at ${formatPence(materialRate!.ratePerTonnePence!)} per tonne`,
+          pence: materialPence,
+          /** A rebate is money out, so it is shown as such rather than added. */
+          outward: direction === "purchase",
+        }
+      : null,
+    chargeHaulage && haulageNowPence !== null
+      ? {
+          key: "haulage",
+          label: "Haulage",
+          detail:
+            haulageOverride.trim() === ""
+              ? "the client's rate"
+              : "set on this job",
+          pence: haulageNowPence,
+          outward: false,
+        }
+      : null,
+  ].filter((line) => line !== null);
 
   /** Picking a client fills in their site address, saving retyping it. */
   function chooseCustomer(id: string) {
@@ -277,35 +335,72 @@ export default function JobForm({
           ) : null}
         </div>
 
-        {/* Haulage rides on the same job as the material: one lorry movement,
-            one record. Charged whichever way the material runs, since the
-            lorry costs the same either way. It bills as its own line. */}
-        <div className="rounded-lg border border-line bg-elevated/40 p-4">
-            <label className="flex cursor-pointer items-start gap-3">
-              <input
-                type="checkbox"
-                name="chargeHaulage"
-                checked={chargeHaulage}
-                onChange={(event) => setChargeHaulage(event.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-accent"
-              />
-              <span>
-                <span className="block text-sm font-medium">
-                  Also charge haulage
-                </span>
-                <span className="mt-0.5 block text-xs text-muted">
+        {/* Haulage rides on the same job as the material - one lorry movement,
+            one record - but it is its own charge and its own line on the
+            invoice, never folded into the material. Charged whichever way the
+            material runs, since the lorry costs the same either way. */}
+        <div className="space-y-3 rounded-lg border border-line bg-elevated/40 p-4">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              name="chargeHaulage"
+              checked={chargeHaulage}
+              onChange={(event) => setChargeHaulage(event.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-accent"
+            />
+            <span>
+              <span className="block text-sm font-medium">Charge haulage</span>
+              <span className="mt-0.5 block text-xs text-muted">
+                Billed as its own line, separate from the material.
+              </span>
+            </span>
+          </label>
+
+          {chargeHaulage ? (
+            <div className="border-t border-line pt-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-xs text-muted">
                   {customerId === ""
                     ? "Choose a client to see their haulage rate."
-                    : haulageRate
-                      ? `${formatPence(haulageRate.haulageRatePence ?? 0)}${
-                          haulageRate.skipSize
-                            ? ` for a ${haulageRate.skipSize}`
-                            : ", any size"
-                        }. Charged on top of the material, as its own line.`
-                      : `No haulage rate for ${skipSize.trim() === "" ? "this material" : `a ${skipSize}`} yet. Add a haulage fee line on their client record.`}
+                    : standardHaulage === null
+                      ? "This client has no haulage rate for this material. Add one on their client record, or set an amount here."
+                      : `Their rate: ${formatPence(standardHaulage)}.`}
                 </span>
-              </span>
-            </label>
+                <span className="text-sm font-medium tabular-nums">
+                  {haulageNowPence === null
+                    ? "—"
+                    : `Charging ${formatPence(haulageNowPence)}`}
+                </span>
+              </div>
+
+              <label className={`${labelClass} mt-3`} htmlFor="haulageRateOverride">
+                Charge a different amount{" "}
+                <span className="font-normal text-muted">(optional)</span>
+              </label>
+              <input
+                id="haulageRateOverride"
+                name="haulageRateOverride"
+                inputMode="decimal"
+                className={`${inputClass} sm:max-w-[14rem]`}
+                placeholder={
+                  standardHaulage === null
+                    ? "85.00"
+                    : (standardHaulage / 100).toFixed(2)
+                }
+                value={haulageOverride}
+                onChange={(event) => setHaulageOverride(event.target.value)}
+              />
+              <p className="mt-1.5 text-xs text-muted">
+                Leave blank to use the client&rsquo;s rate. An amount here
+                applies to this job only and does not touch their rate card.
+              </p>
+              {state.fieldErrors.haulageRateOverride ? (
+                <p className={errorClass}>
+                  {state.fieldErrors.haulageRateOverride}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         {/* Only a rebate load goes to an outlet - a charge job goes to the tip. */}
@@ -338,26 +433,6 @@ export default function JobForm({
         ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className={labelClass} htmlFor="skipSize">
-              Skip size
-            </label>
-            <input
-              id="skipSize"
-              name="skipSize"
-              list={skipListId}
-              className={inputClass}
-              placeholder="e.g. 8 yard"
-              value={skipSize}
-              onChange={(event) => setSkipSize(event.target.value)}
-            />
-            <datalist id={skipListId}>
-              {SKIP_SIZES.map((size) => (
-                <option key={size} value={size} />
-              ))}
-            </datalist>
-          </div>
-
           <div>
             <label className={labelClass} htmlFor="material">
               Material
@@ -714,6 +789,31 @@ export default function JobForm({
           </div>
         ) : null}
 
+        {charges.length > 0 ? (
+          <div className="border-t border-line pt-4">
+            <p className="mb-2 text-sm font-medium">What this job bills</p>
+            <ul className="divide-y divide-line rounded-lg border border-line">
+              {charges.map((line) => (
+                <li
+                  key={line.key}
+                  className="flex flex-wrap items-baseline gap-x-3 px-3 py-2.5 text-sm"
+                >
+                  <span className="font-medium">{line.label}</span>
+                  <span className="text-xs text-muted">{line.detail}</span>
+                  <span className="ml-auto tabular-nums">
+                    {line.outward ? "−" : ""}
+                    {formatPence(line.pence)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1.5 text-xs text-muted">
+              Worked out from the client&rsquo;s rates as you type, not stored.
+              A rebate shows as money out. Each of these is its own line on the
+              invoice.
+            </p>
+          </div>
+        ) : null}
       </section>
 
       <section className={cardClass}>

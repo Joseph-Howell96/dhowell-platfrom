@@ -22,7 +22,7 @@ import { isWeighedOrLater } from "./types";
  * rate yet. The part we do know is still money, and counting it as zero would
  * hide it.
  */
-function sumKnown(...values: (number | null)[]): number | null {
+export function sumKnown(...values: (number | null)[]): number | null {
   const known = values.filter((value) => value !== null);
   return known.length === 0 ? null : known.reduce((total, v) => total + v, 0);
 }

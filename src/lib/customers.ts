@@ -53,14 +53,17 @@ function toRateLines(raw: unknown): RateLine[] {
 
     const material = text(row.material);
     if (material === "") continue;
-    const skipSize = text(row.skipSize);
 
-    // One row per material and size; anything sharing both is the same row.
-    const key = `${material.toLowerCase()}|${skipSize.toLowerCase()}`;
+    // One row per material. Records written when rates were also split by
+    // skip size will have several rows for the same material; they fold
+    // together here, the last one read setting each figure. A client who
+    // charged different rates for different sizes therefore needs their rate
+    // looking at once, which is the honest outcome - the alternative is
+    // silently picking one of two prices and never saying so.
+    const key = material.toLowerCase();
     const existing = merged.get(key) ?? {
       id: text(row.id) || randomUUID(),
       material,
-      skipSize,
       ratePerTonnePence: null,
       haulageRatePence: null,
       direction: "charge" as Direction,

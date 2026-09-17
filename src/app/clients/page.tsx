@@ -26,7 +26,6 @@ function RateLines({ customer }: { customer: Customer }) {
         <thead>
           <tr className="border-b border-line bg-elevated text-left text-xs uppercase tracking-wide text-muted">
             <th className="px-4 py-2.5 font-medium">Material</th>
-            <th className="px-4 py-2.5 font-medium">Skip size</th>
             <th className="px-4 py-2.5 text-right font-medium">Per tonne</th>
             <th className="px-4 py-2.5 text-right font-medium">Haulage</th>
             <th className="px-4 py-2.5 text-right font-medium">Direction</th>
@@ -36,7 +35,6 @@ function RateLines({ customer }: { customer: Customer }) {
           {customer.rateLines.map((line) => (
             <tr key={line.id} className="border-b border-line last:border-0">
               <td className="px-4 py-3">{line.material}</td>
-              <td className="px-4 py-3 text-muted">{line.skipSize || "Any"}</td>
               <td className="px-4 py-3 text-right font-medium tabular-nums">
                 {line.ratePerTonnePence === null
                   ? "—"

@@ -33,18 +33,6 @@ export type InvoiceLine = {
   amountPence: number;
 };
 
-/**
- * How a skip size reads on an invoice.
- *
- * A plain size gets the word skip after it, so "40 yard" reads "40 yard skip".
- * Anything already naming what it is - a RoRo, a grab lorry - is left alone.
- */
-export function describeSkipSize(skipSize: string): string {
-  const size = skipSize.trim();
-  if (size === "") return "";
-  return /^\d+\s*(yard|yd)s?$/i.test(size) ? `${size} skip` : size;
-}
-
 export type InvoiceTotals = {
   netPence: number;
   vatPence: number;
@@ -67,15 +55,11 @@ export function lineForJob(
   const quantity = job.weightKg !== null ? job.weightKg / 1000 : 1;
   const unitPricePence = rate?.ratePerTonnePence ?? price.pence;
 
-  const parts = [job.material];
-  const size = describeSkipSize(job.skipSize);
-  if (size) parts.push(size);
-
   return {
     jobId: job.id,
     key: `${job.id}-material`,
     sku: materialCode(job.material),
-    description: parts.join(", "),
+    description: job.material,
     quantity,
     quantityLabel: `${quantity.toFixed(2)} t`,
     unitPricePence,
@@ -94,15 +78,13 @@ export function haulageLineForJob(
   const price = haulageChargeFor(job, customer);
   if (!price) return null;
 
-  const parts = [HAULAGE];
-  const size = describeSkipSize(job.skipSize);
-  if (size) parts.push(size);
-
   return {
     jobId: job.id,
     key: `${job.id}-haulage`,
     sku: materialCode(HAULAGE),
-    description: parts.join(", "),
+    // Named after the material it collected, so two jobs on one invoice do not
+    // both read as a bare "Haulage" with no way to tell them apart.
+    description: `${HAULAGE}, ${job.material}`,
     // Haulage is one flat charge for the lorry, not a rate against the load.
     quantity: 1,
     quantityLabel: "1",

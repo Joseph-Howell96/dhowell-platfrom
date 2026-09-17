@@ -225,7 +225,7 @@ export default async function CalendarPage({
                         <Link
                           href={`/calendar/${job.id}`}
                           className={`block truncate rounded px-1.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 ${JOB_STANDING_CLASSES[standing]}`}
-                          title={`${clientNames.get(job.customerId) ?? "Unknown client"} — ${job.material}${job.skipSize ? `, ${job.skipSize}` : ""} (${JOB_STANDING_LABELS[standing]})`}
+                          title={`${clientNames.get(job.customerId) ?? "Unknown client"} — ${job.material} (${JOB_STANDING_LABELS[standing]})`}
                         >
                           {clientNames.get(job.customerId) ?? "Unknown client"}
                         </Link>
