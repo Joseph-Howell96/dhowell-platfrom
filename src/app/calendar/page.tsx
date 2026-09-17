@@ -17,9 +17,10 @@ import { invoicedJobIds, readInvoices } from "@/lib/invoices";
 import { isBillable } from "@/lib/invoicing";
 import { readJobs } from "@/lib/jobs";
 import {
-  JOB_STATUSES,
-  STATUS_CLASSES,
-  STATUS_LABELS,
+  jobStanding,
+  JOB_STANDINGS,
+  JOB_STANDING_CLASSES,
+  JOB_STANDING_LABELS,
   type Job,
 } from "@/lib/types";
 
@@ -126,12 +127,12 @@ export default async function CalendarPage({
         <h2 className="text-lg font-semibold">{monthLabel(month)}</h2>
         {/* What each colour on the grid means. */}
         <ul className="flex flex-wrap items-center gap-2">
-          {JOB_STATUSES.map((status) => (
+          {JOB_STANDINGS.map((standing) => (
             <li
-              key={status}
-              className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_CLASSES[status]}`}
+              key={standing}
+              className={`rounded-full px-2.5 py-1 text-xs font-medium ${JOB_STANDING_CLASSES[standing]}`}
             >
-              {STATUS_LABELS[status]}
+              {JOB_STANDING_LABELS[standing]}
             </li>
           ))}
         </ul>
@@ -202,17 +203,25 @@ export default async function CalendarPage({
                   </Link>
 
                   <ul className="mt-1 space-y-1">
-                    {dayJobs.map((job) => (
+                    {dayJobs.map((job) => {
+                      // A job reads as invoiced because it is on an invoice.
+                      // Nothing on the job itself says so.
+                      const standing = jobStanding(
+                        job.status,
+                        alreadyBilled.has(job.id),
+                      );
+                      return (
                       <li key={job.id}>
                         <Link
                           href={`/calendar/${job.id}`}
-                          className={`block truncate rounded px-1.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 ${STATUS_CLASSES[job.status]}`}
-                          title={`${clientNames.get(job.customerId) ?? "Unknown client"} — ${job.material}${job.skipSize ? `, ${job.skipSize}` : ""} (${STATUS_LABELS[job.status]})`}
+                          className={`block truncate rounded px-1.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 ${JOB_STANDING_CLASSES[standing]}`}
+                          title={`${clientNames.get(job.customerId) ?? "Unknown client"} — ${job.material}${job.skipSize ? `, ${job.skipSize}` : ""} (${JOB_STANDING_LABELS[standing]})`}
                         >
                           {clientNames.get(job.customerId) ?? "Unknown client"}
                         </Link>
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 </div>
                 );

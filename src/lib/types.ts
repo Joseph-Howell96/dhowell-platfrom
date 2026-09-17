@@ -128,14 +128,12 @@ export function directionForRate(rateDirection: Direction): JobDirection {
 
 /**
  * The run of work for a job we are invoicing out.
- * Money coming in: do the job, weigh it, raise the invoice, send it.
+ *
+ * Just the two: it is in the diary, or it has been weighed. Whether it has
+ * been billed is not recorded here. A job is invoiced because it appears on an
+ * invoice, and that is the only place it is written down.
  */
-export const SALE_STATUSES = [
-  "booked",
-  "weighed",
-  "generate-invoice",
-  "invoice-sent",
-] as const;
+export const SALE_STATUSES = ["booked", "weighed"] as const;
 
 /**
  * The run of work for material we are buying off the client and selling on.
@@ -152,18 +150,14 @@ export const PURCHASE_STATUSES = [
 export const JOB_STATUSES = [
   "booked",
   "weighed",
-  "generate-invoice",
-  "invoice-sent",
   "po-raised",
   "paid",
 ] as const;
 
 export type JobStatus = (typeof JOB_STATUSES)[number];
 
-/** The four statuses a job of this kind moves through, in order. */
-export function statusesFor(
-  direction: JobDirection,
-): readonly JobStatus[] {
+/** The statuses a job of this kind moves through, in order. */
+export function statusesFor(direction: JobDirection): readonly JobStatus[] {
   return direction === "sale" ? SALE_STATUSES : PURCHASE_STATUSES;
 }
 
@@ -175,34 +169,68 @@ export function isStatusValidFor(
 }
 
 /**
- * The same point on the other path, used when a job is switched between a sale
- * and a purchase. Both paths have four stages, so a job three steps along
- * stays three steps along rather than dropping back to the start.
+ * Where a job lands when it is switched between a sale and a purchase.
+ *
+ * Booked and weighed mean the same on both paths, so they carry across. The
+ * purchase-only steps have no sale equivalent - there is no purchase order on
+ * a job we are invoicing - so those fall back to weighed, which is as far
+ * along as a sale job goes on its own.
  */
 export function equivalentStatus(
   status: JobStatus,
   newDirection: JobDirection,
 ): JobStatus {
-  const from = statusesFor(newDirection === "sale" ? "purchase" : "sale");
-  const stage = from.indexOf(status);
-  if (stage === -1) return status;
-  return statusesFor(newDirection)[stage];
+  if (isStatusValidFor(status, newDirection)) return status;
+  return status === "booked" ? "booked" : "weighed";
+}
+
+/**
+ * How a job reads once whether it has been billed is taken into account.
+ *
+ * "Invoiced" is not a status anyone sets. It is true when the job appears on
+ * an invoice, and stops being true if it is taken off one.
+ */
+export const JOB_STANDINGS = [
+  "booked",
+  "weighed",
+  "invoiced",
+  "po-raised",
+  "paid",
+] as const;
+
+export type JobStanding = (typeof JOB_STANDINGS)[number];
+
+export const JOB_STANDING_LABELS: Record<JobStanding, string> = {
+  booked: "Booked",
+  weighed: "Weighed",
+  invoiced: "Invoiced",
+  "po-raised": "PO raised",
+  paid: "Paid",
+};
+
+export const JOB_STANDING_CLASSES: Record<JobStanding, string> = {
+  booked: "bg-booked-soft text-booked",
+  weighed: "bg-weighed-soft text-weighed",
+  invoiced: "bg-sent-soft text-sent",
+  "po-raised": "bg-po-soft text-po",
+  paid: "bg-paid-soft text-paid",
+};
+
+/** Where a job reads, given whether it is on an invoice. */
+export function jobStanding(status: JobStatus, invoiced: boolean): JobStanding {
+  return invoiced ? "invoiced" : status;
 }
 
 export const STATUS_LABELS: Record<JobStatus, string> = {
   booked: "Booked",
   weighed: "Weighed",
-  "generate-invoice": "Generate invoice",
-  "invoice-sent": "Invoice sent",
   "po-raised": "PO raised",
   paid: "Paid",
 };
 
 export const STATUS_HINTS: Record<JobStatus, string> = {
   booked: "In the diary, not done yet",
-  weighed: "Weighbridge ticket in",
-  "generate-invoice": "Ready to invoice, not sent",
-  "invoice-sent": "Invoice out, waiting on payment",
+  weighed: "Weighbridge ticket in, ready to bill",
   "po-raised": "Order out to them, not paid yet",
   paid: "We have paid them",
 };
@@ -223,8 +251,6 @@ export function isWeighedOrLater(status: JobStatus): boolean {
 export const STATUS_CLASSES: Record<JobStatus, string> = {
   booked: "bg-booked-soft text-booked",
   weighed: "bg-weighed-soft text-weighed",
-  "generate-invoice": "bg-generate-soft text-generate",
-  "invoice-sent": "bg-sent-soft text-sent",
   "po-raised": "bg-po-soft text-po",
   paid: "bg-paid-soft text-paid",
 };
@@ -285,10 +311,6 @@ export type Job = {
    * rate for this skip size, and shows as its own line on the invoice.
    */
   chargeHaulage: boolean;
-
-  /* Sale side. Both stay null on a purchase. */
-  /** The day the invoice went out, as "YYYY-MM-DD". Null until it has. */
-  invoiceSentDate: string | null;
 
   /* Purchase side. All stay null on a sale. */
   /** Our purchase order number, given to the client we are buying from. */

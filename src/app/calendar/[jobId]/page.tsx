@@ -13,6 +13,11 @@ import { readSettings } from "@/lib/settings";
 import { formatDateGB } from "@/lib/dates";
 import { saveJob } from "@/lib/job-actions";
 import { readJob } from "@/lib/jobs";
+import { readInvoices } from "@/lib/invoices";
+import { formatInvoiceNumber } from "@/lib/invoicing";
+import { invoiceDueDate } from "@/lib/terms";
+import { invoiceStanding } from "@/lib/types";
+import type { JobInvoice } from "@/components/job-form";
 
 export const metadata: Metadata = {
   title: "Job",
@@ -30,11 +35,34 @@ export default async function JobPage({
   // An address for a job that is not there shows the standard not-found page.
   if (!job) notFound();
 
-  const [customers, outlets, settings] = await Promise.all([
+  const [customers, outlets, settings, invoices] = await Promise.all([
     readCustomers(),
     readOutlets(),
     readSettings(),
+    readInvoices(),
   ]);
+
+  // Whether this job has been billed is not written on the job. It is billed
+  // because an invoice lists it, so that is what we go and look for.
+  const today = todayISO();
+  const billedOn = invoices.find((invoice) => invoice.jobIds.includes(job.id));
+  const invoice: JobInvoice | null = billedOn
+    ? (() => {
+        const dueDate = invoiceDueDate(
+          billedOn.issueDate,
+          settings.paymentTermsDays,
+        );
+        return {
+          id: billedOn.id,
+          reference: formatInvoiceNumber(
+            settings.invoiceNumberPrefix,
+            billedOn.number,
+          ),
+          standing: invoiceStanding(billedOn.status, dueDate, today),
+          dueDate,
+        };
+      })()
+    : null;
   const client = customers.find((customer) => customer.id === job.customerId);
   // Archived clients are not offered for new work, but a job already booked
   // against one has to keep showing it, or saving would lose the client.
@@ -66,8 +94,8 @@ export default async function JobPage({
         submitLabel="Save changes"
         cancelHref={`/calendar?month=${monthKeyOf(job.date)}`}
         job={job}
-        today={todayISO()}
-        paymentDays={settings.paymentTermsDays}
+        today={today}
+        invoice={invoice}
       />
     </main>
   );

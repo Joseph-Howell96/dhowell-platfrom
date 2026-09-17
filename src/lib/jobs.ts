@@ -29,7 +29,12 @@ const RENAMED_STATUSES: Record<string, JobStatus> = {
   // "Completed" meant collected but not yet weighed, which is where a booked
   // job sits under the current list.
   completed: "booked",
-  invoiced: "invoice-sent",
+  // Billing is no longer a status. A job that had reached one of the old
+  // billing steps had certainly been weighed, so that is where it lands; if it
+  // is on an invoice it reads as invoiced anyway, worked out from the invoice.
+  invoiced: "weighed",
+  "generate-invoice": "weighed",
+  "invoice-sent": "weighed",
 };
 
 function toStatus(value: unknown): JobStatus | null {
@@ -109,7 +114,6 @@ function toJob(raw: unknown): Job | null {
     weightKg,
     direction,
     chargeHaulage: record.chargeHaulage === true,
-    invoiceSentDate: optionalDate("invoiceSentDate"),
     supplierPO: optionalText("supplierPO"),
     poRaisedDate: optionalDate("poRaisedDate"),
     supplierInvoiceRef: optionalText("supplierInvoiceRef"),

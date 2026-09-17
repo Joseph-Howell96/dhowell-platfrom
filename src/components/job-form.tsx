@@ -23,12 +23,17 @@ import {
   JOB_DIRECTIONS,
   JOB_MATERIALS,
   isStatusValidFor,
+  JOB_STANDING_CLASSES,
+  JOB_STANDING_LABELS,
   SKIP_SIZES,
   statusesFor,
   STATUS_CLASSES,
   STATUS_HINTS,
   STATUS_LABELS,
+  STANDING_CLASSES,
+  STANDING_LABELS,
   type Customer,
+  type InvoiceStanding,
   type Job,
   type JobDirection,
   type JobStatus,
@@ -37,13 +42,27 @@ import {
 import { formatPence, penceToInputValue } from "@/lib/money";
 import { findHaulageRate } from "@/lib/pricing";
 import { kgToInputValue } from "@/lib/weight";
-import { invoiceDueDate } from "@/lib/terms";
 
 const inputClass =
   "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
 const labelClass = "mb-1.5 block text-sm font-medium";
 const errorClass = "mt-1 text-sm text-danger";
 const cardClass = "space-y-4 rounded-xl border border-line bg-surface p-6";
+
+/**
+ * The invoice a job has been billed on, where it has been.
+ *
+ * "Invoiced" is not something anyone sets on a job - it is true because the
+ * job appears on an invoice. Where the invoice itself has got to belongs to
+ * the invoice, so it is read from there and only shown here.
+ */
+export type JobInvoice = {
+  id: string;
+  /** The number as it reads on the document, e.g. "INV-1042". */
+  reference: string;
+  standing: InvoiceStanding;
+  dueDate: string;
+};
 
 type Props = {
   /** The clients a job can be booked against. */
@@ -59,8 +78,8 @@ type Props = {
   defaultDate?: string;
   /** Today's date, worked out on the server so both sides agree on it. */
   today: string;
-  /** How many days a client has to pay, from Settings. */
-  paymentDays: number;
+  /** The invoice this job is on, or nothing while it has not been billed. */
+  invoice?: JobInvoice | null;
 };
 
 export default function JobForm({
@@ -72,7 +91,7 @@ export default function JobForm({
   job,
   defaultDate,
   today,
-  paymentDays,
+  invoice,
 }: Props) {
   const [state, formAction, pending] = useActionState(action, EMPTY_FORM_STATE);
   const skipListId = useId();
@@ -99,9 +118,6 @@ export default function JobForm({
     job?.weightKg !== null && job?.weightKg !== undefined
       ? kgToInputValue(job.weightKg)
       : "",
-  );
-  const [invoiceSentDate, setInvoiceSentDate] = useState(
-    job?.invoiceSentDate ?? "",
   );
   const [direction, setDirection] = useState<JobDirection>(
     job?.direction ?? "sale",
@@ -152,16 +168,12 @@ export default function JobForm({
   }
 
   /**
-   * Moving a job to "invoice sent" fills today's date in, since that is nearly
-   * always the answer. It can still be changed for an invoice sent earlier.
+   * Set the status, filling in the dates that go with it. Each of those is
+   * nearly always today, so it is filled in and can be changed for anything
+   * recorded after the event.
    */
   function chooseStatus(next: JobStatus) {
     setStatus(next);
-    // Each of these dates is nearly always today, so fill it in and let it be
-    // changed for anything recorded after the event.
-    if (next === "invoice-sent" && invoiceSentDate === "") {
-      setInvoiceSentDate(today);
-    }
     if ((next === "po-raised" || next === "paid") && poRaisedDate === "") {
       setPoRaisedDate(today);
     }
@@ -455,10 +467,47 @@ export default function JobForm({
           </p>
         </div>
 
+        {/* Invoiced is not one of the buttons because it is not a choice. The
+            job is invoiced because it is on an invoice, and how that invoice
+            is getting on is the invoice's own business, shown here for the
+            sake of not having to go looking for it. */}
+        {invoice ? (
+          <Link
+            href={`/invoices/${invoice.id}`}
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line bg-elevated/40 px-4 py-3 transition-colors hover:border-accent"
+          >
+            <span
+              className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${JOB_STANDING_CLASSES.invoiced}`}
+            >
+              {JOB_STANDING_LABELS.invoiced}
+            </span>
+            <span className="text-sm font-medium tabular-nums">
+              {invoice.reference}
+            </span>
+            <span
+              className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${STANDING_CLASSES[invoice.standing]}`}
+            >
+              {STANDING_LABELS[invoice.standing]}
+            </span>
+            <span className="text-xs text-muted">
+              {invoice.standing === "draft"
+                ? "Not sent yet"
+                : invoice.standing === "paid"
+                  ? "Settled"
+                  : `Due ${formatDateGB(invoice.dueDate)}`}
+            </span>
+            <span className="ml-auto text-sm text-accent">Open invoice →</span>
+          </Link>
+        ) : null}
+
         {/* A hidden field carries the choice, so the buttons below are just a
-            nicer way of picking one of four values. */}
+            nicer way of picking one of the few values this job can be at. */}
         <input type="hidden" name="status" value={status} />
-        <div className="grid gap-2 sm:grid-cols-4">
+        <div
+          className={`grid gap-2 ${
+            direction === "sale" ? "sm:grid-cols-2" : "sm:grid-cols-4"
+          }`}
+        >
           {statusesFor(direction).map((option) => {
             const chosen = status === option;
             return (
@@ -659,31 +708,6 @@ export default function JobForm({
           </div>
         ) : null}
 
-        {status === "invoice-sent" ? (
-          <div className="border-t border-line pt-4">
-            <label className={labelClass} htmlFor="invoiceSentDate">
-              Date invoice sent
-            </label>
-            <input
-              id="invoiceSentDate"
-              name="invoiceSentDate"
-              type="date"
-              className={`${inputClass} sm:max-w-[14rem]`}
-              value={invoiceSentDate}
-              onChange={(event) => setInvoiceSentDate(event.target.value)}
-            />
-            {/* Worked out as you change the date, so there is no waiting to
-                find out when payment is due. */}
-            <p className="mt-1.5 text-xs text-muted">
-              {invoiceSentDate
-                ? `Due ${formatDateGB(invoiceDueDate(invoiceSentDate, paymentDays))} — ${paymentDays} days after the invoice date.`
-                : `Payment falls due ${paymentDays} days after this date.`}
-            </p>
-            {state.fieldErrors.invoiceSentDate ? (
-              <p className={errorClass}>{state.fieldErrors.invoiceSentDate}</p>
-            ) : null}
-          </div>
-        ) : null}
       </section>
 
       <section className={cardClass}>

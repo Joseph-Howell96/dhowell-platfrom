@@ -19,7 +19,7 @@ import {
   updateInvoice,
 } from "./invoices";
 import { isBillable } from "./invoicing";
-import { readJobs, updateJob } from "./jobs";
+import { readJobs } from "./jobs";
 import { readSettings } from "./settings";
 import { INVOICE_STATUSES, type InvoiceStatus } from "./types";
 
@@ -109,8 +109,12 @@ export async function createInvoice(
 }
 
 /**
- * Move an invoice on. Sending it also moves every job it covers to "invoice
- * sent", so the calendar and the invoice never disagree.
+ * Move an invoice on.
+ *
+ * Only the invoice changes. Where an invoice has got to is the invoice's own
+ * business - the jobs it covers already read as invoiced because they are on
+ * it, and nothing is copied onto them. Two records of the same fact is how
+ * they end up disagreeing.
  */
 export async function setInvoiceStatus(
   invoiceId: string,
@@ -127,19 +131,6 @@ export async function setInvoiceStatus(
     status,
     paidDate: status === "paid" ? (invoice.paidDate ?? today) : null,
   });
-
-  if (status !== "draft") {
-    const jobs = await readJobs();
-    for (const jobId of invoice.jobIds) {
-      const job = jobs.find((entry) => entry.id === jobId);
-      if (!job) continue;
-      await updateJob(jobId, {
-        ...job,
-        status: "invoice-sent",
-        invoiceSentDate: invoice.issueDate,
-      });
-    }
-  }
 
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoiceId}`);

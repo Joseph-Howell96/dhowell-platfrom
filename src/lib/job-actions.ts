@@ -41,7 +41,6 @@ type ParsedJob = {
   weightKg: number | null;
   direction: JobDirection;
   chargeHaulage: boolean;
-  invoiceSentDate: string | null;
   supplierPO: string | null;
   poRaisedDate: string | null;
   supplierInvoiceRef: string | null;
@@ -108,8 +107,8 @@ async function parseJob(
   const direction = directionValue as JobDirection;
 
   const statusValue = text(formData, "status") || "booked";
-  // The status has to belong to this job's path. A purchase cannot be at
-  // "invoice sent", and a sale cannot be at "paid".
+  // The status has to belong to this job's path: a sale cannot be at
+  // "PO raised" or "paid", which are steps on the buying side only.
   const statusIsKnown =
     JOB_STATUSES.includes(statusValue as JobStatus) &&
     directionIsKnown &&
@@ -146,15 +145,6 @@ async function parseJob(
       return null;
     }
     return value;
-  }
-
-  // Sale side. The date the invoice went out is recorded once it has gone out.
-  let invoiceSentDate: string | null = null;
-  if (statusIsKnown && status === "invoice-sent") {
-    invoiceSentDate = requiredDate(
-      "invoiceSentDate",
-      "Enter the date the invoice was sent.",
-    );
   }
 
   // Purchase side. The order number and its date are needed from the moment an
@@ -231,7 +221,6 @@ async function parseJob(
       // Charged either way round: collecting a skip costs the same whether we
       // are billing for what is in it or paying for it.
       chargeHaulage: text(formData, "chargeHaulage") === "on",
-      invoiceSentDate,
       supplierPO,
       poRaisedDate,
       supplierInvoiceRef,
