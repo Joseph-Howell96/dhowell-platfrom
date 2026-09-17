@@ -6,7 +6,7 @@
  */
 import { findRateLine, HAULAGE, haulageChargeFor, priceJob } from "./pricing";
 import { formatPence } from "./money";
-import { materialCode, type Customer, type Job } from "./types";
+import { materialCode, type Customer, type Invoice, type Job } from "./types";
 
 export type InvoiceLine = {
   jobId: string;
@@ -138,6 +138,25 @@ export function totalsForLines(
   // Rounded to the penny once, on the total, the way an invoice is added up.
   const vatPence = Math.round((netPence * vatPercent) / 100);
   return { netPence, vatPence, grossPence: netPence + vatPence };
+}
+
+/**
+ * What an invoice comes to, including VAT.
+ *
+ * An invoice holds which jobs it covers rather than a copy of their figures,
+ * so the total is added up from those jobs and the client's rates each time.
+ * A job an invoice names that is no longer there is simply skipped.
+ */
+export function invoiceGrossPence(
+  invoice: Invoice,
+  jobsById: Map<string, Job>,
+  customer: Customer | undefined,
+  vatPercent: number,
+): number {
+  const billed = invoice.jobIds
+    .map((id) => jobsById.get(id))
+    .filter((job) => job !== undefined);
+  return totalsForLines(linesForJobs(billed, customer), vatPercent).grossPence;
 }
 
 /** "INV-1001", from the prefix in settings. */

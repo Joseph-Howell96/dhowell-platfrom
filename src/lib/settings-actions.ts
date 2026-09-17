@@ -132,6 +132,8 @@ export async function saveCompanySettings(
   revalidatePath("/finance");
   revalidatePath("/calendar");
   revalidatePath("/invoices");
+  // The payment terms decide what is overdue, which the dashboard counts.
+  revalidatePath("/dashboard");
 
   // No redirect: you stay on the page, which is why this says so out loud.
   return { fieldErrors: {}, formError: null, success: "Settings saved." };

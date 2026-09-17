@@ -105,6 +105,7 @@ export async function createInvoice(
 
   revalidatePath("/invoices");
   revalidatePath("/finance");
+  revalidatePath("/dashboard");
   redirect(`/invoices/${invoice.id}`);
 }
 
@@ -136,6 +137,7 @@ export async function setInvoiceStatus(
   revalidatePath(`/invoices/${invoiceId}`);
   revalidatePath("/finance");
   revalidatePath("/calendar");
+  revalidatePath("/dashboard");
 }
 
 
@@ -200,5 +202,6 @@ export async function generateWeekInvoices(weekStartISO: string): Promise<void> 
   revalidatePath("/invoices");
   revalidatePath("/finance");
   revalidatePath("/calendar");
+  revalidatePath("/dashboard");
   redirect("/invoices");
 }

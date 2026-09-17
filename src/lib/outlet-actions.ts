@@ -84,6 +84,8 @@ export async function createOutlet(
   }
 
   revalidatePath("/outlets");
+  // An outlet's rate is what a rebate load earned, so the year's figures move.
+  revalidatePath("/finance");
   revalidatePath("/dashboard");
   redirect("/outlets");
 }

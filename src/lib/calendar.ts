@@ -104,6 +104,22 @@ export function addMonths(month: MonthKey, step: number): MonthKey {
 }
 
 /**
+ * The Monday of the week a date falls in.
+ *
+ * Monday, because that is how the calendar grid is laid out and how a working
+ * week reads here. A Sunday belongs to the week that started six days before
+ * it, not to the one about to begin.
+ */
+export function weekStartOf(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  // getUTCDay() counts Sunday as 0; shifting by 6 and wrapping makes Monday 0.
+  const sinceMonday = (date.getUTCDay() + 6) % 7;
+  date.setUTCDate(date.getUTCDate() - sinceMonday);
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+}
+
+/**
  * Every cell of the month grid, including the days either side needed to fill
  * out the first and last weeks. Always a whole number of weeks.
  */

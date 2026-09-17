@@ -2,362 +2,120 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
+import BillingsChart from "@/components/billings-chart";
 import PageHeader from "@/components/page-header";
+import {
+  byMaterial,
+  byMonth,
+  isCompleted,
+  marginPercent,
+  totalsFor,
+  yearsWithJobs,
+  type Totals,
+} from "@/lib/analytics";
 import { todayISO } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
-import { addCalendarDays, daysBetween, formatDateGB } from "@/lib/dates";
+import { daysBetween, formatDateGB } from "@/lib/dates";
 import { readInvoices } from "@/lib/invoices";
-import { formatInvoiceNumber, linesForJobs, totalsForLines } from "@/lib/invoicing";
+import { formatInvoiceNumber, invoiceGrossPence } from "@/lib/invoicing";
 import { readJobs } from "@/lib/jobs";
 import { formatPence } from "@/lib/money";
-import { priceJob, type JobPrice } from "@/lib/pricing";
+import { readOutlets } from "@/lib/outlets";
+import { readSettings } from "@/lib/settings";
+import { invoiceDueDate } from "@/lib/terms";
 import {
   invoiceStanding,
   STANDING_CLASSES,
   STANDING_LABELS,
-  type Invoice,
-  type Job,
 } from "@/lib/types";
-import { readSettings } from "@/lib/settings";
-import { invoiceDueDate } from "@/lib/terms";
 
 export const metadata: Metadata = {
   title: "Finance",
 };
 
-type Row = {
-  job: Job;
-  clientName: string;
-  price: JobPrice | null;
-  /** When the clock started: the invoice going out, or the PO being raised. */
-  startDate: string;
-  dueDate: string;
-  daysRemaining: number;
-  settled: boolean;
-};
-
-/** One unpaid invoice, as the "money in" list shows it. */
-type InvoiceRow = {
-  invoice: Invoice;
-  reference: string;
-  clientName: string;
-  jobCount: number;
-  grossPence: number;
-  dueDate: string;
-  daysRemaining: number;
-  standing: ReturnType<typeof invoiceStanding>;
-};
-
-const headerCell =
-  "px-4 py-3 font-medium text-xs uppercase tracking-wide text-muted";
-
-/** The money figure, or a dash when no rate on the client record matches. */
-function Amount({ price }: { price: JobPrice | null }) {
-  if (!price) {
-    return (
-      <span
-        className="text-muted"
-        title="No rate line on the client record matches this material"
-      >
-        —
-      </span>
-    );
-  }
-  return (
-    <span className="font-medium tabular-nums" title={price.workedOut}>
-      {formatPence(price.pence)}
-    </span>
-  );
-}
-
-function Table({
-  rows,
-  startLabel,
-  emptyTitle,
-  emptyBody,
-  showPO,
+function Card({
+  label,
+  value,
+  note,
 }: {
-  rows: Row[];
-  startLabel: string;
-  emptyTitle: string;
-  emptyBody: string;
-  showPO?: boolean;
+  label: string;
+  value: string;
+  note?: string;
 }) {
-  if (rows.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-line bg-surface px-6 py-14 text-center">
-        <p className="font-medium">{emptyTitle}</p>
-        <p className="mx-auto mt-1 max-w-md text-sm text-muted">{emptyBody}</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="overflow-x-auto rounded-xl border border-line">
-      <table className="w-full min-w-[56rem] text-sm">
-        <thead>
-          <tr className="border-b border-line bg-elevated text-left">
-            <th className={headerCell}>Client</th>
-            <th className={headerCell}>Job date</th>
-            <th className={`${headerCell} text-right`}>Amount</th>
-            {showPO ? <th className={headerCell}>PO number</th> : null}
-            <th className={headerCell}>{startLabel}</th>
-            <th className={headerCell}>Due</th>
-            <th className={`${headerCell} text-right`}>Days remaining</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const overdue = !row.settled && row.daysRemaining < 0;
-            return (
-              <tr
-                key={row.job.id}
-                className={`border-b border-line last:border-0 ${
-                  overdue ? "bg-danger-soft" : ""
-                } ${row.settled ? "text-muted" : ""}`}
-              >
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/calendar/${row.job.id}`}
-                    className="font-medium hover:text-accent"
-                  >
-                    {row.clientName}
-                  </Link>
-                  <span className="mt-0.5 block text-xs text-muted">
-                    {row.job.material}
-                    {row.job.skipSize ? `, ${row.job.skipSize}` : ""}
-                  </span>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-muted">
-                  {formatDateGB(row.job.date)}
-                </td>
-                <td className="px-4 py-3 text-right whitespace-nowrap">
-                  <Amount price={row.price} />
-                </td>
-                {showPO ? (
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {row.job.supplierPO ?? "—"}
-                    {row.job.supplierInvoiceRef ? (
-                      <span className="mt-0.5 block text-xs text-muted">
-                        their ref {row.job.supplierInvoiceRef}
-                      </span>
-                    ) : null}
-                  </td>
-                ) : null}
-                <td className="px-4 py-3 whitespace-nowrap text-muted">
-                  {formatDateGB(row.startDate)}
-                </td>
-                <td
-                  className={`px-4 py-3 whitespace-nowrap ${
-                    overdue ? "text-danger" : ""
-                  }`}
-                >
-                  {formatDateGB(row.dueDate)}
-                </td>
-                <td
-                  className={`px-4 py-3 text-right whitespace-nowrap tabular-nums ${
-                    overdue ? "font-semibold text-danger" : ""
-                  }`}
-                >
-                  {row.settled
-                    ? `Paid ${formatDateGB(row.job.paidDate ?? "")}`
-                    : overdue
-                      ? `${Math.abs(row.daysRemaining)} days overdue`
-                      : row.daysRemaining === 0
-                        ? "Due today"
-                        : `${row.daysRemaining} days`}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="rounded-xl border border-line bg-surface p-5">
+      <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
+      <p className="mt-2 text-2xl font-semibold tabular-nums">{value}</p>
+      {note ? <p className="mt-1 text-xs text-muted">{note}</p> : null}
     </div>
   );
 }
 
-/**
- * The "money in" list: one row per invoice that has not been paid.
- *
- * An invoice, not a job, because that is where the billing now lives. Several
- * jobs can share one invoice, and one invoice is what the client pays.
- */
-function InvoiceTable({ rows }: { rows: InvoiceRow[] }) {
-  if (rows.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-line bg-surface px-6 py-14 text-center">
-        <p className="font-medium">Nothing outstanding</p>
-        <p className="mx-auto mt-1 max-w-md text-sm text-muted">
-          Raise an invoice from the calendar and it shows up here until it is
-          marked paid.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="overflow-x-auto rounded-xl border border-line">
-      <table className="w-full min-w-[56rem] text-sm">
-        <thead>
-          <tr className="border-b border-line bg-elevated text-left">
-            <th className={headerCell}>Client</th>
-            <th className={headerCell}>Invoice</th>
-            <th className={headerCell}>Invoice date</th>
-            <th className={`${headerCell} text-right`}>Amount</th>
-            <th className={headerCell}>Due</th>
-            <th className={headerCell}>Status</th>
-            <th className={`${headerCell} text-right`}>Days remaining</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const overdue = row.standing === "overdue";
-            return (
-              <tr
-                key={row.invoice.id}
-                className={`border-b border-line last:border-0 ${
-                  overdue ? "bg-danger-soft" : ""
-                }`}
-              >
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/invoices/${row.invoice.id}`}
-                    className="font-medium hover:text-accent"
-                  >
-                    {row.clientName}
-                  </Link>
-                  <span className="mt-0.5 block text-xs text-muted">
-                    {row.jobCount} {row.jobCount === 1 ? "job" : "jobs"}
-                  </span>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap tabular-nums">
-                  {row.reference}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-muted">
-                  {formatDateGB(row.invoice.issueDate)}
-                </td>
-                <td className="px-4 py-3 text-right whitespace-nowrap font-medium tabular-nums">
-                  {formatPence(row.grossPence)}
-                </td>
-                <td
-                  className={`px-4 py-3 whitespace-nowrap ${
-                    overdue ? "text-danger" : ""
-                  }`}
-                >
-                  {formatDateGB(row.dueDate)}
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${STANDING_CLASSES[row.standing]}`}
-                  >
-                    {STANDING_LABELS[row.standing]}
-                  </span>
-                </td>
-                <td
-                  className={`px-4 py-3 text-right whitespace-nowrap tabular-nums ${
-                    overdue ? "font-semibold text-danger" : ""
-                  }`}
-                >
-                  {overdue
-                    ? `${Math.abs(row.daysRemaining)} days overdue`
-                    : row.daysRemaining === 0
-                      ? "Due today"
-                      : `${row.daysRemaining} days`}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
+/** "62%" or a dash where nothing has both halves of the sum recorded. */
+function formatMargin(totals: Totals): string {
+  const margin = marginPercent(totals);
+  return margin === null ? "—" : `${margin.toFixed(1)}%`;
 }
 
-function total(rows: Row[]): number {
-  return rows.reduce((sum, row) => sum + (row.price?.pence ?? 0), 0);
+/** How many jobs are missing the figure that would give them a profit. */
+function missingNote(totals: Totals): string | undefined {
+  const missing = totals.jobs - totals.jobsWithProfit;
+  if (totals.jobs === 0 || missing === 0) return undefined;
+  return `${missing} of ${totals.jobs} ${
+    totals.jobs === 1 ? "job has" : "jobs have"
+  } no cost recorded`;
 }
 
-function invoiceTotal(rows: InvoiceRow[]): number {
-  return rows.reduce((sum, row) => sum + row.grossPence, 0);
-}
-
-export default async function FinancePage() {
-  // Read the files on every visit, and work out "today" then too, so the days
-  // remaining are right rather than frozen at whenever the site was built.
+export default async function FinancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string }>;
+}) {
+  // Read the files on every visit, and work out "today" then too, so where an
+  // invoice stands is right rather than frozen at whenever the site was built.
   await connection();
 
   const today = todayISO();
-  const [jobs, customers, settings, invoices] = await Promise.all([
+  const [jobs, customers, outlets, settings, invoices] = await Promise.all([
     readJobs(),
     readCustomers(),
+    readOutlets(),
     readSettings(),
     readInvoices(),
   ]);
   const clientsById = new Map(customers.map((c) => [c.id, c]));
+  const outletsById = new Map(outlets.map((o) => [o.id, o]));
+  const jobsById = new Map(jobs.map((job) => [job.id, job]));
 
-  const soonestFirst = (a: Row, b: Row) => a.dueDate.localeCompare(b.dueDate);
+  /* --- The year's trading ------------------------------------------------ */
 
-  // Money in: what is out with clients and not yet paid. Taken from the
-  // invoices themselves - a job does not carry a billing status, it is
-  // invoiced because it appears on one, and the invoice holds the rest.
-  const owedToUs: InvoiceRow[] = invoices
-    .filter((invoice) => invoice.status !== "paid")
-    .map((invoice) => {
-      const client = clientsById.get(invoice.customerId);
-      const billed = invoice.jobIds
-        .map((id) => jobs.find((job) => job.id === id))
-        .filter((job) => job !== undefined);
-      const dueDate = invoiceDueDate(invoice.issueDate, settings.paymentTermsDays);
-      return {
-        invoice,
-        reference: formatInvoiceNumber(
-          settings.invoiceNumberPrefix,
-          invoice.number,
-        ),
-        clientName: client?.businessName ?? "Unknown client",
-        jobCount: billed.length,
-        grossPence: totalsForLines(linesForJobs(billed, client), settings.vatPercent)
-          .grossPence,
-        dueDate,
-        daysRemaining: daysBetween(today, dueDate),
-        standing: invoiceStanding(invoice.status, dueDate, today),
-      };
-    })
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  const years = yearsWithJobs(jobs, today.slice(0, 4));
+  const requested = (await searchParams).year;
+  const year = requested && years.includes(requested) ? requested : years[0];
 
-  // Money out: material bought off a client. Due on their agreed terms, taken
-  // from their client record, counted in ordinary days rather than working
-  // ones, because that is what "30 days" on a supplier account means.
-  const weOwe: Row[] = jobs
-    .filter(
-      (job) =>
-        job.direction === "purchase" &&
-        (job.status === "po-raised" || job.status === "paid") &&
-        job.poRaisedDate,
-    )
-    .map((job) => {
-      const client = clientsById.get(job.customerId);
-      const raised = job.poRaisedDate as string;
-      const dueDate = addCalendarDays(raised, client?.paymentTermsDays ?? 0);
-      return {
-        job,
-        clientName: client?.businessName ?? "Unknown client",
-        price: priceJob(job, client),
-        startDate: raised,
-        dueDate,
-        daysRemaining: daysBetween(today, dueDate),
-        settled: job.status === "paid",
-      };
-    })
-    .sort(soonestFirst);
+  const inYear = jobs.filter((job) => job.date.startsWith(year));
+  const completed = inYear.filter(isCompleted);
+  const scheduled = inYear.filter((job) => !isCompleted(job));
 
-  const outstandingOut = weOwe.filter((row) => !row.settled);
+  const done = totalsFor(completed, clientsById, outletsById);
+  const ahead = totalsFor(scheduled, clientsById, outletsById);
+  const months = byMonth(completed, clientsById, outletsById);
+  const materials = byMaterial(completed, clientsById, outletsById);
+
+  // The widest margin sets the length of the bars, so they compare against each
+  // other rather than against an arbitrary 100%.
+  const widestMargin = Math.max(
+    1,
+    ...materials.map((row) => Math.abs(marginPercent(row.totals) ?? 0)),
+  );
+
+  /* --- The invoices ------------------------------------------------------ */
 
   /**
    * Every invoice gathered under the client it is for, so a client's paperwork
-   * is in one place rather than scattered down a list by date. Drafts included:
-   * an invoice raised from the calendar belongs here straight away, not only
-   * once someone has opened its PDF.
+   * is in one place rather than scattered down a list by date. Drafts
+   * included: an invoice raised from the calendar belongs here straight away,
+   * not only once someone has opened its PDF.
    */
   const filed = new Map<
     string,
@@ -373,81 +131,177 @@ export default async function FinancePage() {
   for (const invoice of invoices) {
     const client = clientsById.get(invoice.customerId);
     const name = client?.businessName ?? "Unknown client";
-    const billed = invoice.jobIds
-      .map((id) => jobs.find((job) => job.id === id))
-      .filter((job) => job !== undefined);
-    const totals = totalsForLines(
-      linesForJobs(billed, client),
-      settings.vatPercent,
-    );
     const rows = filed.get(name) ?? [];
-    const invoiceDue = invoiceDueDate(invoice.issueDate, settings.paymentTermsDays);
+    const dueDate = invoiceDueDate(invoice.issueDate, settings.paymentTermsDays);
     rows.push({
       reference: formatInvoiceNumber(settings.invoiceNumberPrefix, invoice.number),
       invoice,
-      grossPence: totals.grossPence,
-      dueDate: invoiceDue,
-      standing: invoiceStanding(invoice.status, invoiceDue, today),
-      daysLate: Math.abs(daysBetween(today, invoiceDue)),
+      grossPence: invoiceGrossPence(
+        invoice,
+        jobsById,
+        client,
+        settings.vatPercent,
+      ),
+      dueDate,
+      standing: invoiceStanding(invoice.status, dueDate, today),
+      daysLate: Math.abs(daysBetween(today, dueDate)),
     });
     filed.set(name, rows);
   }
+  // Newest invoice first within a client, clients in alphabetical order.
+  for (const rows of filed.values()) {
+    rows.sort((a, b) => b.invoice.issueDate.localeCompare(a.invoice.issueDate));
+  }
   const filedByClient = [...filed.entries()].sort(([a], [b]) => a.localeCompare(b));
   const filedCount = filedByClient.reduce((n, [, rows]) => n + rows.length, 0);
-  const overdueIn = owedToUs.filter((row) => row.standing === "overdue").length;
-  const overdueOut = outstandingOut.filter((row) => row.daysRemaining < 0).length;
+
+  // Outstanding money, for the line above the list: what is unpaid, and how
+  // much of it is late.
+  const unpaid = [...filed.values()]
+    .flat()
+    .filter((row) => row.standing !== "paid");
+  const unpaidTotal = unpaid.reduce((sum, row) => sum + row.grossPence, 0);
+  const overdueCount = unpaid.filter((row) => row.standing === "overdue").length;
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-10 lg:px-10">
       <PageHeader
         title="Finance"
-        description="What clients owe us, and what we owe clients for material bought off them."
+        description="What the year has earned, and every invoice raised."
         action={
-          <Link
-            href="/invoices"
-            className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
-          >
-            Invoices
-          </Link>
+          <div className="flex items-center gap-1 rounded-lg border border-line p-1">
+            {years.map((option) => (
+              <Link
+                key={option}
+                href={`/finance?year=${option}`}
+                aria-current={option === year ? "page" : undefined}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  option === year
+                    ? "bg-accent-soft text-accent"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                {option}
+              </Link>
+            ))}
+          </div>
         }
       />
 
-      <section className="mb-10">
-        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-semibold">Money in</h2>
-          <p className="text-sm text-muted">
-            {owedToUs.length === 0
-              ? "Nothing outstanding"
-              : `${formatPence(invoiceTotal(owedToUs))} across ${owedToUs.length} ${
-                  owedToUs.length === 1 ? "invoice" : "invoices"
-                }${overdueIn > 0 ? `, ${overdueIn} overdue` : ""}`}
-          </p>
-        </div>
-        <InvoiceTable rows={owedToUs} />
-
-      </section>
-
-      <section>
-        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-semibold">Money out</h2>
-          <p className="text-sm text-muted">
-            {outstandingOut.length === 0
-              ? "Nothing outstanding"
-              : `${formatPence(total(outstandingOut))} across ${
-                  outstandingOut.length
-                } ${outstandingOut.length === 1 ? "order" : "orders"}${
-                  overdueOut > 0 ? `, ${overdueOut} overdue` : ""
-                }`}
-          </p>
-        </div>
-        <Table
-          rows={weOwe}
-          startLabel="PO raised"
-          showPO
-          emptyTitle="No purchase orders yet"
-          emptyBody="Move a purchase to “PO raised” on the calendar and it will show up here."
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Card
+          label="Jobs completed"
+          value={String(done.jobs)}
+          note={`in ${year}`}
         />
-      </section>
+        <Card label="Revenue" value={formatPence(done.revenuePence)} />
+        <Card
+          label="Profit"
+          value={formatPence(done.profitPence)}
+          note={missingNote(done)}
+        />
+        <Card
+          label="Average margin"
+          value={formatMargin(done)}
+          note={
+            done.jobsWithProfit > 0
+              ? `across ${done.jobsWithProfit} ${done.jobsWithProfit === 1 ? "job" : "jobs"}`
+              : undefined
+          }
+        />
+        <Card
+          label="Revenue scheduled"
+          value={formatPence(ahead.revenuePence)}
+          note={`${ahead.jobs} ${ahead.jobs === 1 ? "job" : "jobs"} still booked`}
+        />
+        <Card
+          label="Profit scheduled"
+          value={formatPence(ahead.profitPence)}
+          note={missingNote(ahead)}
+        />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-5">
+        <section className="rounded-xl border border-line bg-surface p-6 lg:col-span-3">
+          <h2 className="mb-1 text-base font-semibold">Monthly billings</h2>
+          <p className="mb-4 text-sm text-muted">
+            Completed jobs in {year}, by the month the job was done.
+          </p>
+          <BillingsChart months={months} />
+        </section>
+
+        <section className="rounded-xl border border-line bg-surface p-6 lg:col-span-2">
+          <h2 className="mb-1 text-base font-semibold">By material</h2>
+          <p className="mb-4 text-sm text-muted">
+            Where the money came from in {year}.
+          </p>
+
+          {materials.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted">
+              No completed jobs yet.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-muted">
+                    <th className="pb-2 font-medium">Material</th>
+                    <th className="pb-2 text-right font-medium">Jobs</th>
+                    <th className="pb-2 text-right font-medium">Revenue</th>
+                    <th className="pb-2 text-right font-medium">Profit</th>
+                    <th className="pb-2 text-right font-medium">Margin</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {materials.map((row) => {
+                    const margin = marginPercent(row.totals);
+                    return (
+                      <tr
+                        key={row.material}
+                        className="border-b border-line last:border-0"
+                      >
+                        <td className="py-2.5 pr-2">{row.material}</td>
+                        <td className="py-2.5 text-right tabular-nums text-muted">
+                          {row.totals.jobs}
+                        </td>
+                        <td className="py-2.5 text-right tabular-nums">
+                          {formatPence(row.totals.revenuePence)}
+                        </td>
+                        <td className="py-2.5 text-right tabular-nums">
+                          {row.totals.jobsWithProfit === 0
+                            ? "—"
+                            : formatPence(row.totals.profitPence)}
+                        </td>
+                        <td className="py-2.5 pl-2 text-right">
+                          {margin === null ? (
+                            <span className="text-muted">—</span>
+                          ) : (
+                            <>
+                              <span className="tabular-nums">
+                                {margin.toFixed(0)}%
+                              </span>
+                              {/* A short bar next to the number, so the
+                                  materials compare at a glance. */}
+                              <span
+                                aria-hidden
+                                className="mt-1 block h-1 rounded-sm bg-series-profit"
+                                style={{
+                                  width: `${Math.max(2, (Math.abs(margin) / widestMargin) * 100)}%`,
+                                  marginLeft: "auto",
+                                }}
+                              />
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
 
       <section className="mt-10">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
@@ -455,9 +309,13 @@ export default async function FinancePage() {
           <p className="text-sm text-muted">
             {filedCount === 0
               ? "None raised yet"
-              : `${filedCount} across ${filedByClient.length} ${
-                  filedByClient.length === 1 ? "client" : "clients"
-                }`}
+              : unpaid.length === 0
+                ? `${filedCount} raised, all paid`
+                : `${formatPence(unpaidTotal)} outstanding across ${
+                    unpaid.length
+                  } ${unpaid.length === 1 ? "invoice" : "invoices"}${
+                    overdueCount > 0 ? `, ${overdueCount} overdue` : ""
+                  }`}
           </p>
         </div>
 
@@ -502,6 +360,11 @@ export default async function FinancePage() {
                       <span className="w-24 shrink-0 tabular-nums">
                         {formatPence(row.grossPence)}
                       </span>
+                      <span className="w-28 shrink-0 text-xs text-muted">
+                        {row.standing === "paid"
+                          ? "Settled"
+                          : `due ${formatDateGB(row.dueDate)}`}
+                      </span>
                       <span className="flex-1">
                         <span
                           className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${STANDING_CLASSES[row.standing]}`}
@@ -536,14 +399,19 @@ export default async function FinancePage() {
       </section>
 
       <p className="mt-8 text-xs text-muted">
-        Amounts are worked out from each client&rsquo;s rate for the material,
-        not stored, so correcting a rate corrects every job priced off it. Our
-        invoices fall due {settings.paymentTermsDays} days after the invoice
-        date, as set under Settings; what we owe runs on the payment terms
-        recorded against the client.{" "}
-        <Link href="/clients" className="text-accent hover:underline">
-          Clients
+        Nothing on this page is stored. Amounts are worked out from each
+        client&rsquo;s rate for the material, so correcting a rate corrects
+        every figure priced off it. Profit is what comes in less what goes out:
+        on a charge job, what the client is invoiced less the disposal cost; on
+        a rebate job, the material income from the outlet less the rebate paid
+        to the client less haulage. Jobs missing one of those figures count
+        towards revenue but are left out of profit and margin, rather than being
+        treated as costing nothing. Invoices fall due{" "}
+        {settings.paymentTermsDays} days after the invoice date, as set under{" "}
+        <Link href="/settings" className="text-accent hover:underline">
+          Settings
         </Link>
+        .
       </p>
     </main>
   );
