@@ -8,7 +8,6 @@ import { findRateLine, HAULAGE, haulageChargeFor, priceJob } from "./pricing";
 import { formatPence } from "./money";
 import {
   isCompleteOrLater,
-  materialCode,
   type Customer,
   type Invoice,
   type Job,
@@ -19,7 +18,6 @@ export type InvoiceLine = {
   /** Set apart so two lines from the same job keep distinct keys. */
   key: string;
   /** The stock code, from the material. */
-  sku: string;
   description: string;
   /** Tonnes on a material line, one collection on a haulage line. */
   quantity: number;
@@ -58,7 +56,6 @@ export function lineForJob(
   return {
     jobId: job.id,
     key: `${job.id}-material`,
-    sku: materialCode(job.material),
     description: job.material,
     quantity,
     quantityLabel: `${quantity.toFixed(2)} t`,
@@ -81,7 +78,6 @@ export function haulageLineForJob(
   return {
     jobId: job.id,
     key: `${job.id}-haulage`,
-    sku: materialCode(HAULAGE),
     // Named after the material it collected, so two jobs on one invoice do not
     // both read as a bare "Haulage" with no way to tell them apart.
     description: `${HAULAGE}, ${job.material}`,

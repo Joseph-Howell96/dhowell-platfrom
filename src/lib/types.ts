@@ -274,58 +274,23 @@ export type Job = {
 
   /* The other half of each sum, which no rate line can tell us. */
   /**
-   * On a sale: what the tip or outlet charged us to take this load, in pence.
+   * On a sale: what the tip charged us to take this load, in pence.
    * Null means nobody has recorded it, which is not the same as nothing:
    * profit is left unknown rather than overstated.
    */
   disposalCostPence: number | null;
   /**
-   * On a rebate job: which outlet the load went to, matching an Outlet id.
-   * Their rate for the material is what the load earned.
-   */
-  outletId: string | null;
-  /**
-   * On a rebate job: what it cost us to get the load to the outlet, in pence.
-   * Margin is the outlet's income less the rebate less this.
+   * On a rebate job: what it cost us to get the load away, in pence.
+   * Margin is what it sold on for, less the rebate, less this.
    */
   haulageCostPence: number | null;
   /**
-   * On a rebate job: what the load actually fetched, in pence, where it went
-   * for something other than the outlet's standing rate. Left blank, the
-   * outlet's rate is used instead.
+   * On a rebate job: what the load fetched when it was sold on, in pence.
+   * Null until somebody records it, which leaves the job with a cost and no
+   * income rather than a loss.
    */
   onwardSalePence: number | null;
 
-  createdAt: string;
-};
-
-/* ---------------------------------------------------------------------------
- * Outlets
- * ------------------------------------------------------------------------- */
-
-/** What an outlet pays us for a tonne of a given material. */
-export type OutletMaterial = {
-  id: string;
-  material: string;
-  /** Held in pence per tonne, as with every other rate. */
-  incomePence: number;
-};
-
-/**
- * A reprocessor we sell material on to, such as Edwards.
- *
- * Kept apart from clients on purpose: a client is who we collect from, an
- * outlet is who we deliver to, and the money runs the opposite way.
- */
-export type Outlet = {
-  id: string;
-  name: string;
-  contactName: string;
-  phone: string;
-  email: string;
-  address: string;
-  notes: string;
-  materials: OutletMaterial[];
   createdAt: string;
 };
 
@@ -363,25 +328,6 @@ export type CompanySettings = {
 /* ---------------------------------------------------------------------------
  * Invoices
  * ------------------------------------------------------------------------- */
-
-/** Short codes for the stock column, so a line reads like a product. */
-const MATERIAL_CODES: Record<string, string> = {
-  wood: "WOOD",
-  "general rubbish": "GEN",
-  "mixed paper": "PAPER",
-  corex: "COREX",
-  cardboard: "CARD",
-  metal: "METAL",
-  "green waste": "GREEN",
-  haulage: "HAUL",
-};
-
-/** The stock code for a material, made up from its name where none is known. */
-export function materialCode(material: string): string {
-  const known = MATERIAL_CODES[material.trim().toLowerCase()];
-  if (known) return known;
-  return material.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
-}
 
 /**
  * Where an invoice has got to.

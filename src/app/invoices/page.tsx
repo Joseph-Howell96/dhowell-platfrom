@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
+import { requireSession } from "@/lib/guard";
+
 import PageHeader from "@/components/page-header";
 import { todayISO } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
@@ -26,6 +28,7 @@ const headerCell =
 
 export default async function InvoicesPage() {
   await connection();
+  await requireSession("/invoices");
 
   const today = todayISO();
   const [invoices, customers, jobs, settings] = await Promise.all([

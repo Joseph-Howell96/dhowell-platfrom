@@ -6,7 +6,6 @@ import JobForm from "@/components/job-form";
 import PageHeader from "@/components/page-header";
 import { isValidISODate, monthKeyOf, todayISO } from "@/lib/calendar";
 import { readActiveCustomers } from "@/lib/customers";
-import { readOutlets } from "@/lib/outlets";
 import { createJob } from "@/lib/job-actions";
 import { formatDateGB } from "@/lib/dates";
 
@@ -26,9 +25,8 @@ export default async function NewJobPage({
   const date =
     requested && isValidISODate(requested) ? requested : todayISO();
 
-  const [customers, outlets] = await Promise.all([
+  const [customers] = await Promise.all([
     readActiveCustomers(),
-    readOutlets(),
   ]);
 
   return (
@@ -62,7 +60,6 @@ export default async function NewJobPage({
       ) : (
         <JobForm
           customers={customers}
-          outlets={outlets}
           action={createJob}
           submitLabel="Book job"
           cancelHref={`/calendar?month=${monthKeyOf(date)}`}

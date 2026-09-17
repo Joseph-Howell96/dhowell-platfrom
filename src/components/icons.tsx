@@ -38,18 +38,6 @@ export function ClientsIcon({ className }: IconProps) {
     </svg>
   );
 }
-
-export function OutletsIcon({ className }: IconProps) {
-  return (
-    <svg {...base} className={className}>
-      <path d="M3 20h18" />
-      <path d="M4 20V11l5.5 3V11L15 14V7.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V20" />
-      <path d="M17 11h1" />
-      <path d="M17 15h1" />
-    </svg>
-  );
-}
-
 export function CalendarIcon({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

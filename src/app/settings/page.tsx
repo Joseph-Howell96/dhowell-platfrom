@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 
+import { requireSession } from "@/lib/guard";
+
 import PageHeader from "@/components/page-header";
 import { missingForInvoice, readSettings } from "@/lib/settings";
 import SettingsForm from "./settings-form";
+import UsersPanel from "./users-panel";
+import { readUsers } from "@/lib/users";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -12,7 +16,8 @@ export const metadata: Metadata = {
 export default async function SettingsPage() {
   // Read the file on every visit, so the form always opens on what is saved.
   await connection();
-  const settings = await readSettings();
+  const session = await requireSession("/settings");
+  const [settings, users] = await Promise.all([readSettings(), readUsers()]);
   const missing = missingForInvoice(settings);
 
   return (
@@ -31,6 +36,18 @@ export default async function SettingsPage() {
       ) : null}
 
       <SettingsForm settings={settings} />
+
+      <section className="mt-10">
+        <div className="mb-3">
+          <h2 className="text-lg font-semibold">Users</h2>
+          <p className="mt-1 text-sm text-muted">
+            Who can sign in, and what they see. Admin sees everything; a
+            standard user sees clients and the calendar, and Finance is not on
+            their sidebar or reachable by typing the address.
+          </p>
+        </div>
+        <UsersPanel users={users} signedInAs={session.username} />
+      </section>
     </main>
   );
 }

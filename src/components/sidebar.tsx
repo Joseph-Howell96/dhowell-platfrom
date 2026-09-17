@@ -9,26 +9,36 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { canOpen, ROLE_LABELS, type Role } from "@/lib/roles";
+import { signOut } from "@/lib/session-actions";
 import {
   CalendarIcon,
   ClientsIcon,
   DashboardIcon,
   FinanceIcon,
-  OutletsIcon,
   SettingsIcon,
 } from "./icons";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
   { href: "/clients", label: "Clients", Icon: ClientsIcon },
-  { href: "/outlets", label: "Outlets", Icon: OutletsIcon },
   { href: "/calendar", label: "Calendar", Icon: CalendarIcon },
   { href: "/finance", label: "Finance", Icon: FinanceIcon },
   { href: "/settings", label: "Settings", Icon: SettingsIcon },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({
+  role,
+  name,
+}: {
+  role: Role;
+  /** Who is signed in, shown at the foot so it is never a guess. */
+  name: string;
+}) {
   const pathname = usePathname();
+  // The same rule the pages use, so the strip can never offer something that
+  // would turn you away when you clicked it.
+  const sections = NAV.filter((item) => canOpen(role, item.href));
 
   return (
     <aside className="glass-rail sticky top-0 flex h-screen w-16 shrink-0 flex-col lg:w-60">
@@ -51,7 +61,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 p-2 lg:p-3">
-        {NAV.map(({ href, label, Icon }) => {
+        {sections.map(({ href, label, Icon }) => {
           // A section counts as current if you are on its page or anywhere
           // beneath it, so /clients/new still highlights Clients.
           const current = pathname === href || pathname.startsWith(`${href}/`);
@@ -74,9 +84,20 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <p className="hidden border-t border-line px-5 py-4 text-xs text-muted lg:block">
-        Internal use only
-      </p>
+      <div className="border-t border-line px-3 py-3 lg:px-5 lg:py-4">
+        <p className="hidden truncate text-xs font-medium lg:block">{name}</p>
+        <p className="hidden text-xs text-muted lg:block">{ROLE_LABELS[role]}</p>
+        <form action={signOut}>
+          <button
+            type="submit"
+            title="Sign out"
+            className="mt-2 w-full rounded-lg border border-line px-2 py-1.5 text-xs text-muted transition-colors hover:border-danger/50 hover:text-danger"
+          >
+            <span className="hidden lg:inline">Sign out</span>
+            <span className="lg:hidden">↩</span>
+          </button>
+        </form>
+      </div>
     </aside>
   );
 }

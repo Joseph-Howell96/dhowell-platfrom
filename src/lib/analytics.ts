@@ -10,9 +10,8 @@
  * but no profit, and the page says how many jobs are in that position. Treating
  * a blank as nothing would quietly report every job as pure profit.
  */
-import { outletIncomeFor } from "./outlets";
 import { haulageChargeFor, priceJob } from "./pricing";
-import type { Customer, Job, Outlet } from "./types";
+import type { Customer, Job } from "./types";
 import { isWeighedOrLater } from "./types";
 
 /**
@@ -28,7 +27,7 @@ export function sumKnown(...values: (number | null)[]): number | null {
 }
 
 export type JobEconomics = {
-  /** What comes in: the charge on a charge job, the outlet on a rebate one. */
+  /** What comes in: the charge on a charge job, the onward sale on a rebate. */
   revenuePence: number | null;
   /** What goes out: disposal on a charge job, rebate plus haulage on a rebate one. */
   costPence: number | null;
@@ -43,18 +42,18 @@ export type JobEconomics = {
  * tip. A rebate job runs the other way, and its margin is the wording the yard
  * uses - material income, less the rebate, less haulage:
  *
- *   margin = what the outlet paid us
+ *   margin = what the load sold on for
  *          + any haulage we charged the client
  *          - what we paid the client
  *          - what it cost to get the load there
  *
- * The outlet's standing rate for the material supplies the income. Where a
- * load went for something else, the figure typed against the job wins.
+ * What it sold on for is typed against the job. Until it is, the job has a
+ * cost and no income, so it counts towards neither profit nor margin rather
+ * than being reported as a loss.
  */
 export function jobEconomics(
   job: Job,
   customer: Customer | undefined,
-  outletsById?: Map<string, Outlet>,
 ): JobEconomics {
   const rated = priceJob(job, customer)?.pence ?? null;
 
@@ -76,18 +75,9 @@ export function jobEconomics(
     };
   }
 
-  // Material income: the outlet's rate for the material against the weight,
-  // unless a one-off figure was recorded for this load.
-  let incomePence = job.onwardSalePence;
-  if (incomePence === null && job.outletId && job.weightKg !== null) {
-    const perTonne = outletIncomeFor(
-      outletsById?.get(job.outletId),
-      job.material,
-    );
-    if (perTonne !== null) {
-      incomePence = Math.round(perTonne * (job.weightKg / 1000));
-    }
-  }
+  // What the load fetched when it was sold on. Recorded against the job, since
+  // that is the only place it is known.
+  const incomePence = job.onwardSalePence;
 
   // The rebate is what the client's rate says we pay them. Haulage is on top,
   // and counts as nothing only when someone has said so.
@@ -99,7 +89,7 @@ export function jobEconomics(
       : null;
 
   // On a rebate job the haulage we charge is money in, on top of whatever the
-  // outlet pays for the load.
+  // the load fetched when it was sold on.
   const revenuePence = sumKnown(incomePence, haulage);
 
   return {
@@ -147,13 +137,12 @@ function accumulate(totals: Totals, economics: JobEconomics): Totals {
 export function totalsFor(
   jobs: Job[],
   clientsById: Map<string, Customer>,
-  outletsById?: Map<string, Outlet>,
 ): Totals {
   return jobs.reduce(
     (totals, job) =>
       accumulate(
         totals,
-        jobEconomics(job, clientsById.get(job.customerId), outletsById),
+        jobEconomics(job, clientsById.get(job.customerId)),
       ),
     EMPTY,
   );
@@ -180,41 +169,12 @@ export function isWeighed(job: Job): boolean {
   return isWeighedOrLater(job.status);
 }
 
-export const MONTH_SHORT = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
-export type MonthTotals = { label: string; totals: Totals };
-
-/** The twelve months of a year, in order, even where a month has no jobs. */
-export function byMonth(
-  jobs: Job[],
-  clientsById: Map<string, Customer>,
-  outletsById?: Map<string, Outlet>,
-): MonthTotals[] {
-  const months: Totals[] = Array.from({ length: 12 }, () => EMPTY);
-  for (const job of jobs) {
-    const index = Number(job.date.slice(5, 7)) - 1;
-    if (index < 0 || index > 11) continue;
-    months[index] = accumulate(
-      months[index],
-      jobEconomics(job, clientsById.get(job.customerId), outletsById),
-    );
-  }
-  return months.map((totals, index) => ({
-    label: MONTH_SHORT[index],
-    totals,
-  }));
-}
-
 export type MaterialTotals = { material: string; totals: Totals };
 
 /** Totals per material, busiest by revenue first. */
 export function byMaterial(
   jobs: Job[],
   clientsById: Map<string, Customer>,
-  outletsById?: Map<string, Outlet>,
 ): MaterialTotals[] {
   const groups = new Map<string, Totals>();
   for (const job of jobs) {
@@ -229,7 +189,7 @@ export function byMaterial(
       name,
       accumulate(
         groups.get(name) ?? EMPTY,
-        jobEconomics(job, clientsById.get(job.customerId), outletsById),
+        jobEconomics(job, clientsById.get(job.customerId)),
       ),
     );
   }

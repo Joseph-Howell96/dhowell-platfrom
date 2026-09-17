@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
-import BillingsChart from "@/components/billings-chart";
+import { requireSession } from "@/lib/guard";
+
 import PageHeader from "@/components/page-header";
 import {
   byMaterial,
-  byMonth,
   isWeighed,
   marginPercent,
   totalsFor,
@@ -34,7 +34,6 @@ import {
   viewFromParams,
   type BillingState,
 } from "@/lib/finance-view";
-import { readOutlets } from "@/lib/outlets";
 import { readSettings } from "@/lib/settings";
 import { invoiceDueDate } from "@/lib/terms";
 import { invoiceStanding } from "@/lib/types";
@@ -111,19 +110,17 @@ export default async function FinancePage({
   // Read the files on every visit, and work out "today" then too, so where an
   // invoice stands is right rather than frozen at whenever the site was built.
   await connection();
+  await requireSession("/finance");
 
   const today = todayISO();
-  const [jobs, customers, outlets, settings, invoices, deleted] =
-    await Promise.all([
-      readJobs(),
-      readCustomers(),
-      readOutlets(),
-      readSettings(),
-      readInvoices(),
-      readDeletedInvoices(),
-    ]);
+  const [jobs, customers, settings, invoices, deleted] = await Promise.all([
+    readJobs(),
+    readCustomers(),
+    readSettings(),
+    readInvoices(),
+    readDeletedInvoices(),
+  ]);
   const clientsById = new Map(customers.map((c) => [c.id, c]));
-  const outletsById = new Map(outlets.map((o) => [o.id, o]));
   const jobsById = new Map(jobs.map((job) => [job.id, job]));
 
   /* --- The year's trading ------------------------------------------------ */
@@ -138,10 +135,9 @@ export default async function FinancePage({
   const weighed = inYear.filter(isWeighed);
   const scheduled = inYear.filter((job) => !isWeighed(job));
 
-  const done = totalsFor(weighed, clientsById, outletsById);
-  const ahead = totalsFor(scheduled, clientsById, outletsById);
-  const months = byMonth(weighed, clientsById, outletsById);
-  const materials = byMaterial(weighed, clientsById, outletsById);
+  const done = totalsFor(weighed, clientsById);
+  const ahead = totalsFor(scheduled, clientsById);
+  const materials = byMaterial(weighed, clientsById);
 
   // The widest margin sets the length of the bars, so they compare against each
   // other rather than against an arbitrary 100%.
@@ -323,87 +319,77 @@ export default async function FinancePage({
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <section className="glass rounded-xl p-6 lg:col-span-3">
-          <h2 className="mb-1 text-base font-semibold">Monthly billings</h2>
-          <p className="mb-4 text-sm text-muted">
-            Weighed jobs in {year}, by the month the job was done.
-          </p>
-          <BillingsChart months={months} />
-        </section>
+      <section className="glass rounded-xl p-6">
+        <h2 className="mb-1 text-base font-semibold">By material</h2>
+        <p className="mb-4 text-sm text-muted">
+          Where the money came from in {year}.
+        </p>
 
-        <section className="glass rounded-xl p-6 lg:col-span-2">
-          <h2 className="mb-1 text-base font-semibold">By material</h2>
-          <p className="mb-4 text-sm text-muted">
-            Where the money came from in {year}.
+        {materials.length === 0 ? (
+          <p className="py-10 text-center text-sm text-muted">
+            No weighed jobs yet.
           </p>
-
-          {materials.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted">
-              No weighed jobs yet.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-muted">
-                    <th className="pb-2 font-medium">Material</th>
-                    <th className="pb-2 text-right font-medium">Jobs</th>
-                    <th className="pb-2 text-right font-medium">Revenue</th>
-                    <th className="pb-2 text-right font-medium">Profit</th>
-                    <th className="pb-2 text-right font-medium">Margin</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {materials.map((row) => {
-                    const margin = marginPercent(row.totals);
-                    return (
-                      <tr
-                        key={row.material}
-                        className="border-b border-line last:border-0"
-                      >
-                        <td className="py-2.5 pr-2">{row.material}</td>
-                        <td className="py-2.5 text-right tabular-nums text-muted">
-                          {row.totals.jobs}
-                        </td>
-                        <td className="py-2.5 text-right tabular-nums">
-                          {formatPence(row.totals.revenuePence)}
-                        </td>
-                        <td className="py-2.5 text-right tabular-nums">
-                          {row.totals.jobsWithProfit === 0
-                            ? "—"
-                            : formatPence(row.totals.profitPence)}
-                        </td>
-                        <td className="py-2.5 pl-2 text-right">
-                          {margin === null ? (
-                            <span className="text-muted">—</span>
-                          ) : (
-                            <>
-                              <span className="tabular-nums">
-                                {margin.toFixed(0)}%
-                              </span>
-                              {/* A short bar next to the number, so the
-                                  materials compare at a glance. */}
-                              <span
-                                aria-hidden
-                                className="mt-1 block h-1 rounded-sm bg-series-profit"
-                                style={{
-                                  width: `${Math.max(2, (Math.abs(margin) / widestMargin) * 100)}%`,
-                                  marginLeft: "auto",
-                                }}
-                              />
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-muted">
+                  <th className="pb-2 font-medium">Material</th>
+                  <th className="pb-2 text-right font-medium">Jobs</th>
+                  <th className="pb-2 text-right font-medium">Revenue</th>
+                  <th className="pb-2 text-right font-medium">Profit</th>
+                  <th className="pb-2 text-right font-medium">Margin</th>
+                </tr>
+              </thead>
+              <tbody>
+                {materials.map((row) => {
+                  const margin = marginPercent(row.totals);
+                  return (
+                    <tr
+                      key={row.material}
+                      className="border-b border-line last:border-0"
+                    >
+                      <td className="py-2.5 pr-2">{row.material}</td>
+                      <td className="py-2.5 text-right tabular-nums text-muted">
+                        {row.totals.jobs}
+                      </td>
+                      <td className="py-2.5 text-right tabular-nums">
+                        {formatPence(row.totals.revenuePence)}
+                      </td>
+                      <td className="py-2.5 text-right tabular-nums">
+                        {row.totals.jobsWithProfit === 0
+                          ? "—"
+                          : formatPence(row.totals.profitPence)}
+                      </td>
+                      <td className="py-2.5 pl-2 text-right">
+                        {margin === null ? (
+                          <span className="text-muted">—</span>
+                        ) : (
+                          <>
+                            <span className="tabular-nums">
+                              {margin.toFixed(0)}%
+                            </span>
+                            {/* A short bar next to the number, so the
+                                materials compare at a glance. */}
+                            <span
+                              aria-hidden
+                              className="mt-1 block h-1 rounded-sm bg-series-profit"
+                              style={{
+                                width: `${Math.max(2, (Math.abs(margin) / widestMargin) * 100)}%`,
+                                marginLeft: "auto",
+                              }}
+                            />
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <section className="mt-10">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
@@ -595,7 +581,7 @@ export default async function FinancePage({
         client&rsquo;s rate for the material, so correcting a rate corrects
         every figure priced off it. Profit is what comes in less what goes out:
         on a charge job, what the client is invoiced less the disposal cost; on
-        a rebate job, the material income from the outlet less the rebate paid
+        a rebate job, what the load sold on for less the rebate paid
         to the client less haulage. Jobs missing one of those figures count
         towards revenue but are left out of profit and margin, rather than being
         treated as costing nothing. Invoices fall due{" "}

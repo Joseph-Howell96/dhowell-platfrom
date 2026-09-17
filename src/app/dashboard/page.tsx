@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
+import { requireSession } from "@/lib/guard";
+
 import PageHeader from "@/components/page-header";
 import { monthKeyOf, todayISO, weekStartOf } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
@@ -83,6 +85,7 @@ export default async function DashboardPage() {
   // Read the files on every visit, and work out "today" then too, so what the
   // page says about today is right rather than frozen at build time.
   await connection();
+  await requireSession("/dashboard");
 
   const today = todayISO();
   const weekStart = weekStartOf(today);

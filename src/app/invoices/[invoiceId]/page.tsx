@@ -174,7 +174,6 @@ export default async function InvoicePage({
         <table className="w-full py-6 text-sm">
           <thead>
             <tr className="border-b border-gray-300 text-left">
-              <th className="py-2 font-semibold">SKU</th>
               <th className="py-2 font-semibold">Description</th>
               <th className="py-2 text-right font-semibold">Qty</th>
               <th className="py-2 text-right font-semibold">Unit price</th>
@@ -184,7 +183,7 @@ export default async function InvoicePage({
           <tbody>
             {lines.length === 0 ? (
               <tr>
-                <td colSpan={5} className="py-6 text-center text-gray-500">
+                <td colSpan={4} className="py-6 text-center text-gray-500">
                   No billable lines. The jobs on this invoice have no matching
                   rate on the client record.
                 </td>
@@ -192,7 +191,6 @@ export default async function InvoicePage({
             ) : (
               lines.map((line) => (
                 <tr key={line.key} className="border-b border-gray-200">
-                  <td className="py-2.5 align-top">{line.sku}</td>
                   <td className="py-2.5 align-top">{line.description}</td>
                   <td className="py-2.5 text-right align-top tabular-nums">
                     {line.quantityLabel}

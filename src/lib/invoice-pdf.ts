@@ -24,7 +24,9 @@ const GREY = rgb(0.42, 0.42, 0.42);
 const RULE = rgb(0.8, 0.8, 0.8);
 
 /** Where each column of the line table starts. */
-const COL = { sku: MARGIN, description: MARGIN + 62, qty: 330, unit: 400, amount: RIGHT };
+// Four columns, and nothing else. A stock code nobody looks up was taking
+// room the description wanted.
+const COL = { description: MARGIN, qty: 320, unit: 430, amount: RIGHT };
 
 type Ctx = { page: PDFPage; regular: PDFFont; bold: PDFFont };
 
@@ -222,7 +224,6 @@ export async function renderInvoicePdf({
   y -= 16;
 
   // The lines
-  draw(ctx, "SKU", COL.sku, y, { size: 8, bold: true });
   draw(ctx, "DESCRIPTION", COL.description, y, { size: 8, bold: true });
   drawRight(ctx, "QTY", COL.qty, y, { size: 8, bold: true });
   drawRight(ctx, "UNIT PRICE", COL.unit, y, { size: 8, bold: true });
@@ -236,10 +237,9 @@ export async function renderInvoicePdf({
     y -= 16;
   }
   for (const line of lines) {
-    draw(ctx, line.sku, COL.sku, y);
     draw(
       ctx,
-      fit(ctx.regular, line.description, 9, COL.qty - COL.description - 40),
+      fit(ctx.regular, line.description, 9, COL.qty - COL.description - 12),
       COL.description,
       y,
     );

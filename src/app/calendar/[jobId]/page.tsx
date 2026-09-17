@@ -8,7 +8,6 @@ import JobForm from "@/components/job-form";
 import PageHeader from "@/components/page-header";
 import { monthKeyOf, todayISO } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
-import { readOutlets } from "@/lib/outlets";
 import { readSettings } from "@/lib/settings";
 import { formatDateGB } from "@/lib/dates";
 import { saveJob } from "@/lib/job-actions";
@@ -35,9 +34,8 @@ export default async function JobPage({
   // An address for a job that is not there shows the standard not-found page.
   if (!job) notFound();
 
-  const [customers, outlets, settings, invoices] = await Promise.all([
+  const [customers, settings, invoices] = await Promise.all([
     readCustomers(),
-    readOutlets(),
     readSettings(),
     readInvoices(),
   ]);
@@ -101,7 +99,6 @@ export default async function JobPage({
 
       <JobForm
         customers={choosable}
-        outlets={outlets}
         action={saveJob}
         submitLabel="Save changes"
         cancelHref={`/calendar?month=${monthKeyOf(job.date)}`}

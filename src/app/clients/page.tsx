@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
+import { requireSession } from "@/lib/guard";
+
 import ArchiveButton from "./archive-button";
 import PageHeader from "@/components/page-header";
 import { readCustomers } from "@/lib/customers";
@@ -75,6 +77,7 @@ export default async function ClientsPage() {
   // Wait for a real visitor before reading the file. Without this, Next.js
   // would read it once while building and show that snapshot forever.
   await connection();
+  await requireSession("/clients");
   const all = await readCustomers();
   const customers = all.filter((customer) => customer.archivedAt === null);
   const archived = all.filter((customer) => customer.archivedAt !== null);

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 
+import { requireSession } from "@/lib/guard";
+
 import GenerateWeekButton from "./generate-week-button";
 import PageHeader from "@/components/page-header";
 import {
@@ -35,6 +37,7 @@ export default async function CalendarPage({
 }) {
   // Read the file on every visit rather than once when the site was built.
   await connection();
+  await requireSession("/calendar");
 
   const today = todayISO();
   const requested = (await searchParams).month;
@@ -183,7 +186,7 @@ export default async function CalendarPage({
               return (
                 <div
                   key={cell.iso}
-                  className={`min-h-28 p-1.5 ${
+                  className={`min-h-32 p-1.5 ${
                     cell.inMonth ? "cal-cell" : "cal-cell-out"
                   }`}
                 >
@@ -224,10 +227,19 @@ export default async function CalendarPage({
                       <li key={job.id}>
                         <Link
                           href={`/calendar/${job.id}`}
-                          className={`block truncate rounded px-1.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 ${JOB_STANDING_CLASSES[standing]}`}
+                          className={`block rounded px-1.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 ${JOB_STANDING_CLASSES[standing]}`}
                           title={`${clientNames.get(job.customerId) ?? "Unknown client"} — ${job.material} (${JOB_STANDING_LABELS[standing]})`}
                         >
-                          {clientNames.get(job.customerId) ?? "Unknown client"}
+                          {/* Two lines rather than one: on a busy day the
+                              client tells you whose it is and the material
+                              tells you what the lorry is going for, and
+                              running them together truncates both away. */}
+                          <span className="block truncate">
+                            {clientNames.get(job.customerId) ?? "Unknown client"}
+                          </span>
+                          <span className="block truncate font-normal opacity-80">
+                            {job.material}
+                          </span>
                         </Link>
                       </li>
                       );
