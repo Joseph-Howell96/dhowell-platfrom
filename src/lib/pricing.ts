@@ -5,7 +5,7 @@
  * lines every time it is shown, so correcting a rate on the client record
  * immediately corrects every job priced off it.
  */
-import type { Customer, Job } from "./types";
+import type { Customer, Job, RateLine } from "./types";
 
 export type JobPrice = {
   /**
@@ -18,19 +18,40 @@ export type JobPrice = {
   workedOut: string;
 };
 
+function same(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+/**
+ * The rate line that applies to a job.
+ *
+ * A rate for the exact skip size wins. Failing that, a rate left blank applies
+ * whatever size turned up. If a client only has an 8 yard rate and a 12 yard
+ * job comes through, nothing matches and the job goes unpriced - better a
+ * blank on the invoice than quietly charging the wrong size.
+ */
+export function findRateLine(
+  customer: Customer | undefined,
+  job: Pick<Job, "material" | "skipSize">,
+): RateLine | undefined {
+  if (!customer) return undefined;
+  const forMaterial = customer.rateLines.filter((line) =>
+    same(line.material, job.material),
+  );
+  const exactSize =
+    job.skipSize.trim() !== ""
+      ? forMaterial.find((line) => same(line.skipSize, job.skipSize))
+      : undefined;
+  return exactSize ?? forMaterial.find((line) => line.skipSize.trim() === "");
+}
+
 /**
  * What a job comes to, or null when it cannot be worked out - either because
- * the client has no rate for that material, or because a per-tonne rate needs
- * a weight the job does not have yet.
+ * the client has no rate matching the material and size, or because a
+ * per-tonne rate needs a weight the job does not have yet.
  */
 export function priceJob(job: Job, customer: Customer | undefined): JobPrice | null {
-  if (!customer) return null;
-
-  // Match on the material name, ignoring capitalisation, so "wood" typed into
-  // the Other box still finds a "Wood" rate line.
-  const line = customer.rateLines.find(
-    (rate) => rate.material.toLowerCase() === job.material.toLowerCase(),
-  );
+  const line = findRateLine(customer, job);
   if (!line) return null;
 
   if (line.basis === "Per tonne") {

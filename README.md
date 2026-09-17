@@ -48,8 +48,16 @@ Two things are stored in a deliberate way:
 - **Job dates are plain text** (`"2026-09-16"`), not points in time. A job
   booked for the 16th stays on the 16th whatever the clocks are doing.
 
-Each rate line on a client is either a **Charge** (we invoice them for it) or a
-**Rebate** (we pay them for it and sell it on). A job takes its direction from
+A client's rate lines set what they are charged or paid. Each line is a
+material, a skip size, a basis, a rate and a direction: a **Charge** (we
+invoice them for it) or a **Rebate** (we pay them for it and sell it on).
+
+**Haulage** is one of the materials, since it is charged the same way: a rate
+per client, usually differing by skip size.
+
+Leave the skip size blank and the rate applies whatever size turns up. A rate
+for the exact size wins over a blank one. Where neither matches, the job goes
+unpriced and shows a dash rather than being charged at the wrong size. A job takes its direction from
 the rate for the material picked, and can be changed by hand. It decides which
 run of work the job follows.
 

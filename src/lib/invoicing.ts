@@ -4,7 +4,7 @@
  * Nothing here is stored. Everything is worked out from the jobs and the
  * client's rates when the invoice is opened.
  */
-import { priceJob } from "./pricing";
+import { findRateLine, priceJob } from "./pricing";
 import { materialCode, type Customer, type Job } from "./types";
 
 export type InvoiceLine = {
@@ -34,9 +34,7 @@ export function lineForJob(
   const price = priceJob(job, customer);
   if (!price) return null;
 
-  const rate = customer?.rateLines.find(
-    (line) => line.material.toLowerCase() === job.material.toLowerCase(),
-  );
+  const rate = findRateLine(customer, job);
 
   // A per-tonne rate bills the weight; everything else bills as one of a thing.
   const perTonne = rate?.basis === "Per tonne";
@@ -45,7 +43,10 @@ export function lineForJob(
 
   const parts = [job.material];
   if (job.skipSize) parts.push(job.skipSize);
-  if (rate && !perTonne) parts.push(rate.basis.toLowerCase());
+  // How it is priced is worth spelling out, except on a haulage line where it
+  // would only read "Haulage, haulage fee".
+  const saysItAlready = job.material.trim().toLowerCase() === "haulage";
+  if (rate && !perTonne && !saysItAlready) parts.push(rate.basis.toLowerCase());
 
   return {
     jobId: job.id,

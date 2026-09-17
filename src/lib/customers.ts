@@ -41,6 +41,7 @@ function toRateLine(raw: unknown): RateLine | null {
   return {
     id: typeof line.id === "string" ? line.id : randomUUID(),
     material: line.material,
+    skipSize: typeof line.skipSize === "string" ? line.skipSize.trim() : "",
     basis: line.basis,
     ratePence: Math.round(line.ratePence),
     direction: line.direction,

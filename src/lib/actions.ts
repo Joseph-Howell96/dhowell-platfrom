@@ -62,6 +62,7 @@ export async function createCustomer(
   // Rate lines arrive as four lists that line up by position: the first
   // material goes with the first basis, the first rate and the first direction.
   const materials = formData.getAll("rateMaterial");
+  const sizes = formData.getAll("rateSkipSize");
   const bases = formData.getAll("rateBasis");
   const amounts = formData.getAll("rateAmount");
   const directions = formData.getAll("rateDirection");
@@ -102,6 +103,7 @@ export async function createCustomer(
       rateLines.push({
         id: randomUUID(),
         material,
+        skipSize: String(sizes[index] ?? "").trim(),
         basis: basis as Basis,
         ratePence,
         direction: direction as Direction,

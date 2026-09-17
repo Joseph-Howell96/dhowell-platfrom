@@ -12,6 +12,9 @@ export const MATERIALS = [
   "Cardboard",
   "Metal",
   "Green waste",
+  // Not a material, but it is charged the same way: a rate line per client,
+  // at whatever was agreed with them.
+  "Haulage",
 ] as const;
 
 /** How a rate is worked out. */
@@ -48,6 +51,11 @@ export const DIRECTION_HINTS: Record<Direction, string> = {
 export type RateLine = {
   id: string;
   material: string;
+  /**
+   * Which skip this rate is for, e.g. "8 yard". Left blank the rate applies
+   * whatever size turns up, which is how a per-tonne rate usually works.
+   */
+  skipSize: string;
   basis: Basis;
   /** Held in pence, so £85.50 is stored as 8550. See src/lib/money.ts for why. */
   ratePence: number;
@@ -205,6 +213,7 @@ export const JOB_MATERIALS = [
   "General rubbish",
   "Mixed paper",
   "Corex",
+  "Haulage",
   "Other",
 ] as const;
 
@@ -362,6 +371,7 @@ const MATERIAL_CODES: Record<string, string> = {
   cardboard: "CARD",
   metal: "METAL",
   "green waste": "GREEN",
+  haulage: "HAUL",
 };
 
 /** The stock code for a material, made up from its name where none is known. */

@@ -16,7 +16,14 @@ import { useActionState, useId, useRef, useState } from "react";
 import Select from "@/components/select";
 import { createCustomer } from "@/lib/actions";
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
-import { BASES, DIRECTION_LABELS, DIRECTIONS, MATERIALS } from "@/lib/types";
+import {
+  BASES,
+  DIRECTION_HINTS,
+  DIRECTION_LABELS,
+  DIRECTIONS,
+  MATERIALS,
+  SKIP_SIZES,
+} from "@/lib/types";
 
 const inputClass =
   "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
@@ -52,6 +59,7 @@ const EMPTY_DETAILS: Details = {
 type RateRow = {
   key: string;
   material: string;
+  skipSize: string;
   basis: string;
   rate: string;
   direction: string;
@@ -66,6 +74,7 @@ function blankRow(sequence: number): RateRow {
   return {
     key: `row-${sequence}`,
     material: "",
+    skipSize: "",
     basis: BASES[0],
     rate: "",
     direction: "charge",
@@ -81,6 +90,7 @@ export default function CustomerForm() {
   const [rows, setRows] = useState<RateRow[]>([blankRow(0)]);
   const nextRowSequence = useRef(1);
   const materialListId = useId();
+  const skipListId = useId();
 
   function updateDetail(field: keyof Details, value: string) {
     setDetails((current) => ({ ...current, [field]: value }));
@@ -234,8 +244,11 @@ export default function CustomerForm() {
         <div>
           <h2 className="text-base font-semibold">Rates</h2>
           <p className="mt-1 text-sm text-muted">
-            One line per material. The last column is the important one: it
-            records whether the money comes to us or goes to the customer.
+            One line per material and skip size. Leave the size blank and the
+            rate applies whatever turns up. &ldquo;{DIRECTION_LABELS.charge}
+            &rdquo; means {DIRECTION_HINTS.charge.toLowerCase()};
+            &ldquo;{DIRECTION_LABELS.pay}&rdquo; means{" "}
+            {DIRECTION_HINTS.pay.toLowerCase()}.
           </p>
         </div>
 
@@ -244,12 +257,17 @@ export default function CustomerForm() {
             <option key={material} value={material} />
           ))}
         </datalist>
+        <datalist id={skipListId}>
+          {SKIP_SIZES.map((size) => (
+            <option key={size} value={size} />
+          ))}
+        </datalist>
 
         <div className="space-y-4">
           {rows.map((row, index) => (
             <div
               key={row.key}
-              className="grid gap-3 rounded-lg border border-line bg-elevated/40 p-4 sm:grid-cols-[1.2fr_1fr_0.7fr_1.7fr_auto] sm:items-start"
+              className="grid gap-3 rounded-lg border border-line bg-elevated/40 p-4 sm:grid-cols-2 lg:grid-cols-[1.1fr_0.8fr_0.9fr_0.6fr_1.4fr_auto] lg:items-start"
             >
               <div>
                 <label
@@ -274,6 +292,26 @@ export default function CustomerForm() {
                     {state.fieldErrors[`rateMaterial-${index}`]}
                   </p>
                 ) : null}
+              </div>
+
+              <div>
+                <label
+                  className={labelClass}
+                  htmlFor={`rateSkipSize-${row.key}`}
+                >
+                  Skip size
+                </label>
+                <input
+                  id={`rateSkipSize-${row.key}`}
+                  name="rateSkipSize"
+                  list={skipListId}
+                  className={inputClass}
+                  placeholder="Any size"
+                  value={row.skipSize}
+                  onChange={(event) =>
+                    updateRow(row.key, { skipSize: event.target.value })
+                  }
+                />
               </div>
 
               <div>
@@ -343,7 +381,7 @@ export default function CustomerForm() {
                 </Select>
               </div>
 
-              <div className="sm:pt-7">
+              <div className="lg:pt-7">
                 <button
                   type="button"
                   onClick={() => removeRow(row.key)}
