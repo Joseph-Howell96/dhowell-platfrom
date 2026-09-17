@@ -34,6 +34,7 @@ type ParsedCustomer = {
   email: string;
   paymentTermsDays: number;
   notes: string;
+  haulageFeePence: number;
   rateLines: RateLine[];
 };
 
@@ -70,51 +71,51 @@ function parseCustomer(
     }
   }
 
+  // Haulage. One fee for the client, and it has to be there - every collection
+  // carries it, so a blank would mean a lorry going out for nothing without
+  // anyone having decided that. Zero is allowed, because "we do not charge
+  // this client for haulage" is a real answer; it just has to be typed.
+  const haulageInput = text(formData, "haulageFee");
+  let haulageFeePence = 0;
+  if (haulageInput === "") {
+    fieldErrors.haulageFee =
+      "Enter this client's haulage fee. Type 0 if they are not charged for it.";
+  } else {
+    const parsed = parsePoundsToPence(haulageInput);
+    if (parsed === null) {
+      fieldErrors.haulageFee = "Enter a fee in pounds, e.g. 85.00.";
+    } else {
+      haulageFeePence = parsed;
+    }
+  }
+
   // Rate lines arrive as lists that line up by position: the first material
-  // goes with the first size, the first pair of rates and the first direction.
+  // goes with the first rate and the first direction.
   const materials = formData.getAll("rateMaterial");
   const tonnageRates = formData.getAll("ratePerTonne");
-  const haulageRates = formData.getAll("rateHaulage");
   const directions = formData.getAll("rateDirection");
 
   const rateLines: RateLine[] = [];
   for (let index = 0; index < materials.length; index += 1) {
     const material = String(materials[index] ?? "").trim();
     const tonnageInput = String(tonnageRates[index] ?? "").trim();
-    const haulageInput = String(haulageRates[index] ?? "").trim();
 
     // A row where nothing was filled in is someone who added a row and
     // changed their mind. Ignore it rather than complaining.
-    if (material === "" && tonnageInput === "" && haulageInput === "") continue;
+    if (material === "" && tonnageInput === "") continue;
 
     if (material === "") {
       fieldErrors[`rateMaterial-${index}`] = "Choose or type a material.";
     }
 
     let ratePerTonnePence: number | null = null;
-    if (tonnageInput !== "") {
+    if (tonnageInput === "") {
+      fieldErrors[`ratePerTonne-${index}`] = "Enter a rate, e.g. 42.00.";
+    } else {
       ratePerTonnePence = parsePoundsToPence(tonnageInput);
       if (ratePerTonnePence === null) {
         fieldErrors[`ratePerTonne-${index}`] = "Enter a rate, e.g. 42.00.";
       }
-    }
-
-    let haulageRatePence: number | null = null;
-    if (haulageInput !== "") {
-      haulageRatePence = parsePoundsToPence(haulageInput);
-      if (haulageRatePence === null) {
-        fieldErrors[`rateHaulage-${index}`] = "Enter a rate, e.g. 95.00.";
-      }
-    }
-
-    // A row naming a material but pricing nothing does no work.
-    if (
-      material !== "" &&
-      tonnageInput === "" &&
-      haulageInput === ""
-    ) {
-      fieldErrors[`ratePerTonne-${index}`] =
-        "Enter a tonnage rate, a haulage rate, or both.";
     }
 
     const direction = String(directions[index] ?? "");
@@ -124,15 +125,13 @@ function parseCustomer(
 
     if (
       material !== "" &&
-      (ratePerTonnePence !== null || haulageRatePence !== null) &&
+      ratePerTonnePence !== null &&
       DIRECTIONS.includes(direction as Direction)
     ) {
       rateLines.push({
         id: randomUUID(),
         material,
         ratePerTonnePence,
-        haulageRatePence,
-        // Only the tonnage rate has a direction; haulage is always charged.
         direction: direction as Direction,
       });
     }
@@ -152,6 +151,7 @@ function parseCustomer(
       phone: text(formData, "phone"),
       email,
       paymentTermsDays,
+      haulageFeePence,
       notes: text(formData, "notes"),
       rateLines,
     },

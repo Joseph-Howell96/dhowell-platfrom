@@ -41,8 +41,6 @@ type ParsedJob = {
   status: JobStatus;
   weightKg: number | null;
   direction: JobDirection;
-  chargeHaulage: boolean;
-  haulageRateOverridePence: number | null;
   supplierPO: string | null;
   poRaisedDate: string | null;
   supplierInvoiceRef: string | null;
@@ -164,11 +162,6 @@ async function parseJob(
     paidDate = optionalDate("paidDate");
   }
 
-  // What to charge for haulage on this job instead of the client's rate. Only
-  // read when haulage is actually being charged, so an amount left behind by
-  // unticking the box cannot quietly come back later.
-  const chargingHaulage = text(formData, "chargeHaulage") === "on";
-
   /** An optional money box: blank is allowed, nonsense is not. */
   function optionalMoney(name: string): number | null {
     const raw = text(formData, name);
@@ -180,10 +173,6 @@ async function parseJob(
     }
     return pence;
   }
-
-  const haulageRateOverridePence = chargingHaulage
-    ? optionalMoney("haulageRateOverride")
-    : null;
 
   // Only asked for once a job has been weighed, and only on the side it
   // belongs to: what a load cost us to dispose of, or what it sold on for.
@@ -218,10 +207,6 @@ async function parseJob(
       status,
       weightKg,
       direction,
-      // Charged either way round: collecting a skip costs the same whether we
-      // are billing for what is in it or paying for it.
-      chargeHaulage: text(formData, "chargeHaulage") === "on",
-      haulageRateOverridePence,
       supplierPO,
       poRaisedDate,
       supplierInvoiceRef,

@@ -12,9 +12,6 @@ export const MATERIALS = [
   "Cardboard",
   "Metal",
   "Green waste",
-  // Not a material, but it is charged the same way: a rate line per client,
-  // at whatever was agreed with them.
-  "Haulage",
 ] as const;
 
 /** How a rate is worked out. */
@@ -52,21 +49,18 @@ export const DIRECTION_HINTS: Record<Direction, string> = {
 /**
  * What a client is charged or paid for one material.
  *
- * One row per material, holding both figures: what a tonne of the material is
- * worth, and what we charge to come and collect it. Either can be left empty -
- * a material we only haul has no tonnage rate, and a tonnage rate with no
- * haulage means the lorry is not charged separately.
+ * One row per material, and one figure: what a tonne of it is worth. The
+ * direction says which way that money runs.
  *
- * The direction applies to the tonnage rate alone. Haulage is always charged
- * to the client, never paid to them.
+ * Haulage is not here. It is one fee per client, on the client record below,
+ * because it is a charge for sending the lorry and the lorry costs the same
+ * whatever is in the skip.
  */
 export type RateLine = {
   id: string;
   material: string;
   /** What a tonne of the material is worth, in pence. Null where unpriced. */
   ratePerTonnePence: number | null;
-  /** What we charge to collect it, in pence. Null where not charged. */
-  haulageRatePence: number | null;
   /** Whether the tonnage rate is charged to the client or paid to them. */
   direction: Direction;
 };
@@ -82,6 +76,15 @@ export type Customer = {
   /** How many days after invoicing payment is due, e.g. 30. */
   paymentTermsDays: number;
   notes: string;
+  /**
+   * What this client is charged to send the lorry, in pence. Required.
+   *
+   * Every collection carries it: ten collections in a day is ten haulage
+   * charges, because that is ten lorry movements. It is not a tickbox and it
+   * is not per material - a client who is not charged for haulage is a client
+   * whose fee is zero, said out loud, rather than a field somebody forgot.
+   */
+  haulageFeePence: number;
   rateLines: RateLine[];
   /**
    * When the client was archived, as an ISO timestamp, or null while active.
@@ -227,7 +230,6 @@ export const JOB_MATERIALS = [
   "General rubbish",
   "Mixed paper",
   "Corex",
-  "Haulage",
   "Other",
 ] as const;
 
@@ -255,24 +257,9 @@ export type Job = {
   weightKg: number | null;
   /** Whether we are charging the client for this job or paying them for it. */
   direction: JobDirection;
-  /**
-   * Whether haulage is charged on this job as well as the material.
-   *
-   * One lorry movement is one job, so the haulage sits on the same record
-   * rather than needing a second one. It is priced from the client's haulage
-   * rate for the material, and shows as its own line on the invoice.
-   */
-  chargeHaulage: boolean;
-  /**
-   * What to charge for haulage on this job instead of the client's rate, in
-   * pence. Null means use their rate, which is the usual case.
-   *
-   * Here because a particular job can be harder than the standing rate
-   * allows for - a long run, a difficult access, a wasted journey - and
-   * changing the client's rate to bill one job would silently reprice every
-   * other job that ever used it.
-   */
-  haulageRateOverridePence: number | null;
+  /* Haulage is not recorded on a job at all. Every collection is charged the
+     client's haulage fee, so there is nothing to decide and nothing to store -
+     the job is the collection, and the fee comes off the client record. */
 
   /* Purchase side. All stay null on a sale, and none of them is a status:
      they are the paperwork that follows a rebate job being checked off. */

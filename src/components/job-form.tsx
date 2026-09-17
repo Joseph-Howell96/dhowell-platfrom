@@ -37,12 +37,8 @@ import {
   type JobStatus,
   type Outlet,
 } from "@/lib/types";
-import {
-  formatPence,
-  parsePoundsToPence,
-  penceToInputValue,
-} from "@/lib/money";
-import { findMaterialRate, standardHaulagePence } from "@/lib/pricing";
+import { formatPence, penceToInputValue } from "@/lib/money";
+import { findMaterialRate } from "@/lib/pricing";
 import { kgToInputValue, parseTonnesToKg } from "@/lib/weight";
 
 const inputClass =
@@ -132,14 +128,6 @@ export default function JobForm({
     job?.onwardSalePence != null ? penceToInputValue(job.onwardSalePence) : "",
   );
   const [outletId, setOutletId] = useState(job?.outletId ?? "");
-  const [chargeHaulage, setChargeHaulage] = useState(
-    job?.chargeHaulage ?? false,
-  );
-  const [haulageOverride, setHaulageOverride] = useState(
-    job?.haulageRateOverridePence != null
-      ? penceToInputValue(job.haulageRateOverridePence)
-      : "",
-  );
   const [haulageCost, setHaulageCost] = useState(
     job?.haulageCostPence != null ? penceToInputValue(job.haulageCostPence) : "",
   );
@@ -182,18 +170,15 @@ export default function JobForm({
       ?.paymentTermsDays ?? null;
 
   /**
-   * The client's own haulage rate for this material, in pence, or null where
-   * they have none. What the job charges unless it is overridden below.
+   * The client's haulage fee, in pence, or null before one is chosen.
+   *
+   * Nothing on this form decides it. Every collection carries it, so it is
+   * shown here and nowhere asked about - it is a fact about the client, not a
+   * choice about the job.
    */
-  const standardHaulage = standardHaulagePence(
-    customers.find((customer) => customer.id === customerId),
-    { material: material === "Other" ? otherMaterial : material },
-  );
-
-  /** What haulage will actually bill at: the override if set, else the rate. */
   const haulageNowPence =
-    parsePoundsToPence(haulageOverride) ??
-    (haulageOverride.trim() === "" ? standardHaulage : null);
+    customers.find((customer) => customer.id === customerId)?.haulageFeePence ??
+    null;
 
   /**
    * What the material comes to, worked out from the weight in the box rather
@@ -228,14 +213,11 @@ export default function JobForm({
           outward: direction === "purchase",
         }
       : null,
-    chargeHaulage && haulageNowPence !== null
+    haulageNowPence !== null
       ? {
           key: "haulage",
           label: "Haulage",
-          detail:
-            haulageOverride.trim() === ""
-              ? "the client's rate"
-              : "set on this job",
+          detail: "one collection, the client's fee",
           pence: haulageNowPence,
           outward: false,
         }
@@ -335,80 +317,11 @@ export default function JobForm({
           ) : null}
         </div>
 
-        {/* Haulage rides on the same job as the material - one lorry movement,
-            one record - but it is its own charge and its own line on the
-            invoice, never folded into the material. Charged whichever way the
-            material runs, since the lorry costs the same either way. */}
-        <div className="space-y-3 rounded-lg border border-line bg-elevated/40 p-4">
-          <label className="flex cursor-pointer items-start gap-3">
-            <input
-              type="checkbox"
-              name="chargeHaulage"
-              checked={chargeHaulage}
-              onChange={(event) => setChargeHaulage(event.target.checked)}
-              className="mt-0.5 h-4 w-4 accent-accent"
-            />
-            <span>
-              <span className="block text-sm font-medium">Charge haulage</span>
-              <span className="mt-0.5 block text-xs text-muted">
-                Billed as its own line, separate from the material.
-              </span>
-            </span>
-          </label>
-
-          {chargeHaulage ? (
-            <div className="border-t border-line pt-3">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="text-xs text-muted">
-                  {customerId === ""
-                    ? "Choose a client to see their haulage rate."
-                    : standardHaulage === null
-                      ? "This client has no haulage rate for this material. Add one on their client record, or set an amount here."
-                      : `Their rate: ${formatPence(standardHaulage)}.`}
-                </span>
-                <span className="text-sm font-medium tabular-nums">
-                  {haulageNowPence === null
-                    ? "—"
-                    : `Charging ${formatPence(haulageNowPence)}`}
-                </span>
-              </div>
-
-              <label className={`${labelClass} mt-3`} htmlFor="haulageRateOverride">
-                Charge a different amount{" "}
-                <span className="font-normal text-muted">(optional)</span>
-              </label>
-              <input
-                id="haulageRateOverride"
-                name="haulageRateOverride"
-                inputMode="decimal"
-                className={`${inputClass} sm:max-w-[14rem]`}
-                placeholder={
-                  standardHaulage === null
-                    ? "85.00"
-                    : (standardHaulage / 100).toFixed(2)
-                }
-                value={haulageOverride}
-                onChange={(event) => setHaulageOverride(event.target.value)}
-              />
-              <p className="mt-1.5 text-xs text-muted">
-                Leave blank to use the client&rsquo;s rate. An amount here
-                applies to this job only and does not touch their rate card.
-              </p>
-              {state.fieldErrors.haulageRateOverride ? (
-                <p className={errorClass}>
-                  {state.fieldErrors.haulageRateOverride}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-
         {/* Only a rebate load goes to an outlet - a charge job goes to the tip. */}
         {direction === "purchase" ? (
           <div>
             <label className={labelClass} htmlFor="outletId">
-              Outlet{" "}
-              <span className="font-normal text-muted">(optional)</span>
+              Outlet <span className="font-normal text-muted">(optional)</span>
             </label>
             <Select
               id="outletId"
@@ -808,9 +721,10 @@ export default function JobForm({
               ))}
             </ul>
             <p className="mt-1.5 text-xs text-muted">
-              Worked out from the client&rsquo;s rates as you type, not stored.
-              A rebate shows as money out. Each of these is its own line on the
-              invoice.
+              Worked out from the client&rsquo;s record as you type, not stored.
+              Haulage is charged on every collection, at the fee on their client
+              record. A rebate shows as money out. Each of these is its own line
+              on the invoice.
             </p>
           </div>
         ) : null}

@@ -112,9 +112,21 @@ export function linesForJobs(
   });
 }
 
-/** Is there anything on this job to put on a sales invoice? */
+/**
+ * Can this job go on a sales invoice as it stands?
+ *
+ * Haulage alone is not enough on a charge job. Every collection now carries
+ * the client's haulage fee, so a job whose material has no rate would still
+ * produce a line and would go out billing the lorry and not the load. Holding
+ * it back until the material is priced is the point of the check.
+ *
+ * A rebate job is the other way round: its material is money out, settled by
+ * purchase order, so haulage is all it was ever going to bill.
+ */
 export function isBillable(job: Job, customer: Customer | undefined): boolean {
-  return linesForJobs([job], customer).length > 0;
+  if (!customer) return false;
+  if (job.direction === "sale") return lineForJob(job, customer) !== null;
+  return haulageLineForJob(job, customer) !== null;
 }
 
 /**

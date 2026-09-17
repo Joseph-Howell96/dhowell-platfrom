@@ -22,12 +22,11 @@ function RateLines({ customer }: { customer: Customer }) {
     // Narrow screens scroll this table sideways rather than squashing the
     // columns until the wording breaks up.
     <div className="overflow-x-auto rounded-lg border border-line">
-      <table className="w-full min-w-[42rem] text-sm">
+      <table className="w-full min-w-[34rem] text-sm">
         <thead>
           <tr className="border-b border-line bg-elevated text-left text-xs uppercase tracking-wide text-muted">
             <th className="px-4 py-2.5 font-medium">Material</th>
             <th className="px-4 py-2.5 text-right font-medium">Per tonne</th>
-            <th className="px-4 py-2.5 text-right font-medium">Haulage</th>
             <th className="px-4 py-2.5 text-right font-medium">Direction</th>
           </tr>
         </thead>
@@ -39,11 +38,6 @@ function RateLines({ customer }: { customer: Customer }) {
                 {line.ratePerTonnePence === null
                   ? "—"
                   : formatPence(line.ratePerTonnePence)}
-              </td>
-              <td className="px-4 py-3 text-right tabular-nums">
-                {line.haulageRatePence === null
-                  ? "—"
-                  : formatPence(line.haulageRatePence)}
               </td>
               <td className="px-4 py-3 text-right">
                 {line.ratePerTonnePence === null ? (
@@ -144,6 +138,10 @@ export default async function ClientsPage() {
                   label="Payment terms"
                   value={`${customer.paymentTermsDays} days`}
                 />
+                <Field
+                  label="Haulage fee"
+                  value={`${formatPence(customer.haulageFeePence)} per collection`}
+                />
               </dl>
 
               {customer.notes ? (
@@ -154,7 +152,7 @@ export default async function ClientsPage() {
 
               <div className="mt-6">
                 <h3 className="mb-2 text-xs uppercase tracking-wide text-muted">
-                  Rates
+                  Material rates
                 </h3>
                 <RateLines customer={customer} />
               </div>

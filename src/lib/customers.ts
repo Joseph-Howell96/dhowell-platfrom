@@ -65,7 +65,6 @@ function toRateLines(raw: unknown): RateLine[] {
       id: text(row.id) || randomUUID(),
       material,
       ratePerTonnePence: null,
-      haulageRatePence: null,
       direction: "charge" as Direction,
     };
 
@@ -78,28 +77,53 @@ function toRateLines(raw: unknown): RateLine[] {
       if (basis === "Per tonne") {
         existing.ratePerTonnePence = amount;
         if (isDirection(row.direction)) existing.direction = row.direction;
-      } else {
-        // A haulage fee, and the older per lift and fixed price, were all one
-        // flat amount for turning up. The haulage rate is the only flat figure
-        // left, so they go there and keep their value. Putting a per-lift
-        // charge into the tonnage rate would multiply it by the load.
-        existing.haulageRatePence = amount;
       }
+      // A haulage fee, and the older per lift and fixed price, were all one
+      // flat amount for turning up. Haulage is one figure on the client now,
+      // read separately below, so nothing is done with them here.
     } else {
       const perTonne = pence(row.ratePerTonnePence);
-      const haulage = pence(row.haulageRatePence);
       if (perTonne !== null) existing.ratePerTonnePence = perTonne;
-      if (haulage !== null) existing.haulageRatePence = haulage;
       if (isDirection(row.direction)) existing.direction = row.direction;
     }
 
     merged.set(key, existing);
   }
 
-  // A row with neither figure prices nothing, so it is not worth keeping.
+  // A row with no rate prices nothing, so it is not worth keeping.
   return [...merged.values()].filter(
-    (line) => line.ratePerTonnePence !== null || line.haulageRatePence !== null,
+    (line) => line.ratePerTonnePence !== null,
   );
+}
+
+/**
+ * The client's haulage fee, in pence.
+ *
+ * Records written before haulage became one figure per client carry it on
+ * their rate lines instead - sometimes a line filed under "Haulage", sometimes
+ * one against a particular material. The general one is taken where there is
+ * one, otherwise the first that exists, so an existing client keeps charging
+ * what they were charging. Nothing to go on means zero, which shows on their
+ * record as a fee somebody has to look at rather than a blank.
+ */
+function toHaulageFee(record: Record<string, unknown>): number {
+  const direct = pence(record.haulageFeePence);
+  if (direct !== null) return direct;
+
+  const lines = Array.isArray(record.rateLines) ? record.rateLines : [];
+  const rows = lines.filter(
+    (row): row is Record<string, unknown> =>
+      typeof row === "object" && row !== null,
+  );
+  const named = rows.find(
+    (row) => text(row.material).trim().toLowerCase() === "haulage",
+  );
+  const fee =
+    pence(named?.haulageRatePence) ??
+    pence(named?.ratePence) ??
+    rows.map((row) => pence(row.haulageRatePence)).find((v) => v !== null) ??
+    null;
+  return fee ?? 0;
 }
 
 function toCustomer(raw: unknown): Customer | null {
@@ -124,6 +148,7 @@ function toCustomer(raw: unknown): Customer | null {
         ? record.paymentTermsDays
         : 0,
     notes: text("notes"),
+    haulageFeePence: toHaulageFee(record),
     rateLines: toRateLines(record.rateLines),
     archivedAt:
       typeof record.archivedAt === "string" ? record.archivedAt : null,

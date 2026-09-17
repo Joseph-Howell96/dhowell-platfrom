@@ -5,12 +5,13 @@
  * lines every time it is shown, so correcting a rate on the client record
  * immediately corrects every job priced off it.
  *
- * A rate line carries both figures at once. Wood might be rebated at £42 a
- * tonne - money out - while still being charged £95 to come and collect it.
- * The tonnage rate follows the line's direction; the haulage rate is always
- * charged to the client, and a job may override the amount.
+ * A rate line prices the material and nothing else. Wood might be rebated at
+ * £42 a tonne - money out - and the lorry that fetched it is still charged for,
+ * at the client's haulage fee, which is a separate figure on their record and
+ * applies to every collection whichever way the material runs.
  */
 import type { Customer, Job, RateLine } from "./types";
+
 
 export type JobPrice = {
   /**
@@ -23,7 +24,7 @@ export type JobPrice = {
   workedOut: string;
 };
 
-/** The material a generic haulage rate is filed under. */
+/** What haulage is called on an invoice and in a breakdown. */
 export const HAULAGE = "Haulage";
 
 function same(a: string, b: string): boolean {
@@ -42,37 +43,7 @@ export function findMaterialRate(
   );
 }
 
-/**
- * The line that charges for collecting it.
- *
- * A haulage line against this material is used first. Where there is none, a
- * haulage line filed under "Haulage" applies to everything, so one rate can
- * cover the lot rather than being repeated against every material.
- */
-export function findHaulageRate(
-  customer: Customer | undefined,
-  job: Pick<Job, "material">,
-): RateLine | undefined {
-  if (!customer) return undefined;
-  const haulageLines = customer.rateLines.filter(
-    (line) => line.haulageRatePence !== null,
-  );
-  return (
-    haulageLines.find((line) => same(line.material, job.material)) ??
-    haulageLines.find((line) => same(line.material, HAULAGE))
-  );
-}
 
-/**
- * What haulage costs on this job before any override: the client's rate for
- * the material, or null where they have none.
- */
-export function standardHaulagePence(
-  customer: Customer | undefined,
-  job: Pick<Job, "material">,
-): number | null {
-  return findHaulageRate(customer, job)?.haulageRatePence ?? null;
-}
 
 /** Kept for anywhere that just wants the material's line. */
 export const findRateLine = findMaterialRate;
@@ -102,28 +73,24 @@ export function priceJob(
 }
 
 /**
- * What haulage comes to on a job, or null when it is not being charged or the
- * client has no haulage rate that fits.
+ * What haulage comes to on a job.
  *
- * Charged whichever way the material runs: collecting a skip costs the same
- * whether we are billing for what is in it or paying for it.
+ * Every collection carries the client's haulage fee - there is nothing to tick
+ * and nothing to decide. Ten collections is ten fees, because it is ten lorry
+ * movements, and the lorry costs the same whether we are billing for what was
+ * in the skip or paying for it.
+ *
+ * Null only where the client is not known, which is a broken record rather
+ * than a job without haulage.
  */
 export function haulageChargeFor(
-  job: Job,
+  _job: Job,
   customer: Customer | undefined,
 ): JobPrice | null {
-  if (!job.chargeHaulage) return null;
-  // An amount set on the job wins over the client's rate. It is what somebody
-  // decided this particular run was worth, and a standing rate is only ever a
-  // starting point.
-  if (job.haulageRateOverridePence !== null) {
-    return {
-      pence: job.haulageRateOverridePence,
-      workedOut: "haulage, set on this job",
-    };
-  }
-  const standard = standardHaulagePence(customer, job);
-  if (standard === null) return null;
+  if (!customer) return null;
   // A flat charge for the lorry, whatever the load weighs.
-  return { pence: standard, workedOut: "haulage, the client's rate" };
+  return {
+    pence: customer.haulageFeePence,
+    workedOut: "one collection at the client's haulage fee",
+  };
 }

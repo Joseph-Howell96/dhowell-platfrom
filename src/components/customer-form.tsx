@@ -41,6 +41,7 @@ type Details = {
   phone: string;
   email: string;
   paymentTermsDays: string;
+  haulageFee: string;
   notes: string;
 };
 
@@ -52,6 +53,7 @@ const EMPTY_DETAILS: Details = {
   phone: "",
   email: "",
   paymentTermsDays: "30",
+  haulageFee: "",
   notes: "",
 };
 
@@ -61,8 +63,6 @@ type RateRow = {
   material: string;
   /** What a tonne of it is worth. */
   perTonne: string;
-  /** What we charge to collect it. Always a charge, never a rebate. */
-  haulage: string;
   /** Applies to the tonnage rate only. */
   direction: string;
 };
@@ -77,7 +77,6 @@ function blankRow(sequence: number): RateRow {
     key: `row-${sequence}`,
     material: "",
     perTonne: "",
-    haulage: "",
     direction: "charge",
   };
 }
@@ -103,6 +102,7 @@ export default function CustomerForm({
           phone: customer.phone,
           email: customer.email,
           paymentTermsDays: String(customer.paymentTermsDays),
+          haulageFee: penceToInputValue(customer.haulageFeePence),
           notes: customer.notes,
         }
       : EMPTY_DETAILS,
@@ -116,10 +116,6 @@ export default function CustomerForm({
             line.ratePerTonnePence === null
               ? ""
               : penceToInputValue(line.ratePerTonnePence),
-          haulage:
-            line.haulageRatePence === null
-              ? ""
-              : penceToInputValue(line.haulageRatePence),
           direction: line.direction,
         }))
       : [blankRow(0)],
@@ -303,7 +299,7 @@ export default function CustomerForm({
           {rows.map((row, index) => (
             <div
               key={row.key}
-              className="grid gap-3 rounded-lg border border-line bg-elevated/40 p-4 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr_auto] lg:items-start"
+              className="grid gap-3 rounded-lg border border-line bg-elevated/40 p-4 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1.3fr_auto] lg:items-start"
             >
               <div>
                 <label
@@ -351,31 +347,6 @@ export default function CustomerForm({
                 {state.fieldErrors[`ratePerTonne-${index}`] ? (
                   <p className={errorClass}>
                     {state.fieldErrors[`ratePerTonne-${index}`]}
-                  </p>
-                ) : null}
-              </div>
-
-              <div>
-                <label
-                  className={labelClass}
-                  htmlFor={`rateHaulage-${row.key}`}
-                >
-                  Haulage rate (£)
-                </label>
-                <input
-                  id={`rateHaulage-${row.key}`}
-                  name="rateHaulage"
-                  inputMode="decimal"
-                  className={inputClass}
-                  placeholder="95.00"
-                  value={row.haulage}
-                  onChange={(event) =>
-                    updateRow(row.key, { haulage: event.target.value })
-                  }
-                />
-                {state.fieldErrors[`rateHaulage-${index}`] ? (
-                  <p className={errorClass}>
-                    {state.fieldErrors[`rateHaulage-${index}`]}
                   </p>
                 ) : null}
               </div>
@@ -441,6 +412,37 @@ export default function CustomerForm({
 
       <section className={cardClass}>
         <h2 className="text-base font-semibold">Terms and notes</h2>
+
+        {/* Required. Every collection for this client carries it, so there is
+            nowhere else it could be filled in later. */}
+        <div>
+          <label className={labelClass} htmlFor="haulageFee">
+            Haulage fee (£)
+          </label>
+          <input
+            id="haulageFee"
+            name="haulageFee"
+            inputMode="decimal"
+            className={`${inputClass} sm:max-w-[12rem]`}
+            placeholder="85.00"
+            value={details.haulageFee}
+            onChange={(event) => updateDetail("haulageFee", event.target.value)}
+            aria-describedby={
+              state.fieldErrors.haulageFee ? "haulageFee-error" : undefined
+            }
+          />
+          <p className="mt-1.5 text-xs text-muted">
+            Charged once for every collection, on top of the material. Ten
+            collections in a day is ten haulage fees. Type 0 if this client is
+            not charged for it.
+          </p>
+          {state.fieldErrors.haulageFee ? (
+            <p id="haulageFee-error" className={errorClass}>
+              {state.fieldErrors.haulageFee}
+            </p>
+          ) : null}
+        </div>
+
         <div>
           <label className={labelClass} htmlFor="paymentTermsDays">
             Payment terms (days)
