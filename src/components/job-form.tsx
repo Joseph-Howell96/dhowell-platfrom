@@ -300,7 +300,7 @@ export default function JobForm({
                   {customerId === ""
                     ? "Choose a client to see their haulage rate."
                     : haulageRate
-                      ? `${formatPence(haulageRate.ratePence)}${
+                      ? `${formatPence(haulageRate.haulageRatePence ?? 0)}${
                           haulageRate.skipSize
                             ? ` for a ${haulageRate.skipSize}`
                             : ", any size"

@@ -5,10 +5,10 @@
  * lines every time it is shown, so correcting a rate on the client record
  * immediately corrects every job priced off it.
  *
- * A material can carry two rate lines at once, and usually does. Wood might be
- * rebated at £42 a tonne - money out - while still being charged £95 to come
- * and collect it. The basis tells them apart: a haulage fee is the charge for
- * the lorry, anything else prices the material.
+ * A rate line carries both figures at once. Wood might be rebated at £42 a
+ * tonne - money out - while still being charged £95 to come and collect it.
+ * The tonnage rate follows the line's direction; the haulage rate is always
+ * charged to the client.
  */
 import type { Customer, Job, RateLine } from "./types";
 
@@ -25,9 +25,6 @@ export type JobPrice = {
 
 /** The material a generic haulage rate is filed under. */
 export const HAULAGE = "Haulage";
-
-/** The basis that marks a rate line as the charge for the lorry. */
-const HAULAGE_BASIS = "Haulage fee";
 
 function same(a: string, b: string): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -57,7 +54,8 @@ export function findMaterialRate(
   if (!customer) return undefined;
   return bestForSize(
     customer.rateLines.filter(
-      (line) => same(line.material, job.material) && line.basis !== HAULAGE_BASIS,
+      (line) =>
+        same(line.material, job.material) && line.ratePerTonnePence !== null,
     ),
     job.skipSize,
   );
@@ -76,7 +74,7 @@ export function findHaulageRate(
 ): RateLine | undefined {
   if (!customer) return undefined;
   const haulageLines = customer.rateLines.filter(
-    (line) => line.basis === HAULAGE_BASIS,
+    (line) => line.haulageRatePence !== null,
   );
   return (
     bestForSize(
@@ -93,17 +91,15 @@ export function findHaulageRate(
 /** Kept for anywhere that just wants the material's line. */
 export const findRateLine = findMaterialRate;
 
-function priceFromLine(line: RateLine, job: Job): JobPrice | null {
-  if (line.basis === "Per tonne") {
-    if (job.weightKg === null) return null;
-    const tonnes = job.weightKg / 1000;
-    return {
-      pence: Math.round(line.ratePence * tonnes),
-      workedOut: `${tonnes.toFixed(2)} t at ${(line.ratePence / 100).toFixed(2)}/t`,
-    };
-  }
-  // A haulage fee, and the older per lift and fixed price, are flat amounts.
-  return { pence: line.ratePence, workedOut: line.basis.toLowerCase() };
+/** The material itself, which is always priced by weight. */
+function priceMaterial(line: RateLine, job: Job): JobPrice | null {
+  if (line.ratePerTonnePence === null) return null;
+  if (job.weightKg === null) return null;
+  const tonnes = job.weightKg / 1000;
+  return {
+    pence: Math.round(line.ratePerTonnePence * tonnes),
+    workedOut: `${tonnes.toFixed(2)} t at ${(line.ratePerTonnePence / 100).toFixed(2)}/t`,
+  };
 }
 
 /**
@@ -116,7 +112,7 @@ export function priceJob(
   customer: Customer | undefined,
 ): JobPrice | null {
   const line = findMaterialRate(customer, job);
-  return line ? priceFromLine(line, job) : null;
+  return line ? priceMaterial(line, job) : null;
 }
 
 /**
@@ -132,5 +128,7 @@ export function haulageChargeFor(
 ): JobPrice | null {
   if (!job.chargeHaulage) return null;
   const line = findHaulageRate(customer, job);
-  return line ? priceFromLine(line, job) : null;
+  if (!line || line.haulageRatePence === null) return null;
+  // A flat charge for the lorry, whatever the load weighs.
+  return { pence: line.haulageRatePence, workedOut: "haulage" };
 }

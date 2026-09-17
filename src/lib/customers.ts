@@ -10,9 +10,8 @@ import { randomUUID } from "node:crypto";
 
 import { readJsonList, writeJsonList } from "./store";
 import {
-  ALL_BASES,
   DIRECTIONS,
-  type Basis,
+  LEGACY_BASES,
   type Customer,
   type Direction,
   type RateLine,
@@ -21,32 +20,83 @@ import {
 const FILE = "clients.json";
 
 /** Anything read off disk is unknown until we have checked it, so check it. */
-/** Anything ever offered counts, so an older rate line is not thrown away. */
-function isBasis(value: unknown): value is Basis {
-  return ALL_BASES.includes(value as Basis);
-}
-
 function isDirection(value: unknown): value is Direction {
   return DIRECTIONS.includes(value as Direction);
 }
 
-function toRateLine(raw: unknown): RateLine | null {
-  if (typeof raw !== "object" || raw === null) return null;
-  const line = raw as Record<string, unknown>;
-  if (typeof line.material !== "string") return null;
-  if (!isBasis(line.basis)) return null;
-  if (typeof line.ratePence !== "number" || !Number.isFinite(line.ratePence)) {
-    return null;
+function pence(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.round(value)
+    : null;
+}
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * Read a rate line, in either the shape it has now or the one it had before.
+ *
+ * Rate lines used to carry a single figure and a basis saying what it meant,
+ * so a material we both rebated and charged haulage on needed two rows. They
+ * now hold both figures at once, which means those pairs have to be brought
+ * together rather than one of them being thrown away.
+ */
+function toRateLines(raw: unknown): RateLine[] {
+  if (!Array.isArray(raw)) return [];
+
+  const merged = new Map<string, RateLine>();
+
+  for (const entry of raw) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const row = entry as Record<string, unknown>;
+
+    const material = text(row.material);
+    if (material === "") continue;
+    const skipSize = text(row.skipSize);
+
+    // One row per material and size; anything sharing both is the same row.
+    const key = `${material.toLowerCase()}|${skipSize.toLowerCase()}`;
+    const existing = merged.get(key) ?? {
+      id: text(row.id) || randomUUID(),
+      material,
+      skipSize,
+      ratePerTonnePence: null,
+      haulageRatePence: null,
+      direction: "charge" as Direction,
+    };
+
+    if ("basis" in row) {
+      // The older shape: one figure, and a basis saying which it was.
+      const basis = text(row.basis);
+      const amount = pence(row.ratePence);
+      if (amount === null || !LEGACY_BASES.includes(basis as never)) continue;
+
+      if (basis === "Per tonne") {
+        existing.ratePerTonnePence = amount;
+        if (isDirection(row.direction)) existing.direction = row.direction;
+      } else {
+        // A haulage fee, and the older per lift and fixed price, were all one
+        // flat amount for turning up. The haulage rate is the only flat figure
+        // left, so they go there and keep their value. Putting a per-lift
+        // charge into the tonnage rate would multiply it by the load.
+        existing.haulageRatePence = amount;
+      }
+    } else {
+      const perTonne = pence(row.ratePerTonnePence);
+      const haulage = pence(row.haulageRatePence);
+      if (perTonne !== null) existing.ratePerTonnePence = perTonne;
+      if (haulage !== null) existing.haulageRatePence = haulage;
+      if (isDirection(row.direction)) existing.direction = row.direction;
+    }
+
+    merged.set(key, existing);
   }
-  if (!isDirection(line.direction)) return null;
-  return {
-    id: typeof line.id === "string" ? line.id : randomUUID(),
-    material: line.material,
-    skipSize: typeof line.skipSize === "string" ? line.skipSize.trim() : "",
-    basis: line.basis,
-    ratePence: Math.round(line.ratePence),
-    direction: line.direction,
-  };
+
+  // A row with neither figure prices nothing, so it is not worth keeping.
+  return [...merged.values()].filter(
+    (line) => line.ratePerTonnePence !== null || line.haulageRatePence !== null,
+  );
 }
 
 function toCustomer(raw: unknown): Customer | null {
@@ -71,9 +121,7 @@ function toCustomer(raw: unknown): Customer | null {
         ? record.paymentTermsDays
         : 0,
     notes: text("notes"),
-    rateLines: Array.isArray(record.rateLines)
-      ? record.rateLines.map(toRateLine).filter((line) => line !== null)
-      : [],
+    rateLines: toRateLines(record.rateLines),
     createdAt: text("createdAt") || new Date().toISOString(),
   };
 }

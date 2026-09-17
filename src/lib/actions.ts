@@ -15,13 +15,7 @@ import { addCustomer } from "./customers";
 import type { FormState } from "./form-state";
 import { parsePoundsToPence } from "./money";
 import { randomUUID } from "node:crypto";
-import {
-  BASES,
-  DIRECTIONS,
-  type Basis,
-  type Direction,
-  type RateLine,
-} from "./types";
+import { DIRECTIONS, type Direction, type RateLine } from "./types";
 
 function text(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -59,57 +53,72 @@ export async function createCustomer(
     }
   }
 
-  // Rate lines arrive as four lists that line up by position: the first
-  // material goes with the first basis, the first rate and the first direction.
+  // Rate lines arrive as lists that line up by position: the first material
+  // goes with the first size, the first pair of rates and the first direction.
   const materials = formData.getAll("rateMaterial");
   const sizes = formData.getAll("rateSkipSize");
-  const bases = formData.getAll("rateBasis");
-  const amounts = formData.getAll("rateAmount");
+  const tonnageRates = formData.getAll("ratePerTonne");
+  const haulageRates = formData.getAll("rateHaulage");
   const directions = formData.getAll("rateDirection");
 
   const rateLines: RateLine[] = [];
   for (let index = 0; index < materials.length; index += 1) {
     const material = String(materials[index] ?? "").trim();
-    const amount = String(amounts[index] ?? "").trim();
+    const tonnageInput = String(tonnageRates[index] ?? "").trim();
+    const haulageInput = String(haulageRates[index] ?? "").trim();
 
     // A row where nothing was filled in is someone who added a row and
     // changed their mind. Ignore it rather than complaining.
-    if (material === "" && amount === "") continue;
+    if (material === "" && tonnageInput === "" && haulageInput === "") continue;
 
     if (material === "") {
       fieldErrors[`rateMaterial-${index}`] = "Choose or type a material.";
     }
 
-    const ratePence = parsePoundsToPence(amount);
-    if (ratePence === null) {
-      fieldErrors[`rateAmount-${index}`] = "Enter a rate, e.g. 85.50.";
+    let ratePerTonnePence: number | null = null;
+    if (tonnageInput !== "") {
+      ratePerTonnePence = parsePoundsToPence(tonnageInput);
+      if (ratePerTonnePence === null) {
+        fieldErrors[`ratePerTonne-${index}`] = "Enter a rate, e.g. 42.00.";
+      }
     }
 
-    const basis = String(bases[index] ?? "");
-    const direction = String(directions[index] ?? "");
-    // Only the bases still on offer; a retired one cannot be chosen afresh.
-    if (!BASES.includes(basis as (typeof BASES)[number])) {
-      fieldErrors[`rateBasis-${index}`] = "Choose how this rate is worked out.";
+    let haulageRatePence: number | null = null;
+    if (haulageInput !== "") {
+      haulageRatePence = parsePoundsToPence(haulageInput);
+      if (haulageRatePence === null) {
+        fieldErrors[`rateHaulage-${index}`] = "Enter a rate, e.g. 95.00.";
+      }
     }
+
+    // A row naming a material but pricing nothing does no work.
+    if (
+      material !== "" &&
+      tonnageInput === "" &&
+      haulageInput === ""
+    ) {
+      fieldErrors[`ratePerTonne-${index}`] =
+        "Enter a tonnage rate, a haulage rate, or both.";
+    }
+
+    const direction = String(directions[index] ?? "");
     if (!DIRECTIONS.includes(direction as Direction)) {
       fieldErrors[`rateDirection-${index}`] = "Choose which way the money goes.";
     }
 
     if (
       material !== "" &&
-      ratePence !== null &&
-      BASES.includes(basis as (typeof BASES)[number]) &&
+      (ratePerTonnePence !== null || haulageRatePence !== null) &&
       DIRECTIONS.includes(direction as Direction)
     ) {
       rateLines.push({
         id: randomUUID(),
         material,
         skipSize: String(sizes[index] ?? "").trim(),
-        basis: basis as Basis,
-        ratePence,
-        // Haulage is charged, never rebated, whatever the form sent.
-        direction:
-          basis === "Haulage fee" ? "charge" : (direction as Direction),
+        ratePerTonnePence,
+        haulageRatePence,
+        // Only the tonnage rate has a direction; haulage is always charged.
+        direction: direction as Direction,
       });
     }
   }

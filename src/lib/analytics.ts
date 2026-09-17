@@ -15,6 +15,18 @@ import { haulageChargeFor, priceJob } from "./pricing";
 import type { Customer, Job, Outlet } from "./types";
 import { isWeighedOrLater } from "./types";
 
+/**
+ * Add up whatever is known, or null when nothing is.
+ *
+ * A job can be half-priced: haulage charged on it while the material has no
+ * rate yet. The part we do know is still money, and counting it as zero would
+ * hide it.
+ */
+function sumKnown(...values: (number | null)[]): number | null {
+  const known = values.filter((value) => value !== null);
+  return known.length === 0 ? null : known.reduce((total, v) => total + v, 0);
+}
+
 export type JobEconomics = {
   /** What comes in: the charge on a charge job, the outlet on a rebate one. */
   revenuePence: number | null;
@@ -47,18 +59,20 @@ export function jobEconomics(
   const rated = priceJob(job, customer)?.pence ?? null;
 
   // What we charge the client to collect, whichever way the material runs.
-  const haulage = haulageChargeFor(job, customer)?.pence ?? 0;
+  const haulage = haulageChargeFor(job, customer)?.pence ?? null;
 
   if (job.direction === "sale") {
-    const revenuePence = rated === null ? null : rated + haulage;
+    const revenuePence = sumKnown(rated, haulage);
     const costPence = job.disposalCostPence;
     return {
       revenuePence,
-      costPence,
+      // Profit needs the material priced as well. Haulage alone would
+      // understate what the job cost against what it brought in.
       profitPence:
-        revenuePence !== null && costPence !== null
+        rated !== null && costPence !== null && revenuePence !== null
           ? revenuePence - costPence
           : null,
+      costPence,
     };
   }
 
@@ -86,13 +100,13 @@ export function jobEconomics(
 
   // On a rebate job the haulage we charge is money in, on top of whatever the
   // outlet pays for the load.
-  const revenuePence = incomePence === null ? null : incomePence + haulage;
+  const revenuePence = sumKnown(incomePence, haulage);
 
   return {
     revenuePence,
     costPence,
     profitPence:
-      revenuePence !== null && costPence !== null
+      incomePence !== null && costPence !== null && revenuePence !== null
         ? revenuePence - costPence
         : null,
   };

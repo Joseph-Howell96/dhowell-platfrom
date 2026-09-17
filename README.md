@@ -48,43 +48,33 @@ Two things are stored in a deliberate way:
 - **Job dates are plain text** (`"2026-09-16"`), not points in time. A job
   booked for the 16th stays on the 16th whatever the clocks are doing.
 
-A client's rate lines set what they are charged or paid. Each line is a
-material, a skip size, a basis, a rate and a direction: a **Charge** (we
-invoice them for it) or a **Rebate** (we pay them for it and sell it on).
+A client's rate lines set what they are charged or paid. **One row per material
+and skip size**, holding both figures at once:
 
-**Haulage** is one of the materials, since it is charged the same way: a rate
-per client, usually differing by skip size.
+| Field | What it is |
+| --- | --- |
+| Material | Wood, general rubbish, and so on |
+| Skip size | Blank means the rate applies whatever size turns up |
+| Rate per tonne | What the material itself is worth |
+| Haulage rate | What we charge to come and collect it |
+| Direction | **Charge** or **Rebate** — applies to the tonnage rate only |
 
-**A material usually has two rate lines**: what the material itself is worth,
-and a haulage fee for coming to collect it. The basis tells them apart. Wood
-might be rebated at £42 a tonne, money out, while still being charged £95 for
-the lorry. Haulage is always a charge, never a rebate, so that column fixes
-itself once a haulage fee is chosen.
+Either rate can be left empty: a material we only haul has no tonnage rate, and
+a tonnage rate with no haulage means the lorry is not charged separately.
+
+Haulage is always charged to the client, never paid to them, whichever way the
+material runs. A haulage rate filed under the material "Haulage" applies to
+everything, so one rate can cover the lot instead of being repeated.
+
+A rate for the exact skip size wins over one left blank. Where neither matches,
+the job goes unpriced and shows a dash rather than being charged at the wrong
+size. Sizes are free text, matched ignoring capitals and stray spaces but not
+wording.
 
 A job can charge haulage as well as its material - one lorry movement is one
-job, so both sit on the same record. Tick "Also charge haulage" and the
-client's haulage rate for that material and skip size is added, showing as its
-own line on the invoice. A haulage line filed under the material "Haulage"
-applies to everything, so one rate can cover the lot instead of being repeated.
-
-Haulage is charged whichever way the material runs. On a rebate job the
-material is settled by purchase order and never reaches a sales invoice, but
-the haulage does, as a line on its own.
-
-A rate is worked out either **per tonne** or as a **haulage fee**. Two older
-bases, per lift and fixed price, are no longer offered; any rate line already
-saved under one still reads and still prices.
-
-The skip size is free text - type whatever you call it, "8 yard" or "Grab
-lorry". It is matched between the rate line and the job ignoring capitals and
-stray spaces, but not wording: "Grab lorry" on the rate and "grab" on the job
-will not find each other.
-
-Leave the skip size blank and the rate applies whatever size turns up. A rate
-for the exact size wins over a blank one. Where neither matches, the job goes
-unpriced and shows a dash rather than being charged at the wrong size. A job takes its direction from
-the rate for the material picked, and can be changed by hand. It decides which
-run of work the job follows.
+job, so both sit on the same record. On a rebate job the material is settled by
+purchase order and never reaches a sales invoice, but the haulage does, as a
+line of its own.
 
 **Charge jobs — money in**
 

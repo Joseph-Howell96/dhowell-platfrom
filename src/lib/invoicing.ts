@@ -38,17 +38,13 @@ export function lineForJob(
 
   const rate = findRateLine(customer, job);
 
-  // A per-tonne rate bills the weight; everything else bills as one of a thing.
-  const perTonne = rate?.basis === "Per tonne";
-  const quantity = perTonne && job.weightKg !== null ? job.weightKg / 1000 : 1;
-  const unitPricePence = perTonne ? (rate?.ratePence ?? 0) : price.pence;
+  // The material is always billed by weight, so the quantity is the tonnage
+  // and the unit price is the rate per tonne.
+  const quantity = job.weightKg !== null ? job.weightKg / 1000 : 1;
+  const unitPricePence = rate?.ratePerTonnePence ?? price.pence;
 
   const parts = [job.material];
   if (job.skipSize) parts.push(job.skipSize);
-  // How it is priced is worth spelling out, except on a haulage line where it
-  // would only read "Haulage, haulage fee".
-  const saysItAlready = job.material.trim().toLowerCase() === "haulage";
-  if (rate && !perTonne && !saysItAlready) parts.push(rate.basis.toLowerCase());
 
   return {
     jobId: job.id,

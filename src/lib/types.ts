@@ -18,20 +18,16 @@ export const MATERIALS = [
 ] as const;
 
 /** How a rate is worked out. */
-/** The two ways a rate is worked out, as offered on the form. */
-export const BASES = ["Per tonne", "Haulage fee"] as const;
-
 /**
- * Bases that used to be offered and no longer are.
- *
- * Kept so that a rate line saved under one still reads and still prices. They
- * are simply not offered for anything new; nothing already recorded is lost.
+ * Bases a rate used to be recorded under, before a rate line held both a
+ * tonnage rate and a haulage rate at once. Only needed to read older records.
  */
-export const RETIRED_BASES = ["Per lift", "Fixed price"] as const;
-
-export const ALL_BASES = [...BASES, ...RETIRED_BASES] as const;
-
-export type Basis = (typeof ALL_BASES)[number];
+export const LEGACY_BASES = [
+  "Per tonne",
+  "Haulage fee",
+  "Per lift",
+  "Fixed price",
+] as const;
 
 /**
  * Which way the money flows.
@@ -53,18 +49,30 @@ export const DIRECTION_HINTS: Record<Direction, string> = {
   pay: "We pay the client for this and sell it on",
 };
 
-/** One priced line on a customer's account, e.g. "Wood, per tonne, £85, we charge". */
+/**
+ * What a client is charged or paid for one material.
+ *
+ * One row per material and skip size, holding both figures: what a tonne of
+ * the material is worth, and what we charge to come and collect it. Either can
+ * be left empty - a material we only haul has no tonnage rate, and a tonnage
+ * rate with no haulage means the lorry is not charged separately.
+ *
+ * The direction applies to the tonnage rate alone. Haulage is always charged
+ * to the client, never paid to them.
+ */
 export type RateLine = {
   id: string;
   material: string;
   /**
    * Which skip this rate is for, e.g. "8 yard". Left blank the rate applies
-   * whatever size turns up, which is how a per-tonne rate usually works.
+   * whatever size turns up.
    */
   skipSize: string;
-  basis: Basis;
-  /** Held in pence, so £85.50 is stored as 8550. See src/lib/money.ts for why. */
-  ratePence: number;
+  /** What a tonne of the material is worth, in pence. Null where unpriced. */
+  ratePerTonnePence: number | null;
+  /** What we charge to collect it, in pence. Null where not charged. */
+  haulageRatePence: number | null;
+  /** Whether the tonnage rate is charged to the client or paid to them. */
   direction: Direction;
 };
 

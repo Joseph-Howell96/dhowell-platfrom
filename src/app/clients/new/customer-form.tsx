@@ -17,7 +17,6 @@ import Select from "@/components/select";
 import { createCustomer } from "@/lib/actions";
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
 import {
-  BASES,
   DIRECTION_HINTS,
   DIRECTION_LABELS,
   DIRECTIONS,
@@ -60,8 +59,11 @@ type RateRow = {
   key: string;
   material: string;
   skipSize: string;
-  basis: string;
-  rate: string;
+  /** What a tonne of it is worth. */
+  perTonne: string;
+  /** What we charge to collect it. Always a charge, never a rebate. */
+  haulage: string;
+  /** Applies to the tonnage rate only. */
   direction: string;
 };
 
@@ -75,8 +77,8 @@ function blankRow(sequence: number): RateRow {
     key: `row-${sequence}`,
     material: "",
     skipSize: "",
-    basis: BASES[0],
-    rate: "",
+    perTonne: "",
+    haulage: "",
     direction: "charge",
   };
 }
@@ -98,14 +100,7 @@ export default function CustomerForm() {
 
   function updateRow(key: string, changes: Partial<RateRow>) {
     setRows((current) =>
-      current.map((row) => {
-        if (row.key !== key) return row;
-        const next = { ...row, ...changes };
-        // Haulage is what we charge to send the lorry. It is never paid to a
-        // client, so choosing it settles the direction too.
-        if (next.basis === "Haulage fee") next.direction = "charge";
-        return next;
-      }),
+      current.map((row) => (row.key === key ? { ...row, ...changes } : row)),
     );
   }
 
@@ -251,10 +246,10 @@ export default function CustomerForm() {
         <div>
           <h2 className="text-base font-semibold">Rates</h2>
           <p className="mt-1 text-sm text-muted">
-            One line per material and skip size. A material can have two: what
-            the material itself is worth, and a haulage fee for coming to
-            collect it. Leave the size blank and the rate applies whatever
-            turns up. &ldquo;{DIRECTION_LABELS.charge}
+            One line per material and skip size, holding both figures: what a
+            tonne of it is worth, and what we charge to come and collect it.
+            Either can be left empty. Leave the size blank and the rate applies
+            whatever turns up. &ldquo;{DIRECTION_LABELS.charge}
             &rdquo; means {DIRECTION_HINTS.charge.toLowerCase()};
             &ldquo;{DIRECTION_LABELS.pay}&rdquo; means{" "}
             {DIRECTION_HINTS.pay.toLowerCase()}.
@@ -276,7 +271,7 @@ export default function CustomerForm() {
           {rows.map((row, index) => (
             <div
               key={row.key}
-              className="grid gap-3 rounded-lg border border-line bg-elevated/40 p-4 sm:grid-cols-2 lg:grid-cols-[1.1fr_0.8fr_0.9fr_0.6fr_1.4fr_auto] lg:items-start"
+              className="grid gap-3 rounded-lg border border-line bg-elevated/40 p-4 sm:grid-cols-2 lg:grid-cols-[1.2fr_0.9fr_0.9fr_0.9fr_1.1fr_auto] lg:items-start"
             >
               <div>
                 <label
@@ -324,44 +319,51 @@ export default function CustomerForm() {
               </div>
 
               <div>
-                <label className={labelClass} htmlFor={`rateBasis-${row.key}`}>
-                  Basis
-                </label>
-                <Select
-                  id={`rateBasis-${row.key}`}
-                  name="rateBasis"
-                  className={inputClass}
-                  value={row.basis}
-                  onChange={(event) =>
-                    updateRow(row.key, { basis: event.target.value })
-                  }
+                <label
+                  className={labelClass}
+                  htmlFor={`ratePerTonne-${row.key}`}
                 >
-                  {BASES.map((basis) => (
-                    <option key={basis} value={basis}>
-                      {basis}
-                    </option>
-                  ))}
-                </Select>
+                  Rate per tonne (£)
+                </label>
+                <input
+                  id={`ratePerTonne-${row.key}`}
+                  name="ratePerTonne"
+                  inputMode="decimal"
+                  className={inputClass}
+                  placeholder="42.00"
+                  value={row.perTonne}
+                  onChange={(event) =>
+                    updateRow(row.key, { perTonne: event.target.value })
+                  }
+                />
+                {state.fieldErrors[`ratePerTonne-${index}`] ? (
+                  <p className={errorClass}>
+                    {state.fieldErrors[`ratePerTonne-${index}`]}
+                  </p>
+                ) : null}
               </div>
 
               <div>
-                <label className={labelClass} htmlFor={`rateAmount-${row.key}`}>
-                  Rate (£)
+                <label
+                  className={labelClass}
+                  htmlFor={`rateHaulage-${row.key}`}
+                >
+                  Haulage rate (£)
                 </label>
                 <input
-                  id={`rateAmount-${row.key}`}
-                  name="rateAmount"
+                  id={`rateHaulage-${row.key}`}
+                  name="rateHaulage"
                   inputMode="decimal"
                   className={inputClass}
-                  placeholder="85.50"
-                  value={row.rate}
+                  placeholder="95.00"
+                  value={row.haulage}
                   onChange={(event) =>
-                    updateRow(row.key, { rate: event.target.value })
+                    updateRow(row.key, { haulage: event.target.value })
                   }
                 />
-                {state.fieldErrors[`rateAmount-${index}`] ? (
+                {state.fieldErrors[`rateHaulage-${index}`] ? (
                   <p className={errorClass}>
-                    {state.fieldErrors[`rateAmount-${index}`]}
+                    {state.fieldErrors[`rateHaulage-${index}`]}
                   </p>
                 ) : null}
               </div>
@@ -373,37 +375,26 @@ export default function CustomerForm() {
                 >
                   Direction
                 </label>
-                {/* A disabled field is not sent with the form, and these rows
-                    are read back by position, so one missing value would shift
-                    every later row onto the wrong direction. The fixed case
-                    sends a hidden field instead. */}
-                {row.basis === "Haulage fee" ? (
-                  <>
-                    <input type="hidden" name="rateDirection" value="charge" />
-                    <p
-                      className={`${inputClass} text-muted`}
-                      title="Haulage is what we charge to send the lorry, so it is never rebated."
-                    >
-                      {DIRECTION_LABELS.charge}
-                    </p>
-                  </>
-                ) : (
-                  <Select
-                    id={`rateDirection-${row.key}`}
-                    name="rateDirection"
-                    className={inputClass}
-                    value={row.direction}
-                    onChange={(event) =>
-                      updateRow(row.key, { direction: event.target.value })
-                    }
-                  >
-                    {DIRECTIONS.map((direction) => (
-                      <option key={direction} value={direction}>
-                        {DIRECTION_LABELS[direction]}
-                      </option>
-                    ))}
-                  </Select>
-                )}
+                <Select
+                  id={`rateDirection-${row.key}`}
+                  name="rateDirection"
+                  className={inputClass}
+                  value={row.direction}
+                  onChange={(event) =>
+                    updateRow(row.key, { direction: event.target.value })
+                  }
+                >
+                  {DIRECTIONS.map((direction) => (
+                    <option key={direction} value={direction}>
+                      {DIRECTION_LABELS[direction]}
+                    </option>
+                  ))}
+                </Select>
+                {state.fieldErrors[`rateDirection-${index}`] ? (
+                  <p className={errorClass}>
+                    {state.fieldErrors[`rateDirection-${index}`]}
+                  </p>
+                ) : null}
               </div>
 
               <div className="lg:pt-7">
