@@ -55,10 +55,21 @@ invoice them for it) or a **Rebate** (we pay them for it and sell it on).
 **Haulage** is one of the materials, since it is charged the same way: a rate
 per client, usually differing by skip size.
 
+**A material usually has two rate lines**: what the material itself is worth,
+and a haulage fee for coming to collect it. The basis tells them apart. Wood
+might be rebated at £42 a tonne, money out, while still being charged £95 for
+the lorry. Haulage is always a charge, never a rebate, so that column fixes
+itself once a haulage fee is chosen.
+
 A job can charge haulage as well as its material - one lorry movement is one
-job, so both sit on the same record. Tick "Also charge haulage" and the client's
-haulage rate for that skip size is added, showing as its own line on the
-invoice directly beneath the material.
+job, so both sit on the same record. Tick "Also charge haulage" and the
+client's haulage rate for that material and skip size is added, showing as its
+own line on the invoice. A haulage line filed under the material "Haulage"
+applies to everything, so one rate can cover the lot instead of being repeated.
+
+Haulage is charged whichever way the material runs. On a rebate job the
+material is settled by purchase order and never reaches a sales invoice, but
+the haulage does, as a line on its own.
 
 A rate is worked out either **per tonne** or as a **haulage fee**. Two older
 bases, per lift and fixed price, are no longer offered; any rate line already

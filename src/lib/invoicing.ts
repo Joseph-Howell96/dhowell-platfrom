@@ -93,11 +93,19 @@ export function linesForJobs(
   jobs: Job[],
   customer: Customer | undefined,
 ): InvoiceLine[] {
-  return jobs.flatMap((job) =>
-    [lineForJob(job, customer), haulageLineForJob(job, customer)].filter(
+  return jobs.flatMap((job) => {
+    // A rebate job's material is money out and is settled by purchase order,
+    // so it never appears on a sales invoice. The haulage charged on it does.
+    const material = job.direction === "sale" ? lineForJob(job, customer) : null;
+    return [material, haulageLineForJob(job, customer)].filter(
       (line) => line !== null,
-    ),
-  );
+    );
+  });
+}
+
+/** Is there anything on this job to put on a sales invoice? */
+export function isBillable(job: Job, customer: Customer | undefined): boolean {
+  return linesForJobs([job], customer).length > 0;
 }
 
 /** Net, VAT and gross for a set of lines, at the given rate. */

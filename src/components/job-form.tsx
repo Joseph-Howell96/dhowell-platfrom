@@ -35,7 +35,7 @@ import {
   type Outlet,
 } from "@/lib/types";
 import { formatPence, penceToInputValue } from "@/lib/money";
-import { findRateLine, HAULAGE } from "@/lib/pricing";
+import { findHaulageRate } from "@/lib/pricing";
 import { kgToInputValue } from "@/lib/weight";
 import { invoiceDueDate } from "@/lib/terms";
 
@@ -182,9 +182,9 @@ export default function JobForm({
    * The client's haulage rate for the size of skip on this job, so the form
    * can say what ticking the box will actually charge.
    */
-  const haulageRate = findRateLine(
+  const haulageRate = findHaulageRate(
     customers.find((customer) => customer.id === customerId),
-    { material: HAULAGE, skipSize },
+    { material: material === "Other" ? otherMaterial : material, skipSize },
   );
 
   /** Picking a client fills in their site address, saving retyping it. */
@@ -281,9 +281,9 @@ export default function JobForm({
         </div>
 
         {/* Haulage rides on the same job as the material: one lorry movement,
-            one record. It bills as its own line on the invoice. */}
-        {direction === "sale" ? (
-          <div className="rounded-lg border border-line bg-elevated/40 p-4">
+            one record. Charged whichever way the material runs, since the
+            lorry costs the same either way. It bills as its own line. */}
+        <div className="rounded-lg border border-line bg-elevated/40 p-4">
             <label className="flex cursor-pointer items-start gap-3">
               <input
                 type="checkbox"
@@ -305,12 +305,11 @@ export default function JobForm({
                             ? ` for a ${haulageRate.skipSize}`
                             : ", any size"
                         }. Charged on top of the material, as its own line.`
-                      : `No haulage rate for ${skipSize.trim() === "" ? "this client" : `a ${skipSize}`} yet. Add one on their client record.`}
+                      : `No haulage rate for ${skipSize.trim() === "" ? "this material" : `a ${skipSize}`} yet. Add a haulage fee line on their client record.`}
                 </span>
               </span>
             </label>
-          </div>
-        ) : null}
+        </div>
 
         {/* Only a rebate load goes to an outlet - a charge job goes to the tip. */}
         {direction === "purchase" ? (

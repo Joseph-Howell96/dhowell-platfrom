@@ -98,7 +98,14 @@ export default function CustomerForm() {
 
   function updateRow(key: string, changes: Partial<RateRow>) {
     setRows((current) =>
-      current.map((row) => (row.key === key ? { ...row, ...changes } : row)),
+      current.map((row) => {
+        if (row.key !== key) return row;
+        const next = { ...row, ...changes };
+        // Haulage is what we charge to send the lorry. It is never paid to a
+        // client, so choosing it settles the direction too.
+        if (next.basis === "Haulage fee") next.direction = "charge";
+        return next;
+      }),
     );
   }
 
@@ -244,8 +251,10 @@ export default function CustomerForm() {
         <div>
           <h2 className="text-base font-semibold">Rates</h2>
           <p className="mt-1 text-sm text-muted">
-            One line per material and skip size. Leave the size blank and the
-            rate applies whatever turns up. &ldquo;{DIRECTION_LABELS.charge}
+            One line per material and skip size. A material can have two: what
+            the material itself is worth, and a haulage fee for coming to
+            collect it. Leave the size blank and the rate applies whatever
+            turns up. &ldquo;{DIRECTION_LABELS.charge}
             &rdquo; means {DIRECTION_HINTS.charge.toLowerCase()};
             &ldquo;{DIRECTION_LABELS.pay}&rdquo; means{" "}
             {DIRECTION_HINTS.pay.toLowerCase()}.
@@ -364,21 +373,37 @@ export default function CustomerForm() {
                 >
                   Direction
                 </label>
-                <Select
-                  id={`rateDirection-${row.key}`}
-                  name="rateDirection"
-                  className={inputClass}
-                  value={row.direction}
-                  onChange={(event) =>
-                    updateRow(row.key, { direction: event.target.value })
-                  }
-                >
-                  {DIRECTIONS.map((direction) => (
-                    <option key={direction} value={direction}>
-                      {DIRECTION_LABELS[direction]}
-                    </option>
-                  ))}
-                </Select>
+                {/* A disabled field is not sent with the form, and these rows
+                    are read back by position, so one missing value would shift
+                    every later row onto the wrong direction. The fixed case
+                    sends a hidden field instead. */}
+                {row.basis === "Haulage fee" ? (
+                  <>
+                    <input type="hidden" name="rateDirection" value="charge" />
+                    <p
+                      className={`${inputClass} text-muted`}
+                      title="Haulage is what we charge to send the lorry, so it is never rebated."
+                    >
+                      {DIRECTION_LABELS.charge}
+                    </p>
+                  </>
+                ) : (
+                  <Select
+                    id={`rateDirection-${row.key}`}
+                    name="rateDirection"
+                    className={inputClass}
+                    value={row.direction}
+                    onChange={(event) =>
+                      updateRow(row.key, { direction: event.target.value })
+                    }
+                  >
+                    {DIRECTIONS.map((direction) => (
+                      <option key={direction} value={direction}>
+                        {DIRECTION_LABELS[direction]}
+                      </option>
+                    ))}
+                  </Select>
+                )}
               </div>
 
               <div className="lg:pt-7">
@@ -397,12 +422,14 @@ export default function CustomerForm() {
 
         <button
           type="button"
-          onClick={() =>
-            setRows((current) => [
-              ...current,
-              blankRow(nextRowSequence.current++),
-            ])
-          }
+          onClick={() => {
+            // Counted out here, not inside the update below. React may run a
+            // state update more than once to check it is repeatable, and a
+            // counter ticking over inside one would skip numbers.
+            const sequence = nextRowSequence.current;
+            nextRowSequence.current += 1;
+            setRows((current) => [...current, blankRow(sequence)]);
+          }}
           className="rounded-lg border border-line px-4 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
         >
           Add another rate line

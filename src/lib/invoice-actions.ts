@@ -17,6 +17,7 @@ import {
   readInvoices,
   updateInvoice,
 } from "./invoices";
+import { isBillable } from "./invoicing";
 import { readJobs, updateJob } from "./jobs";
 import { readSettings } from "./settings";
 import { INVOICE_STATUSES, type InvoiceStatus } from "./types";
@@ -58,9 +59,9 @@ export async function createInvoice(
       .filter(
         (job) =>
           job.customerId === customerId &&
-          job.direction === "sale" &&
           job.status !== "booked" &&
-          !alreadyBilled.has(job.id),
+          !alreadyBilled.has(job.id) &&
+          isBillable(job, customers.find((c) => c.id === customerId)),
       )
       .map((job) => job.id),
   );

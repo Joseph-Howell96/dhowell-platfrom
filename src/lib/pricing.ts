@@ -4,6 +4,11 @@
  * Nothing here is stored. The figure is recalculated from the client's rate
  * lines every time it is shown, so correcting a rate on the client record
  * immediately corrects every job priced off it.
+ *
+ * A material can carry two rate lines at once, and usually does. Wood might be
+ * rebated at £42 a tonne - money out - while still being charged £95 to come
+ * and collect it. The basis tells them apart: a haulage fee is the charge for
+ * the lorry, anything else prices the material.
  */
 import type { Customer, Job, RateLine } from "./types";
 
@@ -18,42 +23,77 @@ export type JobPrice = {
   workedOut: string;
 };
 
+/** The material a generic haulage rate is filed under. */
+export const HAULAGE = "Haulage";
+
+/** The basis that marks a rate line as the charge for the lorry. */
+const HAULAGE_BASIS = "Haulage fee";
+
 function same(a: string, b: string): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
 /**
- * The rate line that applies to a job.
+ * The best line for a skip size out of a set already narrowed to one material.
  *
- * A rate for the exact skip size wins. Failing that, a rate left blank applies
+ * A rate for the exact size wins. Failing that, a rate left blank applies
  * whatever size turned up. If a client only has an 8 yard rate and a 12 yard
  * job comes through, nothing matches and the job goes unpriced - better a
  * blank on the invoice than quietly charging the wrong size.
  */
-export function findRateLine(
+function bestForSize(lines: RateLine[], skipSize: string): RateLine | undefined {
+  const exact =
+    skipSize.trim() !== ""
+      ? lines.find((line) => same(line.skipSize, skipSize))
+      : undefined;
+  return exact ?? lines.find((line) => line.skipSize.trim() === "");
+}
+
+/** The line that prices the material itself, whichever way the money runs. */
+export function findMaterialRate(
   customer: Customer | undefined,
   job: Pick<Job, "material" | "skipSize">,
 ): RateLine | undefined {
   if (!customer) return undefined;
-  const forMaterial = customer.rateLines.filter((line) =>
-    same(line.material, job.material),
+  return bestForSize(
+    customer.rateLines.filter(
+      (line) => same(line.material, job.material) && line.basis !== HAULAGE_BASIS,
+    ),
+    job.skipSize,
   );
-  const exactSize =
-    job.skipSize.trim() !== ""
-      ? forMaterial.find((line) => same(line.skipSize, job.skipSize))
-      : undefined;
-  return exactSize ?? forMaterial.find((line) => line.skipSize.trim() === "");
 }
 
 /**
- * What a job comes to, or null when it cannot be worked out - either because
- * the client has no rate matching the material and size, or because a
- * per-tonne rate needs a weight the job does not have yet.
+ * The line that charges for collecting it.
+ *
+ * A haulage line against this material is used first. Where there is none, a
+ * haulage line filed under "Haulage" applies to everything, so one rate can
+ * cover the lot rather than being repeated against every material.
  */
-export function priceJob(job: Job, customer: Customer | undefined): JobPrice | null {
-  const line = findRateLine(customer, job);
-  if (!line) return null;
+export function findHaulageRate(
+  customer: Customer | undefined,
+  job: Pick<Job, "material" | "skipSize">,
+): RateLine | undefined {
+  if (!customer) return undefined;
+  const haulageLines = customer.rateLines.filter(
+    (line) => line.basis === HAULAGE_BASIS,
+  );
+  return (
+    bestForSize(
+      haulageLines.filter((line) => same(line.material, job.material)),
+      job.skipSize,
+    ) ??
+    bestForSize(
+      haulageLines.filter((line) => same(line.material, HAULAGE)),
+      job.skipSize,
+    )
+  );
+}
 
+/** Kept for anywhere that just wants the material's line. */
+export const findRateLine = findMaterialRate;
+
+function priceFromLine(line: RateLine, job: Job): JobPrice | null {
   if (line.basis === "Per tonne") {
     if (job.weightKg === null) return null;
     const tonnes = job.weightKg / 1000;
@@ -62,28 +102,35 @@ export function priceJob(job: Job, customer: Customer | undefined): JobPrice | n
       workedOut: `${tonnes.toFixed(2)} t at ${(line.ratePence / 100).toFixed(2)}/t`,
     };
   }
-
-  // Haulage fee, per lift and fixed price are all flat amounts.
-  return {
-    pence: line.ratePence,
-    workedOut: line.basis.toLowerCase(),
-  };
+  // A haulage fee, and the older per lift and fixed price, are flat amounts.
+  return { pence: line.ratePence, workedOut: line.basis.toLowerCase() };
 }
 
-/** The material name a haulage rate line is filed under. */
-export const HAULAGE = "Haulage";
+/**
+ * What the material on a job comes to, or null when it cannot be worked out -
+ * either because the client has no rate matching the material and size, or
+ * because a per-tonne rate needs a weight the job does not have yet.
+ */
+export function priceJob(
+  job: Job,
+  customer: Customer | undefined,
+): JobPrice | null {
+  const line = findMaterialRate(customer, job);
+  return line ? priceFromLine(line, job) : null;
+}
 
 /**
  * What haulage comes to on a job, or null when it is not being charged or the
- * client has no haulage rate for this skip size.
+ * client has no haulage rate that fits.
  *
- * Worked out by pricing the job as though its material were haulage, so the
- * size matching and the per-tonne handling are the same everywhere.
+ * Charged whichever way the material runs: collecting a skip costs the same
+ * whether we are billing for what is in it or paying for it.
  */
 export function haulageChargeFor(
   job: Job,
   customer: Customer | undefined,
 ): JobPrice | null {
   if (!job.chargeHaulage) return null;
-  return priceJob({ ...job, material: HAULAGE }, customer);
+  const line = findHaulageRate(customer, job);
+  return line ? priceFromLine(line, job) : null;
 }

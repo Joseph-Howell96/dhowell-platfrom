@@ -107,7 +107,9 @@ export async function createCustomer(
         skipSize: String(sizes[index] ?? "").trim(),
         basis: basis as Basis,
         ratePence,
-        direction: direction as Direction,
+        // Haulage is charged, never rebated, whatever the form sent.
+        direction:
+          basis === "Haulage fee" ? "charge" : (direction as Direction),
       });
     }
   }

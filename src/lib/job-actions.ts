@@ -227,9 +227,9 @@ async function parseJob(
       status,
       weightKg,
       direction,
-      // Only ever charged on a job we are invoicing; a rebate job's haulage is
-      // a cost to us, recorded separately.
-      chargeHaulage: direction === "sale" && text(formData, "chargeHaulage") === "on",
+      // Charged either way round: collecting a skip costs the same whether we
+      // are billing for what is in it or paying for it.
+      chargeHaulage: text(formData, "chargeHaulage") === "on",
       invoiceSentDate,
       supplierPO,
       poRaisedDate,

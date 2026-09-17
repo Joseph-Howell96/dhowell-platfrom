@@ -7,6 +7,7 @@ import { todayISO } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
 import { invoicedJobIds, readInvoices } from "@/lib/invoices";
 import { readJobs } from "@/lib/jobs";
+import { isBillable } from "@/lib/invoicing";
 import { haulageChargeFor, priceJob } from "@/lib/pricing";
 import RaiseInvoiceForm, { type BillableJob } from "./raise-invoice-form";
 
@@ -30,9 +31,11 @@ export default async function NewInvoicePage() {
   const billable: BillableJob[] = jobs
     .filter(
       (job) =>
-        job.direction === "sale" &&
         job.status !== "booked" &&
-        !billed.has(job.id),
+        !billed.has(job.id) &&
+        // A charge job bills its material; a rebate job only bills the haulage
+        // on it, so it belongs here too once haulage is being charged.
+        isBillable(job, clientsById.get(job.customerId)),
     )
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((job) => ({
@@ -43,9 +46,11 @@ export default async function NewInvoicePage() {
       skipSize: job.skipSize,
       amountPence: (() => {
         const client = clientsById.get(job.customerId);
+        const haulage = haulageChargeFor(job, client)?.pence ?? 0;
+        // Only a charge job puts its material on a sales invoice.
+        if (job.direction !== "sale") return haulage;
         const material = priceJob(job, client)?.pence ?? null;
-        if (material === null) return null;
-        return material + (haulageChargeFor(job, client)?.pence ?? 0);
+        return material === null ? null : material + haulage;
       })(),
     }));
 

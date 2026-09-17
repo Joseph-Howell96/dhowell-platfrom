@@ -32,6 +32,7 @@ export type JobEconomics = {
  * uses - material income, less the rebate, less haulage:
  *
  *   margin = what the outlet paid us
+ *          + any haulage we charged the client
  *          - what we paid the client
  *          - what it cost to get the load there
  *
@@ -45,10 +46,10 @@ export function jobEconomics(
 ): JobEconomics {
   const rated = priceJob(job, customer)?.pence ?? null;
 
+  // What we charge the client to collect, whichever way the material runs.
+  const haulage = haulageChargeFor(job, customer)?.pence ?? 0;
+
   if (job.direction === "sale") {
-    // Haulage charged on the job counts towards what comes in, the same as
-    // the material does.
-    const haulage = haulageChargeFor(job, customer)?.pence ?? 0;
     const revenuePence = rated === null ? null : rated + haulage;
     const costPence = job.disposalCostPence;
     return {
@@ -83,12 +84,16 @@ export function jobEconomics(
       ? rebatePence + haulagePence
       : null;
 
+  // On a rebate job the haulage we charge is money in, on top of whatever the
+  // outlet pays for the load.
+  const revenuePence = incomePence === null ? null : incomePence + haulage;
+
   return {
-    revenuePence: incomePence,
+    revenuePence,
     costPence,
     profitPence:
-      incomePence !== null && costPence !== null
-        ? incomePence - costPence
+      revenuePence !== null && costPence !== null
+        ? revenuePence - costPence
         : null,
   };
 }

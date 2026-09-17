@@ -235,12 +235,14 @@ export default function OutletForm() {
 
         <button
           type="button"
-          onClick={() =>
-            setRows((current) => [
-              ...current,
-              blankRow(nextRowSequence.current++),
-            ])
-          }
+          onClick={() => {
+            // Counted out here, not inside the update below. React may run a
+            // state update more than once to check it is repeatable, and a
+            // counter ticking over inside one would skip numbers.
+            const sequence = nextRowSequence.current;
+            nextRowSequence.current += 1;
+            setRows((current) => [...current, blankRow(sequence)]);
+          }}
           className="rounded-lg border border-line px-4 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
         >
           Add another material
