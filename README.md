@@ -60,6 +60,15 @@ job, so both sit on the same record. Tick "Also charge haulage" and the client's
 haulage rate for that skip size is added, showing as its own line on the
 invoice directly beneath the material.
 
+A rate is worked out either **per tonne** or as a **haulage fee**. Two older
+bases, per lift and fixed price, are no longer offered; any rate line already
+saved under one still reads and still prices.
+
+The skip size is free text - type whatever you call it, "8 yard" or "Grab
+lorry". It is matched between the rate line and the job ignoring capitals and
+stray spaces, but not wording: "Grab lorry" on the rate and "grab" on the job
+will not find each other.
+
 Leave the skip size blank and the rate applies whatever size turns up. A rate
 for the exact size wins over a blank one. Where neither matches, the job goes
 unpriced and shows a dash rather than being charged at the wrong size. A job takes its direction from

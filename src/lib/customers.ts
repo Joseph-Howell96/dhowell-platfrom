@@ -10,7 +10,7 @@ import { randomUUID } from "node:crypto";
 
 import { readJsonList, writeJsonList } from "./store";
 import {
-  BASES,
+  ALL_BASES,
   DIRECTIONS,
   type Basis,
   type Customer,
@@ -21,8 +21,9 @@ import {
 const FILE = "clients.json";
 
 /** Anything read off disk is unknown until we have checked it, so check it. */
+/** Anything ever offered counts, so an older rate line is not thrown away. */
 function isBasis(value: unknown): value is Basis {
-  return BASES.includes(value as Basis);
+  return ALL_BASES.includes(value as Basis);
 }
 
 function isDirection(value: unknown): value is Direction {

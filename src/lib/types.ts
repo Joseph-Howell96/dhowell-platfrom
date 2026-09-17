@@ -18,14 +18,20 @@ export const MATERIALS = [
 ] as const;
 
 /** How a rate is worked out. */
-export const BASES = [
-  "Per tonne",
-  "Haulage fee",
-  "Per lift",
-  "Fixed price",
-] as const;
+/** The two ways a rate is worked out, as offered on the form. */
+export const BASES = ["Per tonne", "Haulage fee"] as const;
 
-export type Basis = (typeof BASES)[number];
+/**
+ * Bases that used to be offered and no longer are.
+ *
+ * Kept so that a rate line saved under one still reads and still prices. They
+ * are simply not offered for anything new; nothing already recorded is lost.
+ */
+export const RETIRED_BASES = ["Per lift", "Fixed price"] as const;
+
+export const ALL_BASES = [...BASES, ...RETIRED_BASES] as const;
+
+export type Basis = (typeof ALL_BASES)[number];
 
 /**
  * Which way the money flows.

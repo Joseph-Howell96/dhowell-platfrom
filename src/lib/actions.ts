@@ -87,7 +87,8 @@ export async function createCustomer(
 
     const basis = String(bases[index] ?? "");
     const direction = String(directions[index] ?? "");
-    if (!BASES.includes(basis as Basis)) {
+    // Only the bases still on offer; a retired one cannot be chosen afresh.
+    if (!BASES.includes(basis as (typeof BASES)[number])) {
       fieldErrors[`rateBasis-${index}`] = "Choose how this rate is worked out.";
     }
     if (!DIRECTIONS.includes(direction as Direction)) {
@@ -97,7 +98,7 @@ export async function createCustomer(
     if (
       material !== "" &&
       ratePence !== null &&
-      BASES.includes(basis as Basis) &&
+      BASES.includes(basis as (typeof BASES)[number]) &&
       DIRECTIONS.includes(direction as Direction)
     ) {
       rateLines.push({
