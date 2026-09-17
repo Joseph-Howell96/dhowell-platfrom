@@ -83,7 +83,19 @@ export default async function JobPage({
           title={client?.businessName ?? "Unknown client"}
           description={formatDateGB(job.date)}
           // Kept up here, well away from Save, so the two cannot be confused.
-          action={<DeleteJobButton jobId={job.id} />}
+          action={
+            <DeleteJobButton
+              jobId={job.id}
+              invoice={
+                invoice
+                  ? {
+                      reference: invoice.reference,
+                      sent: billedOn?.status !== "draft",
+                    }
+                  : null
+              }
+            />
+          }
         />
       </div>
 

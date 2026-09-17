@@ -10,7 +10,9 @@ import { redirect } from "next/navigation";
 
 import { isValidISODate, monthKeyOf } from "./calendar";
 import { readCustomers } from "./customers";
-import { invoicedJobIds, readInvoices } from "./invoices";
+import { readInvoices, updateInvoice } from "./invoices";
+import { deleteSavedPdf, pdfFileName } from "./invoice-files";
+import { readSettings } from "./settings";
 import type { FormState } from "./form-state";
 import { addJob, deleteJob, readJobs, updateJob } from "./jobs";
 import {
@@ -313,29 +315,50 @@ export async function saveJob(
 
 
 /**
- * Delete a job.
+ * Delete a job, including one that has already been invoiced.
  *
- * Refused once the job is on an invoice. An invoice holds the jobs it covers
- * rather than a copy of their figures, so deleting one would quietly drop a
- * line and change the total - on an invoice that may already have been sent.
- * Take the job off the invoice first, or scrap the invoice.
+ * An invoice holds the jobs it covers rather than a copy of their figures, so
+ * taking a job away changes what the invoice comes to. That is the point: a
+ * job booked in error should not keep being charged for. Three things happen
+ * so the invoice does not end up describing something that is not there:
+ *
+ *  - the job is taken off the invoice's list, rather than left as an id
+ *    pointing at nothing;
+ *  - the filed PDF is thrown away, because it shows the old total. The next
+ *    time the invoice is opened a fresh one is built at the new figure;
+ *  - an invoice left covering nothing is kept, not scrapped. Its number has
+ *    been issued and may already have gone out, and a £0.00 invoice on the
+ *    list is a question someone can answer - a vanished one is not.
+ *
+ * Where a corrected invoice has already been sent, it has to be sent again.
+ * Nothing here can reach into the client's inbox and fix the one they have.
  *
  * Returns a reason when it will not go ahead, or null when it has.
  */
 export async function removeJob(jobId: string): Promise<string | null> {
   if (jobId === "") return "Could not tell which job this is.";
 
-  const [invoices, jobs] = await Promise.all([readInvoices(), readJobs()]);
+  const [invoices, jobs, settings] = await Promise.all([
+    readInvoices(),
+    readJobs(),
+    readSettings(),
+  ]);
   const job = jobs.find((entry) => entry.id === jobId);
   if (!job) return "That job no longer exists.";
 
-  if (invoicedJobIds(invoices).has(jobId)) {
-    const invoice = invoices.find((entry) => entry.jobIds.includes(jobId));
-    return `This job is on invoice ${invoice ? `number ${invoice.number}` : "one already raised"}, so deleting it would change what that invoice comes to. Remove it from the invoice first.`;
-  }
+  const billedOn = invoices.filter((invoice) => invoice.jobIds.includes(jobId));
 
   try {
     await deleteJob(jobId);
+    for (const invoice of billedOn) {
+      await updateInvoice(invoice.id, {
+        jobIds: invoice.jobIds.filter((id) => id !== jobId),
+        pdfSavedAt: null,
+      });
+      await deleteSavedPdf(
+        pdfFileName(settings.invoiceNumberPrefix, invoice.number),
+      );
+    }
   } catch (error) {
     console.error("Could not delete the job", error);
     return "Could not delete the job. Please try again.";
@@ -345,5 +368,6 @@ export async function removeJob(jobId: string): Promise<string | null> {
   revalidatePath("/finance");
   revalidatePath("/dashboard");
   revalidatePath("/invoices");
+  for (const invoice of billedOn) revalidatePath(`/invoices/${invoice.id}`);
   redirect(`/calendar?month=${monthKeyOf(job.date)}`);
 }
