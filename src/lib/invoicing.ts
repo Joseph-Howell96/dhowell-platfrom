@@ -4,11 +4,13 @@
  * Nothing here is stored. Everything is worked out from the jobs and the
  * client's rates when the invoice is opened.
  */
-import { findRateLine, priceJob } from "./pricing";
+import { findRateLine, HAULAGE, haulageChargeFor, priceJob } from "./pricing";
 import { materialCode, type Customer, type Job } from "./types";
 
 export type InvoiceLine = {
   jobId: string;
+  /** Set apart so two lines from the same job keep distinct keys. */
+  key: string;
   /** The stock code, from the material. */
   sku: string;
   description: string;
@@ -50,6 +52,7 @@ export function lineForJob(
 
   return {
     jobId: job.id,
+    key: `${job.id}-material`,
     sku: materialCode(job.material),
     description: parts.join(", "),
     quantity,
@@ -60,13 +63,41 @@ export function lineForJob(
   };
 }
 
+/** The haulage line a job adds, where haulage is being charged on it. */
+export function haulageLineForJob(
+  job: Job,
+  customer: Customer | undefined,
+): InvoiceLine | null {
+  const price = haulageChargeFor(job, customer);
+  if (!price) return null;
+
+  const parts = [HAULAGE];
+  if (job.skipSize) parts.push(job.skipSize);
+
+  return {
+    jobId: job.id,
+    key: `${job.id}-haulage`,
+    sku: materialCode(HAULAGE),
+    description: parts.join(", "),
+    quantity: 1,
+    unitPricePence: price.pence,
+    amountPence: price.pence,
+  };
+}
+
+/**
+ * Every line an invoice shows. A job contributes its material and, where it is
+ * charged, a haulage line straight after it, so the two read together.
+ */
 export function linesForJobs(
   jobs: Job[],
   customer: Customer | undefined,
 ): InvoiceLine[] {
-  return jobs
-    .map((job) => lineForJob(job, customer))
-    .filter((line) => line !== null);
+  return jobs.flatMap((job) =>
+    [lineForJob(job, customer), haulageLineForJob(job, customer)].filter(
+      (line) => line !== null,
+    ),
+  );
 }
 
 /** Net, VAT and gross for a set of lines, at the given rate. */

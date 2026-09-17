@@ -69,3 +69,21 @@ export function priceJob(job: Job, customer: Customer | undefined): JobPrice | n
     workedOut: line.basis.toLowerCase(),
   };
 }
+
+/** The material name a haulage rate line is filed under. */
+export const HAULAGE = "Haulage";
+
+/**
+ * What haulage comes to on a job, or null when it is not being charged or the
+ * client has no haulage rate for this skip size.
+ *
+ * Worked out by pricing the job as though its material were haulage, so the
+ * size matching and the per-tonne handling are the same everywhere.
+ */
+export function haulageChargeFor(
+  job: Job,
+  customer: Customer | undefined,
+): JobPrice | null {
+  if (!job.chargeHaulage) return null;
+  return priceJob({ ...job, material: HAULAGE }, customer);
+}

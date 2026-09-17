@@ -7,7 +7,7 @@ import { todayISO } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
 import { invoicedJobIds, readInvoices } from "@/lib/invoices";
 import { readJobs } from "@/lib/jobs";
-import { priceJob } from "@/lib/pricing";
+import { haulageChargeFor, priceJob } from "@/lib/pricing";
 import RaiseInvoiceForm, { type BillableJob } from "./raise-invoice-form";
 
 export const metadata: Metadata = {
@@ -41,7 +41,12 @@ export default async function NewInvoicePage() {
       date: job.date,
       material: job.material,
       skipSize: job.skipSize,
-      amountPence: priceJob(job, clientsById.get(job.customerId))?.pence ?? null,
+      amountPence: (() => {
+        const client = clientsById.get(job.customerId);
+        const material = priceJob(job, client)?.pence ?? null;
+        if (material === null) return null;
+        return material + (haulageChargeFor(job, client)?.pence ?? 0);
+      })(),
     }));
 
   return (

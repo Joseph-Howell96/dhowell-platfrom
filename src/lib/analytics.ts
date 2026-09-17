@@ -11,7 +11,7 @@
  * a blank as nothing would quietly report every job as pure profit.
  */
 import { outletIncomeFor } from "./outlets";
-import { priceJob } from "./pricing";
+import { haulageChargeFor, priceJob } from "./pricing";
 import type { Customer, Job, Outlet } from "./types";
 import { isWeighedOrLater } from "./types";
 
@@ -46,7 +46,10 @@ export function jobEconomics(
   const rated = priceJob(job, customer)?.pence ?? null;
 
   if (job.direction === "sale") {
-    const revenuePence = rated;
+    // Haulage charged on the job counts towards what comes in, the same as
+    // the material does.
+    const haulage = haulageChargeFor(job, customer)?.pence ?? 0;
+    const revenuePence = rated === null ? null : rated + haulage;
     const costPence = job.disposalCostPence;
     return {
       revenuePence,

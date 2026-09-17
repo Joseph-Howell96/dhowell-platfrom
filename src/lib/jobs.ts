@@ -108,6 +108,7 @@ function toJob(raw: unknown): Job | null {
     status: safeStatus,
     weightKg,
     direction,
+    chargeHaulage: record.chargeHaulage === true,
     invoiceSentDate: optionalDate("invoiceSentDate"),
     supplierPO: optionalText("supplierPO"),
     poRaisedDate: optionalDate("poRaisedDate"),

@@ -153,7 +153,7 @@ export default async function InvoicePage({
               </tr>
             ) : (
               lines.map((line) => (
-                <tr key={line.jobId} className="border-b border-gray-200">
+                <tr key={line.key} className="border-b border-gray-200">
                   <td className="py-2.5 align-top">{line.sku}</td>
                   <td className="py-2.5 align-top">{line.description}</td>
                   <td className="py-2.5 text-right align-top tabular-nums">

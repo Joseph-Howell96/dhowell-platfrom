@@ -39,6 +39,7 @@ type ParsedJob = {
   status: JobStatus;
   weightKg: number | null;
   direction: JobDirection;
+  chargeHaulage: boolean;
   invoiceSentDate: string | null;
   supplierPO: string | null;
   poRaisedDate: string | null;
@@ -226,6 +227,9 @@ async function parseJob(
       status,
       weightKg,
       direction,
+      // Only ever charged on a job we are invoicing; a rebate job's haulage is
+      // a cost to us, recorded separately.
+      chargeHaulage: direction === "sale" && text(formData, "chargeHaulage") === "on",
       invoiceSentDate,
       supplierPO,
       poRaisedDate,

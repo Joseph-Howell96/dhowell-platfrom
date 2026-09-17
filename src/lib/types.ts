@@ -255,6 +255,14 @@ export type Job = {
   weightKg: number | null;
   /** Whether we are charging the client for this job or paying them for it. */
   direction: JobDirection;
+  /**
+   * Whether haulage is charged on this job as well as the material.
+   *
+   * One lorry movement is one job, so the haulage sits on the same record
+   * rather than needing a second one. It is priced from the client's Haulage
+   * rate for this skip size, and shows as its own line on the invoice.
+   */
+  chargeHaulage: boolean;
 
   /* Sale side. Both stay null on a purchase. */
   /** The day the invoice went out, as "YYYY-MM-DD". Null until it has. */

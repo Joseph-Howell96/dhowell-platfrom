@@ -55,6 +55,11 @@ invoice them for it) or a **Rebate** (we pay them for it and sell it on).
 **Haulage** is one of the materials, since it is charged the same way: a rate
 per client, usually differing by skip size.
 
+A job can charge haulage as well as its material - one lorry movement is one
+job, so both sit on the same record. Tick "Also charge haulage" and the client's
+haulage rate for that skip size is added, showing as its own line on the
+invoice directly beneath the material.
+
 Leave the skip size blank and the rate applies whatever size turns up. A rate
 for the exact size wins over a blank one. Where neither matches, the job goes
 unpriced and shows a dash rather than being charged at the wrong size. A job takes its direction from

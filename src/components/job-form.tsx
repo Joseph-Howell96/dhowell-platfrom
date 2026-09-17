@@ -34,7 +34,8 @@ import {
   type JobStatus,
   type Outlet,
 } from "@/lib/types";
-import { penceToInputValue } from "@/lib/money";
+import { formatPence, penceToInputValue } from "@/lib/money";
+import { findRateLine, HAULAGE } from "@/lib/pricing";
 import { kgToInputValue } from "@/lib/weight";
 import { invoiceDueDate } from "@/lib/terms";
 
@@ -118,6 +119,9 @@ export default function JobForm({
     job?.onwardSalePence != null ? penceToInputValue(job.onwardSalePence) : "",
   );
   const [outletId, setOutletId] = useState(job?.outletId ?? "");
+  const [chargeHaulage, setChargeHaulage] = useState(
+    job?.chargeHaulage ?? false,
+  );
   const [haulageCost, setHaulageCost] = useState(
     job?.haulageCostPence != null ? penceToInputValue(job.haulageCostPence) : "",
   );
@@ -173,6 +177,15 @@ export default function JobForm({
   const supplierTermsDays =
     customers.find((customer) => customer.id === customerId)
       ?.paymentTermsDays ?? null;
+
+  /**
+   * The client's haulage rate for the size of skip on this job, so the form
+   * can say what ticking the box will actually charge.
+   */
+  const haulageRate = findRateLine(
+    customers.find((customer) => customer.id === customerId),
+    { material: HAULAGE, skipSize },
+  );
 
   /** Picking a client fills in their site address, saving retyping it. */
   function chooseCustomer(id: string) {
@@ -266,6 +279,38 @@ export default function JobForm({
             <p className={errorClass}>{state.fieldErrors.siteAddress}</p>
           ) : null}
         </div>
+
+        {/* Haulage rides on the same job as the material: one lorry movement,
+            one record. It bills as its own line on the invoice. */}
+        {direction === "sale" ? (
+          <div className="rounded-lg border border-line bg-elevated/40 p-4">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                name="chargeHaulage"
+                checked={chargeHaulage}
+                onChange={(event) => setChargeHaulage(event.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-accent"
+              />
+              <span>
+                <span className="block text-sm font-medium">
+                  Also charge haulage
+                </span>
+                <span className="mt-0.5 block text-xs text-muted">
+                  {customerId === ""
+                    ? "Choose a client to see their haulage rate."
+                    : haulageRate
+                      ? `${formatPence(haulageRate.ratePence)}${
+                          haulageRate.skipSize
+                            ? ` for a ${haulageRate.skipSize}`
+                            : ", any size"
+                        }. Charged on top of the material, as its own line.`
+                      : `No haulage rate for ${skipSize.trim() === "" ? "this client" : `a ${skipSize}`} yet. Add one on their client record.`}
+                </span>
+              </span>
+            </label>
+          </div>
+        ) : null}
 
         {/* Only a rebate load goes to an outlet - a charge job goes to the tip. */}
         {direction === "purchase" ? (
