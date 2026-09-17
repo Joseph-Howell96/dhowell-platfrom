@@ -8,6 +8,10 @@
  * A draft is rebuilt every time, because it is still being changed. Once an
  * invoice has been sent the saved file is served untouched, so what the client
  * received is what stays on record even if a rate is corrected afterwards.
+ *
+ * Add ?download=yes and the same file comes back as a download instead of
+ * opening in the browser's viewer, so it lands in the Downloads folder ready
+ * to attach to an e-mail.
  */
 import { readCustomers } from "@/lib/customers";
 import { addCalendarDays } from "@/lib/dates";
@@ -19,10 +23,12 @@ import { readJobs } from "@/lib/jobs";
 import { readSettings } from "@/lib/settings";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ invoiceId: string }> },
 ) {
   const { invoiceId } = await params;
+  const wantsDownload =
+    new URL(request.url).searchParams.get("download") !== null;
   const invoice = await readInvoice(invoiceId);
   if (!invoice) {
     return new Response("No such invoice", { status: 404 });
@@ -35,9 +41,11 @@ export async function GET(
     new Response(bytes as BodyInit, {
       headers: {
         "Content-Type": "application/pdf",
-        // "inline" so it opens in the browser's own viewer, where it can then
-        // be saved or sent on.
-        "Content-Disposition": `inline; filename="${fileName}"`,
+        // "inline" opens it in the browser's own viewer, where it can then be
+        // read or printed; "attachment" saves it to the computer instead.
+        "Content-Disposition": `${
+          wantsDownload ? "attachment" : "inline"
+        }; filename="${fileName}"`,
         "Cache-Control": "no-store",
       },
     });
