@@ -5,16 +5,12 @@ import { connection } from "next/server";
 import PageHeader from "@/components/page-header";
 import { todayISO } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
-import { formatDateGB } from "@/lib/dates";
+import { addCalendarDays, daysBetween, formatDateGB } from "@/lib/dates";
 import { readJobs } from "@/lib/jobs";
 import { formatPence } from "@/lib/money";
 import { priceJob, type JobPrice } from "@/lib/pricing";
 import type { Job } from "@/lib/types";
-import {
-  addCalendarDays,
-  daysBetween,
-  invoiceDueDate,
-} from "@/lib/working-days";
+import { invoiceDueDate, PAYMENT_DAYS } from "@/lib/terms";
 
 export const metadata: Metadata = {
   title: "Finance",
@@ -174,7 +170,7 @@ export default async function FinancePage() {
 
   const soonestFirst = (a: Row, b: Row) => a.dueDate.localeCompare(b.dueDate);
 
-  // Money in: invoices we have sent, due on our own working-day terms.
+  // Money in: invoices we have sent, due a fixed number of days later.
   const owedToUs: Row[] = jobs
     .filter(
       (job) =>
@@ -278,8 +274,8 @@ export default async function FinancePage() {
       <p className="mt-8 text-xs text-muted">
         Amounts are worked out from each client&rsquo;s rate for the material,
         not stored, so correcting a rate corrects every job priced off it. Our
-        invoices fall due 28 working days after sending; what we owe runs on the
-        payment terms recorded against the client.{" "}
+        invoices fall due {PAYMENT_DAYS} days after the invoice date; what we
+        owe runs on the payment terms recorded against the client.{" "}
         <Link href="/clients" className="text-accent hover:underline">
           Clients
         </Link>

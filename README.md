@@ -73,10 +73,13 @@ path, so a job three steps along stays three steps along.
 
 - **Weights are whole kilograms** (2.45 tonnes is `2450`), for the same reason
   as pence.
-- **Our invoices fall due 28 working days after being sent**, skipping weekends
-  and England and Wales bank holidays. **What we owe a client** falls due on
-  the payment terms recorded against them, counted in ordinary days, because
-  that is what "30 days" on a supplier account means. Bank holidays are worked out from the rules
+- **Our invoices fall due 14 calendar days after the invoice date**, the same
+  for every client. Weekends and bank holidays are not skipped: an invoice sent
+  on the 1st is due on the 15th whatever day that lands on. The rule lives in
+  `src/lib/terms.ts`.
+- **What we owe a client** for material bought off them is separate, and falls
+  due on the payment terms recorded against that client, counted from the date
+  the purchase order went out. Bank holidays are worked out from the rules
   rather than typed in, so they stay right in future years. One-offs like a
   jubilee have to be added by hand, in `src/lib/working-days.ts`.
 - **Margin on a rebate job is material income, less the rebate, less haulage.**

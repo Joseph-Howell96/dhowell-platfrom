@@ -13,7 +13,7 @@ import Link from "next/link";
 import { useActionState, useId, useState } from "react";
 
 import Select from "@/components/select";
-import { formatDateGB } from "@/lib/dates";
+import { addCalendarDays, formatDateGB } from "@/lib/dates";
 import { EMPTY_FORM_STATE, type FormState } from "@/lib/form-state";
 import {
   directionForRate,
@@ -36,11 +36,7 @@ import {
 } from "@/lib/types";
 import { penceToInputValue } from "@/lib/money";
 import { kgToInputValue } from "@/lib/weight";
-import {
-  addCalendarDays,
-  invoiceDueDate,
-  PAYMENT_WORKING_DAYS,
-} from "@/lib/working-days";
+import { invoiceDueDate, PAYMENT_DAYS } from "@/lib/terms";
 
 const inputClass =
   "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
@@ -633,8 +629,8 @@ export default function JobForm({
                 find out when payment is due. */}
             <p className="mt-1.5 text-xs text-muted">
               {invoiceSentDate
-                ? `Due ${formatDateGB(invoiceDueDate(invoiceSentDate))} — ${PAYMENT_WORKING_DAYS} working days later, skipping weekends and bank holidays.`
-                : `Payment falls due ${PAYMENT_WORKING_DAYS} working days after this date.`}
+                ? `Due ${formatDateGB(invoiceDueDate(invoiceSentDate))} — ${PAYMENT_DAYS} days after the invoice date.`
+                : `Payment falls due ${PAYMENT_DAYS} days after this date.`}
             </p>
             {state.fieldErrors.invoiceSentDate ? (
               <p className={errorClass}>{state.fieldErrors.invoiceSentDate}</p>
