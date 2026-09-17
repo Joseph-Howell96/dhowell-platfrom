@@ -15,6 +15,8 @@ import {
   addInvoice,
   invoicedJobIds,
   nextInvoiceNumber,
+  readAllInvoices,
+  readInvoice,
   readInvoices,
   updateInvoice,
 } from "./invoices";
@@ -53,7 +55,11 @@ export async function createInvoice(
   // Only jobs that belong to this client, are ready to bill, and are not
   // already on another invoice.
   const chosen = formData.getAll("jobId").map(String);
-  const [jobs, invoices] = await Promise.all([readJobs(), readInvoices()]);
+  const [jobs, invoices, everyInvoice] = await Promise.all([
+    readJobs(),
+    readInvoices(),
+    readAllInvoices(),
+  ]);
   const alreadyBilled = invoicedJobIds(invoices);
   const client = customers.find((c) => c.id === customerId);
   const billable = new Set(
@@ -85,7 +91,7 @@ export async function createInvoice(
   let invoice;
   try {
     invoice = await addInvoice({
-      number: nextInvoiceNumber(invoices, settings.invoiceNumberStart),
+      number: nextInvoiceNumber(everyInvoice, settings.invoiceNumberStart),
       customerId,
       issueDate,
       customerPO: text(formData, "customerPO"),
@@ -93,6 +99,7 @@ export async function createInvoice(
       status: "draft",
       paidDate: null,
       pdfSavedAt: null,
+      deletedAt: null,
     });
   } catch (error) {
     console.error("Could not raise the invoice", error);
@@ -124,6 +131,8 @@ export async function setInvoiceStatus(
 
   const invoices = await readInvoices();
   const invoice = invoices.find((entry) => entry.id === invoiceId);
+  // Only the ones that stand. A withdrawn invoice is not sent or paid; it is
+  // restored first, or it is not touched.
   if (!invoice) return;
 
   const today = todayISO();
@@ -156,9 +165,10 @@ export async function generateWeekInvoices(weekStartISO: string): Promise<void> 
   if (!isValidISODate(weekStartISO)) return;
   const weekEnd = addCalendarDays(weekStartISO, 6);
 
-  const [jobs, invoices, customers, settings] = await Promise.all([
+  const [jobs, invoices, everyInvoice, customers, settings] = await Promise.all([
     readJobs(),
     readInvoices(),
+    readAllInvoices(),
     readCustomers(),
     readSettings(),
   ]);
@@ -180,7 +190,8 @@ export async function generateWeekInvoices(weekStartISO: string): Promise<void> 
 
   // Numbered as they are written, so two clients in the same run do not both
   // take the same next number.
-  let raised = invoices;
+  // Numbered off every invoice there has ever been, withdrawn ones included.
+  let raised = everyInvoice;
   const today = todayISO();
   for (const [customerId, jobIds] of byClient) {
     const invoice = await addInvoice({
@@ -192,6 +203,7 @@ export async function generateWeekInvoices(weekStartISO: string): Promise<void> 
       status: "draft",
       paidDate: null,
       pdfSavedAt: null,
+      deletedAt: null,
     });
     raised = [invoice, ...raised];
   }
@@ -201,4 +213,87 @@ export async function generateWeekInvoices(weekStartISO: string): Promise<void> 
   revalidatePath("/calendar");
   revalidatePath("/dashboard");
   redirect("/invoices");
+}
+
+/**
+ * Withdraw an invoice.
+ *
+ * It is set aside rather than removed. An invoice number that went out and was
+ * then withdrawn is something a bookkeeper has to be able to account for, and
+ * a record that simply vanishes cannot be accounted for at all. It moves to
+ * the deleted list in Finance, comes out of what is owed, and its number is
+ * never given to another invoice.
+ *
+ * Its jobs are freed by this alone. Nothing is written on a job to say it has
+ * been billed - a job is invoiced because an invoice names it - so as soon as
+ * this invoice stops standing, its jobs go back to waiting.
+ *
+ * The filed PDF is kept. It is what was sent, and the whole point of setting
+ * the invoice aside rather than deleting it is being able to look at it later.
+ *
+ * Returns a reason when it will not go ahead, or null when it has.
+ */
+export async function deleteInvoice(invoiceId: string): Promise<string | null> {
+  if (invoiceId === "") return "Could not tell which invoice this is.";
+
+  const invoice = await readInvoice(invoiceId);
+  if (!invoice) return "That invoice no longer exists.";
+  if (invoice.deletedAt !== null) return "That invoice has already been deleted.";
+
+  try {
+    await updateInvoice(invoiceId, { deletedAt: new Date().toISOString() });
+  } catch (error) {
+    console.error("Could not delete the invoice", error);
+    return "Could not delete the invoice. Please try again.";
+  }
+
+  revalidatePath("/invoices");
+  revalidatePath(`/invoices/${invoiceId}`);
+  revalidatePath("/finance");
+  revalidatePath("/calendar");
+  revalidatePath("/dashboard");
+  redirect("/finance");
+}
+
+/**
+ * Put a withdrawn invoice back.
+ *
+ * Refused where any of its jobs have been billed somewhere else in the
+ * meantime, which is the whole risk of restoring: those jobs were freed when
+ * this was withdrawn, and if one has since gone onto another invoice, bringing
+ * this one back would have the client charged for it twice. Better to say so
+ * than to quietly drop the line and change the total.
+ *
+ * Returns a reason when it will not go ahead, or null when it has.
+ */
+export async function restoreInvoice(invoiceId: string): Promise<string | null> {
+  if (invoiceId === "") return "Could not tell which invoice this is.";
+
+  const invoice = await readInvoice(invoiceId);
+  if (!invoice) return "That invoice no longer exists.";
+  if (invoice.deletedAt === null) return "That invoice has not been deleted.";
+
+  const standing = await readInvoices();
+  const spokenFor = invoicedJobIds(standing);
+  const clash = invoice.jobIds.filter((id) => spokenFor.has(id));
+  if (clash.length > 0) {
+    const other = standing.find((entry) =>
+      entry.jobIds.some((id) => clash.includes(id)),
+    );
+    return `${clash.length === 1 ? "A job" : `${clash.length} jobs`} on this invoice ${clash.length === 1 ? "has" : "have"} since been billed on invoice number ${other?.number ?? "another"}. Restoring this one would charge for the same work twice. Take ${clash.length === 1 ? "it" : "them"} off that invoice first.`;
+  }
+
+  try {
+    await updateInvoice(invoiceId, { deletedAt: null });
+  } catch (error) {
+    console.error("Could not restore the invoice", error);
+    return "Could not restore the invoice. Please try again.";
+  }
+
+  revalidatePath("/invoices");
+  revalidatePath(`/invoices/${invoiceId}`);
+  revalidatePath("/finance");
+  revalidatePath("/calendar");
+  revalidatePath("/dashboard");
+  redirect(`/invoices/${invoiceId}`);
 }

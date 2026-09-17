@@ -53,12 +53,19 @@ function toInvoice(raw: unknown): Invoice | null {
         ? record.paidDate
         : null,
     pdfSavedAt: typeof record.pdfSavedAt === "string" ? record.pdfSavedAt : null,
+    deletedAt: typeof record.deletedAt === "string" ? record.deletedAt : null,
     createdAt: text("createdAt") || new Date().toISOString(),
   };
 }
 
-/** Every invoice, newest number first. */
-export async function readInvoices(): Promise<Invoice[]> {
+/**
+ * Every invoice in the file, deleted ones included, newest number first.
+ *
+ * Only two things need this: working out the next number, which must step past
+ * a withdrawn invoice rather than reuse it, and writing the file back without
+ * dropping the deleted ones. Everywhere else wants readInvoices below.
+ */
+export async function readAllInvoices(): Promise<Invoice[]> {
   const rows = await readJsonList(FILE);
   return rows
     .map(toInvoice)
@@ -66,8 +73,27 @@ export async function readInvoices(): Promise<Invoice[]> {
     .sort((a, b) => b.number - a.number);
 }
 
+/**
+ * The invoices that stand, newest number first.
+ *
+ * Deleted ones are left out, which is what frees their jobs: nothing records
+ * on the job that it has been billed, so a job whose only invoice has been
+ * withdrawn goes back to waiting of its own accord.
+ */
+export async function readInvoices(): Promise<Invoice[]> {
+  return (await readAllInvoices()).filter((invoice) => invoice.deletedAt === null);
+}
+
+/** The withdrawn ones, most recently deleted first. */
+export async function readDeletedInvoices(): Promise<Invoice[]> {
+  return (await readAllInvoices())
+    .filter((invoice) => invoice.deletedAt !== null)
+    .sort((a, b) => (b.deletedAt as string).localeCompare(a.deletedAt as string));
+}
+
+/** One invoice by id, whether it stands or has been deleted. */
 export async function readInvoice(id: string): Promise<Invoice | null> {
-  const invoices = await readInvoices();
+  const invoices = await readAllInvoices();
   return invoices.find((invoice) => invoice.id === id) ?? null;
 }
 
@@ -75,6 +101,10 @@ export async function readInvoice(id: string): Promise<Invoice | null> {
  * The number the next invoice gets: one past the highest used so far, or the
  * starting number from settings where none have been raised yet. Worked out
  * from what exists rather than kept in a counter, so it cannot drift.
+ *
+ * Pass every invoice, deleted ones included. A withdrawn number is spent - two
+ * invoices carrying the same one is exactly the mess numbering exists to
+ * prevent.
  */
 export function nextInvoiceNumber(
   invoices: Invoice[],
@@ -95,7 +125,8 @@ export function invoicedJobIds(invoices: Invoice[]): Set<string> {
 export async function addInvoice(
   details: Omit<Invoice, "id" | "createdAt">,
 ): Promise<Invoice> {
-  const invoices = await readInvoices();
+  // Every invoice, so writing the file back does not drop the deleted ones.
+  const invoices = await readAllInvoices();
   const invoice: Invoice = {
     ...details,
     id: randomUUID(),
@@ -109,7 +140,9 @@ export async function updateInvoice(
   id: string,
   changes: Partial<Omit<Invoice, "id" | "number" | "createdAt">>,
 ): Promise<Invoice | null> {
-  const invoices = await readInvoices();
+  // Every invoice, for the same reason as above, and so a deleted one can be
+  // brought back.
+  const invoices = await readAllInvoices();
   const existing = invoices.find((invoice) => invoice.id === id);
   if (!existing) return null;
 

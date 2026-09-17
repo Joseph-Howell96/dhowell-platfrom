@@ -10,7 +10,7 @@ import { redirect } from "next/navigation";
 
 import { isValidISODate, monthKeyOf } from "./calendar";
 import { readCustomers } from "./customers";
-import { readInvoices, updateInvoice } from "./invoices";
+import { readAllInvoices, updateInvoice } from "./invoices";
 import { deleteSavedPdf, pdfFileName } from "./invoice-files";
 import { readSettings } from "./settings";
 import type { FormState } from "./form-state";
@@ -338,8 +338,10 @@ export async function saveJob(
 export async function removeJob(jobId: string): Promise<string | null> {
   if (jobId === "") return "Could not tell which job this is.";
 
+  // Every invoice, withdrawn ones included: a deleted invoice is kept to be
+  // looked at, so it should not be left naming a job that is not there.
   const [invoices, jobs, settings] = await Promise.all([
-    readInvoices(),
+    readAllInvoices(),
     readJobs(),
     readSettings(),
   ]);

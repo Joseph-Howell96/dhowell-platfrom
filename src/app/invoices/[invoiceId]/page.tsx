@@ -79,20 +79,43 @@ export default async function InvoicePage({
             <h1 className="text-2xl font-semibold tracking-tight">
               {formatInvoiceNumber(settings.invoiceNumberPrefix, invoice.number)}
             </h1>
-            <span
-              className={`rounded-full px-2.5 py-1 text-xs font-medium ${STANDING_CLASSES[standing]}`}
-            >
-              {STANDING_LABELS[standing]}
-              {standing === "overdue" ? ` · ${daysLate} days` : ""}
-            </span>
-            {invoice.paidDate ? (
-              <span className="text-sm text-muted">
-                paid {formatDateGB(invoice.paidDate)}
+            {invoice.deletedAt ? (
+              // A withdrawn invoice has no standing - it is not due, overdue
+              // or paid, because it is not owed.
+              <span className="rounded-full bg-danger-soft px-2.5 py-1 text-xs font-medium text-danger">
+                Deleted
               </span>
-            ) : null}
+            ) : (
+              <>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${STANDING_CLASSES[standing]}`}
+                >
+                  {STANDING_LABELS[standing]}
+                  {standing === "overdue" ? ` · ${daysLate} days` : ""}
+                </span>
+                {invoice.paidDate ? (
+                  <span className="text-sm text-muted">
+                    paid {formatDateGB(invoice.paidDate)}
+                  </span>
+                ) : null}
+              </>
+            )}
           </div>
-          <InvoiceActions invoiceId={invoice.id} status={invoice.status} />
+          <InvoiceActions
+            invoiceId={invoice.id}
+            status={invoice.status}
+            deleted={invoice.deletedAt !== null}
+          />
         </div>
+
+        {invoice.deletedAt ? (
+          <p className="mb-8 rounded-lg border border-danger/40 bg-danger-soft px-4 py-3 text-sm text-danger">
+            This invoice was deleted on{" "}
+            {formatDateGB(invoice.deletedAt.slice(0, 10))}. It is kept for the
+            record, out of what is owed, and its number will not be used again.
+            The jobs it covered have gone back to waiting to be invoiced.
+          </p>
+        ) : null}
       </div>
 
       {/* The document. White on black is unreadable on paper, so it is plain

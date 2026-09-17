@@ -543,5 +543,17 @@ export type Invoice = {
    * so what the client received is what stays on record.
    */
   pdfSavedAt: string | null;
+  /**
+   * When the invoice was deleted, as an ISO timestamp, or null while it stands.
+   *
+   * Deleting an invoice does not remove it. It is set aside, out of the money
+   * owed and off the client's list, but still there to look at - an invoice
+   * number that was issued and then withdrawn is a thing a bookkeeper has to
+   * be able to account for. The number is never given to another invoice.
+   *
+   * The jobs it covered are freed by this: nothing else records that a job has
+   * been billed, so a job on a deleted invoice goes back to waiting.
+   */
+  deletedAt: string | null;
   createdAt: string;
 };

@@ -16,7 +16,7 @@ import {
 import { todayISO } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
 import { daysBetween, formatDateGB } from "@/lib/dates";
-import { readInvoices } from "@/lib/invoices";
+import { readDeletedInvoices, readInvoices } from "@/lib/invoices";
 import { formatInvoiceNumber, invoiceGrossPence } from "@/lib/invoicing";
 import { readJobs } from "@/lib/jobs";
 import { formatPence } from "@/lib/money";
@@ -76,13 +76,15 @@ export default async function FinancePage({
   await connection();
 
   const today = todayISO();
-  const [jobs, customers, outlets, settings, invoices] = await Promise.all([
-    readJobs(),
-    readCustomers(),
-    readOutlets(),
-    readSettings(),
-    readInvoices(),
-  ]);
+  const [jobs, customers, outlets, settings, invoices, deleted] =
+    await Promise.all([
+      readJobs(),
+      readCustomers(),
+      readOutlets(),
+      readSettings(),
+      readInvoices(),
+      readDeletedInvoices(),
+    ]);
   const clientsById = new Map(customers.map((c) => [c.id, c]));
   const outletsById = new Map(outlets.map((o) => [o.id, o]));
   const jobsById = new Map(jobs.map((job) => [job.id, job]));
@@ -162,6 +164,27 @@ export default async function FinancePage({
     .filter((row) => row.standing !== "paid");
   const unpaidTotal = unpaid.reduce((sum, row) => sum + row.grossPence, 0);
   const overdueCount = unpaid.filter((row) => row.standing === "overdue").length;
+
+  /**
+   * Invoices that were withdrawn. Kept out of everything above - they are not
+   * owed, not overdue and not part of the year's takings - but kept, because a
+   * number that went out and was taken back is something to be able to explain.
+   */
+  const deletedRows = deleted.map((invoice) => {
+    const client = clientsById.get(invoice.customerId);
+    return {
+      invoice,
+      reference: formatInvoiceNumber(settings.invoiceNumberPrefix, invoice.number),
+      clientName: client?.businessName ?? "Unknown client",
+      grossPence: invoiceGrossPence(
+        invoice,
+        jobsById,
+        client,
+        settings.vatPercent,
+      ),
+      deletedOn: (invoice.deletedAt as string).slice(0, 10),
+    };
+  });
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-10 lg:px-10">
@@ -397,6 +420,53 @@ export default async function FinancePage({
           </div>
         )}
       </section>
+
+      {deletedRows.length > 0 ? (
+        <section className="mt-10">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold">Deleted invoices</h2>
+            <p className="text-sm text-muted">
+              {deletedRows.length}{" "}
+              {deletedRows.length === 1 ? "invoice" : "invoices"} withdrawn, not
+              counted anywhere above
+            </p>
+          </div>
+
+          <div className="overflow-hidden rounded-xl border border-dashed border-line bg-surface">
+            <ul className="divide-y divide-line">
+              {deletedRows.map((row) => (
+                <li
+                  key={row.invoice.id}
+                  className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm text-muted"
+                >
+                  <span className="w-28 shrink-0 font-medium tabular-nums line-through">
+                    {row.reference}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{row.clientName}</span>
+                  <span className="w-24 shrink-0 tabular-nums">
+                    {formatPence(row.grossPence)}
+                  </span>
+                  <span className="w-40 shrink-0 text-xs">
+                    deleted {formatDateGB(row.deletedOn)}
+                  </span>
+                  <Link
+                    href={`/invoices/${row.invoice.id}`}
+                    className="shrink-0 transition-colors hover:text-ink"
+                  >
+                    Open
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="mt-2 text-xs text-muted">
+            A deleted invoice keeps its number, which is never given to another
+            one. The jobs it covered have gone back to waiting to be invoiced.
+            Open one to put it back.
+          </p>
+        </section>
+      ) : null}
 
       <p className="mt-8 text-xs text-muted">
         Nothing on this page is stored. Amounts are worked out from each
