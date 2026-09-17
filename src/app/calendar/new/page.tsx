@@ -67,7 +67,6 @@ export default async function NewJobPage({
           submitLabel="Book job"
           cancelHref={`/calendar?month=${monthKeyOf(date)}`}
           defaultDate={date}
-          today={todayISO()}
         />
       )}
     </main>

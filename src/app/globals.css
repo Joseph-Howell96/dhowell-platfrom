@@ -6,7 +6,7 @@
  * list, so changing a value here changes it everywhere.
  */
 :root {
-  --canvas: #0e1110; /* the page behind everything */
+  --canvas: #000000; /* the page behind everything: true black */
   --surface: #161a19; /* cards, tables, the sidebar */
   --elevated: #1d2321; /* inputs and anything sitting on a card */
   --line: #272d2b; /* the subtle borders between things */
@@ -18,8 +18,9 @@
   --danger: #f87171;
   --danger-soft: rgba(248, 113, 113, 0.12);
 
-  /* Job statuses, in the order work moves through them. The colours run from
-     blue (just booked) to green (invoiced and done). */
+  /* The four job statuses, in the order work moves through them: blue when it
+     is only in the diary, then violet, amber and green as it is weighed,
+     checked off and billed. Nothing else uses these. */
   --booked: #60a5fa; /* blue */
   --booked-soft: rgba(96, 165, 250, 0.16);
   --weighed: #a78bfa; /* violet */
@@ -30,10 +31,6 @@
   --attention-soft: rgba(251, 191, 36, 0.16);
   --sent: #22c55e; /* green */
   --sent-soft: rgba(34, 197, 94, 0.16);
-  --po: #22d3ee; /* cyan - purchase order out */
-  --po-soft: rgba(34, 211, 238, 0.16);
-  --paid: #94a3b8; /* slate - settled, nothing outstanding */
-  --paid-soft: rgba(148, 163, 184, 0.16);
 
   /* The two series on the dashboard chart. Checked for colour-blind
      separation against this background rather than picked by eye. */
@@ -45,9 +42,9 @@
      them, edged in a faint green-tinted line. Only the FILL is see-through -
      text keeps its own colour at full strength everywhere, which is why the
      ink and muted values above are untouched. */
-  --glass: rgba(44, 56, 52, 0.42); /* ordinary cards */
-  --glass-deep: rgba(52, 68, 62, 0.34); /* the dashboard, where it goes furthest */
-  --glass-solid: rgba(22, 28, 26, 0.88); /* tables and forms, kept near-opaque */
+  --glass: rgba(52, 66, 61, 0.40); /* ordinary cards */
+  --glass-deep: rgba(62, 80, 73, 0.32); /* the dashboard, where it goes furthest */
+  --glass-solid: rgba(20, 26, 24, 0.9); /* tables and forms, kept near-opaque */
   --glass-line: rgba(120, 230, 165, 0.22); /* the edge, green by a hair */
   --glass-line-lit: rgba(74, 222, 128, 0.6); /* the same edge under the cursor */
   --glass-top: rgba(255, 255, 255, 0.09); /* the highlight along the top edge */
@@ -82,10 +79,6 @@
   --color-attention-soft: var(--attention-soft);
   --color-sent: var(--sent);
   --color-sent-soft: var(--sent-soft);
-  --color-po: var(--po);
-  --color-po-soft: var(--po-soft);
-  --color-paid: var(--paid);
-  --color-paid-soft: var(--paid-soft);
   --color-series-revenue: var(--series-revenue);
   --color-series-profit: var(--series-profit);
   --color-grid: var(--grid);
@@ -143,7 +136,7 @@ body::before {
       rgba(120, 90, 230, 0.1),
       transparent 62%
     ),
-    linear-gradient(165deg, #0a1512 0%, #0c1211 38%, #080c0b 72%, #0a100e 100%);
+    linear-gradient(165deg, #04100b 0%, #000000 42%, #000000 74%, #030a07 100%);
 }
 
 /**
@@ -295,12 +288,12 @@ body::before {
 }
 
 .cal-cell {
-  background: rgba(28, 35, 32, 0.74);
+  background: rgba(24, 31, 28, 0.86);
 }
 
 /* The days either side of the month, sunk a shade to read as not-this-month. */
 .cal-cell-out {
-  background: rgba(12, 16, 15, 0.6);
+  background: rgba(0, 0, 0, 0.55);
 }
 
 /* Paper has no gradient behind it and no glass on it. */

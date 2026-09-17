@@ -10,7 +10,6 @@ import { randomUUID } from "node:crypto";
 import { isValidISODate } from "./calendar";
 import { readJsonList, writeJsonList } from "./store";
 import {
-  isStatusValidFor,
   isWeighedOrLater,
   JOB_DIRECTIONS,
   JOB_STATUSES,
@@ -39,6 +38,12 @@ const RENAMED_STATUSES: Record<string, JobStatus> = {
   invoiced: "complete",
   "generate-invoice": "complete",
   "invoice-sent": "complete",
+  // Raising an order to pay a client, and paying it, are no longer statuses -
+  // they are fields on a rebate job. A job that had reached either had been
+  // checked off, which is where it lands. The order number and its dates are
+  // read straight off the record and are not touched by this.
+  "po-raised": "complete",
+  paid: "complete",
 };
 
 function toStatus(value: unknown): JobStatus | null {
@@ -101,16 +106,12 @@ function toJob(raw: unknown): Job | null {
   const direction = toDirection(record.direction) ?? "sale";
 
   const status = toStatus(record.status) ?? "booked";
-  // A status from the other path cannot apply here. Falling back to the start
-  // of this one is the safe answer: it understates progress rather than
+  // Everything from "weighed" onwards is a claim about a figure, and a record
+  // making that claim without the figure is not one to believe, however it got
+  // into the file. Falling back to the start understates progress rather than
   // claiming a job was signed off when it was not.
-  //
-  // The same goes for a weight. Everything from "weighed" onwards is a claim
-  // about a figure, and a record making that claim without the figure is not
-  // one to believe, however it got into the file.
-  const onThisPath = isStatusValidFor(status, direction) ? status : "booked";
   const safeStatus =
-    isWeighedOrLater(onThisPath) && weightKg === null ? "booked" : onThisPath;
+    isWeighedOrLater(status) && weightKg === null ? "booked" : status;
 
   return {
     id: typeof record.id === "string" ? record.id : randomUUID(),

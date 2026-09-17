@@ -33,12 +33,17 @@ export default function Sidebar() {
   return (
     <aside className="glass-rail sticky top-0 flex h-screen w-16 shrink-0 flex-col lg:w-60">
       <div className="flex h-16 items-center gap-3 border-b border-line px-3 lg:px-5">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent text-base font-bold text-canvas">
+        {/* Black tile, green letter, green ring. The name beside it is the
+            only thing on any screen lit up as a matter of course rather than
+            because a figure needs looking at. */}
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-accent/50 bg-black text-base font-bold text-accent shadow-[0_0_18px_-4px_rgba(34,197,94,0.55)]">
           D
         </span>
         {/* The wordmark is hidden on narrow screens, where only icons fit. */}
         <span className="hidden min-w-0 lg:block">
-          <span className="block truncate text-sm font-semibold">Dennis</span>
+          <span className="neon block truncate text-sm font-semibold tracking-wide text-accent">
+            Dennis
+          </span>
           <span className="block truncate text-xs text-muted">
             D Howell &amp; Sons
           </span>

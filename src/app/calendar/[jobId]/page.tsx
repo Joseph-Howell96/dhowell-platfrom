@@ -106,7 +106,6 @@ export default async function JobPage({
         submitLabel="Save changes"
         cancelHref={`/calendar?month=${monthKeyOf(job.date)}`}
         job={job}
-        today={today}
         invoice={invoice}
       />
     </main>

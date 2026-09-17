@@ -127,66 +127,20 @@ export function directionForRate(rateDirection: Direction): JobDirection {
 }
 
 /**
- * The run of work for a job we are invoicing out.
+ * The run of work on a job. Three, and the same three whichever way the money
+ * goes: it is in the diary, it has been weighed, someone has checked it off.
  *
- * In the diary, weighed, then checked and signed off as complete. Whether it
- * has been billed is not recorded here. A job is invoiced because it appears
- * on an invoice, and that is the only place it is written down.
+ * Whether it has been billed is not one of them. A job is invoiced because it
+ * appears on an invoice, and that is the only place it is written down.
+ *
+ * Raising a purchase order to pay a client for their material is not a status
+ * either. It is paperwork that follows a job being checked off, so the order
+ * number and its dates are fields on a rebate job rather than steps it moves
+ * through - a job does not become less done for an order not being raised yet.
  */
-export const SALE_STATUSES = ["booked", "weighed", "complete"] as const;
-
-/**
- * The run of work for material we are buying off the client and selling on.
- * Money going out: do the job, weigh it, check it, raise a purchase order,
- * pay them. The same sign-off as a sale, for the same reason - nothing leaves
- * the office on a figure nobody has looked at.
- */
-export const PURCHASE_STATUSES = [
-  "booked",
-  "weighed",
-  "complete",
-  "po-raised",
-  "paid",
-] as const;
-
-/** Every status either path can use. */
-export const JOB_STATUSES = [
-  "booked",
-  "weighed",
-  "complete",
-  "po-raised",
-  "paid",
-] as const;
+export const JOB_STATUSES = ["booked", "weighed", "complete"] as const;
 
 export type JobStatus = (typeof JOB_STATUSES)[number];
-
-/** The statuses a job of this kind moves through, in order. */
-export function statusesFor(direction: JobDirection): readonly JobStatus[] {
-  return direction === "sale" ? SALE_STATUSES : PURCHASE_STATUSES;
-}
-
-export function isStatusValidFor(
-  status: JobStatus,
-  direction: JobDirection,
-): boolean {
-  return statusesFor(direction).includes(status);
-}
-
-/**
- * Where a job lands when it is switched between a sale and a purchase.
- *
- * Booked, weighed and complete mean the same on both paths, so they carry
- * across. The purchase-only steps have no sale equivalent - there is no
- * purchase order on a job we are invoicing - so those fall back to complete,
- * which is as far along as a sale job goes on its own.
- */
-export function equivalentStatus(
-  status: JobStatus,
-  newDirection: JobDirection,
-): JobStatus {
-  if (isStatusValidFor(status, newDirection)) return status;
-  return "complete";
-}
 
 /**
  * How a job reads once whether it has been billed is taken into account.
@@ -199,8 +153,6 @@ export const JOB_STANDINGS = [
   "weighed",
   "complete",
   "invoiced",
-  "po-raised",
-  "paid",
 ] as const;
 
 export type JobStanding = (typeof JOB_STANDINGS)[number];
@@ -210,17 +162,17 @@ export const JOB_STANDING_LABELS: Record<JobStanding, string> = {
   weighed: "Weighed",
   complete: "Complete",
   invoiced: "Invoiced",
-  "po-raised": "PO raised",
-  paid: "Paid",
 };
 
+/**
+ * The colour each one shows in, running blue to green as the work moves along.
+ * The actual colours live in globals.css; these are the names that point there.
+ */
 export const JOB_STANDING_CLASSES: Record<JobStanding, string> = {
   booked: "bg-booked-soft text-booked",
   weighed: "bg-weighed-soft text-weighed",
   complete: "bg-attention-soft text-attention",
   invoiced: "bg-sent-soft text-sent",
-  "po-raised": "bg-po-soft text-po",
-  paid: "bg-paid-soft text-paid",
 };
 
 /** Where a job reads, given whether it is on an invoice. */
@@ -232,16 +184,12 @@ export const STATUS_LABELS: Record<JobStatus, string> = {
   booked: "Booked",
   weighed: "Weighed",
   complete: "Complete",
-  "po-raised": "PO raised",
-  paid: "Paid",
 };
 
 export const STATUS_HINTS: Record<JobStatus, string> = {
   booked: "In the diary, not done yet",
   weighed: "Weighbridge ticket in, not checked",
   complete: "Checked and ready to invoice",
-  "po-raised": "Order out to them, not paid yet",
-  paid: "We have paid them",
 };
 
 /**
@@ -256,16 +204,15 @@ export function isWeighedOrLater(status: JobStatus): boolean {
 }
 
 /**
- * Statuses a job has been signed off at.
+ * Has this job been signed off?
  *
  * "Complete" is the point someone has checked the ticket and said the figures
- * are right. Nothing is invoiced or paid before that, which is the whole point
- * of having the step: a weight on its own is a weighbridge reading, not a
- * decision. The later statuses count too, because a job cannot reach them
- * without having passed through it.
+ * are right. Nothing is invoiced before that, which is the whole point of
+ * having the step: a weight on its own is a weighbridge reading, not a
+ * decision.
  */
 export function isCompleteOrLater(status: JobStatus): boolean {
-  return status !== "booked" && status !== "weighed";
+  return status === "complete";
 }
 
 /**
@@ -277,8 +224,6 @@ export const STATUS_CLASSES: Record<JobStatus, string> = {
   booked: "bg-booked-soft text-booked",
   weighed: "bg-weighed-soft text-weighed",
   complete: "bg-attention-soft text-attention",
-  "po-raised": "bg-po-soft text-po",
-  paid: "bg-paid-soft text-paid",
 };
 
 /** The materials a job can be for. "Other" lets you type your own. */
@@ -338,7 +283,8 @@ export type Job = {
    */
   chargeHaulage: boolean;
 
-  /* Purchase side. All stay null on a sale. */
+  /* Purchase side. All stay null on a sale, and none of them is a status:
+     they are the paperwork that follows a rebate job being checked off. */
   /** Our purchase order number, given to the client we are buying from. */
   supplierPO: string | null;
   /** The day that order was raised, which their payment terms run from. */
@@ -468,18 +414,6 @@ export function materialCode(material: string): string {
 export const INVOICE_STATUSES = ["draft", "sent", "paid"] as const;
 
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
-
-export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
-  draft: "Draft",
-  sent: "Sent",
-  paid: "Paid",
-};
-
-export const INVOICE_STATUS_CLASSES: Record<InvoiceStatus, string> = {
-  draft: "bg-elevated text-muted",
-  sent: "bg-sent-soft text-sent",
-  paid: "bg-paid-soft text-paid",
-};
 
 /**
  * How an invoice reads on screen.

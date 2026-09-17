@@ -18,16 +18,14 @@ import { EMPTY_FORM_STATE, type FormState } from "@/lib/form-state";
 import {
   directionForRate,
   DIRECTION_JOB_LABELS,
-  equivalentStatus,
   isWeighedOrLater,
   JOB_DIRECTIONS,
   JOB_MATERIALS,
   isCompleteOrLater,
-  isStatusValidFor,
   JOB_STANDING_CLASSES,
   JOB_STANDING_LABELS,
+  JOB_STATUSES,
   SKIP_SIZES,
-  statusesFor,
   STATUS_CLASSES,
   STATUS_HINTS,
   STATUS_LABELS,
@@ -77,8 +75,6 @@ type Props = {
   job?: Job;
   /** Which day was clicked on the calendar, for a new job. */
   defaultDate?: string;
-  /** Today's date, worked out on the server so both sides agree on it. */
-  today: string;
   /** The invoice this job is on, or nothing while it has not been billed. */
   invoice?: JobInvoice | null;
 };
@@ -91,7 +87,6 @@ export default function JobForm({
   cancelHref,
   job,
   defaultDate,
-  today,
   invoice,
 }: Props) {
   const [state, formAction, pending] = useActionState(action, EMPTY_FORM_STATE);
@@ -144,15 +139,11 @@ export default function JobForm({
   );
 
   /**
-   * Switching between a sale and a purchase changes which statuses apply, so a
-   * job already part-way along moves to the matching point on the other path
-   * rather than dropping back to the beginning.
+   * Switching between a sale and a purchase. Both run through the same three
+   * statuses now, so where the job has got to carries across untouched.
    */
   function chooseDirection(next: JobDirection) {
     setDirection(next);
-    if (!isStatusValidFor(status, next)) {
-      setStatus(equivalentStatus(status, next));
-    }
   }
 
   /**
@@ -175,21 +166,6 @@ export default function JobForm({
    * works the moment the weighbridge figure is typed in, without saving first.
    */
   const hasWeight = parseTonnesToKg(weightTonnes) !== null;
-
-  /**
-   * Set the status, filling in the dates that go with it. Each of those is
-   * nearly always today, so it is filled in and can be changed for anything
-   * recorded after the event.
-   */
-  function chooseStatus(next: JobStatus) {
-    setStatus(next);
-    if ((next === "po-raised" || next === "paid") && poRaisedDate === "") {
-      setPoRaisedDate(today);
-    }
-    if (next === "paid" && paidDate === "") {
-      setPaidDate(today);
-    }
-  }
 
   /**
    * What we owe this client runs on their own agreed terms, taken from their
@@ -512,12 +488,8 @@ export default function JobForm({
         {/* A hidden field carries the choice, so the buttons below are just a
             nicer way of picking one of the few values this job can be at. */}
         <input type="hidden" name="status" value={status} />
-        <div
-          className={`grid gap-2 ${
-            direction === "sale" ? "sm:grid-cols-3" : "sm:grid-cols-5"
-          }`}
-        >
-          {statusesFor(direction).map((option) => {
+        <div className="grid gap-2 sm:grid-cols-3">
+          {JOB_STATUSES.map((option) => {
             const chosen = status === option;
             // Everything from "complete" on is a statement about a figure, so
             // it cannot be picked until there is a figure. The server refuses
@@ -527,7 +499,7 @@ export default function JobForm({
               <button
                 key={option}
                 type="button"
-                onClick={() => chooseStatus(option)}
+                onClick={() => setStatus(option)}
                 aria-pressed={chosen}
                 disabled={blocked}
                 title={
@@ -651,12 +623,23 @@ export default function JobForm({
           </div>
         ) : null}
 
-        {status === "po-raised" || status === "paid" ? (
+        {/* Paying the client for their material. Not part of the run of work
+            above - the job is done when it is checked off, whether or not the
+            order has gone out yet - so all of this is optional and filled in
+            as it happens. */}
+        {direction === "purchase" && status === "complete" ? (
           <div className="space-y-4 border-t border-line pt-4">
+            <p className="text-sm font-medium">
+              Paying the client{" "}
+              <span className="font-normal text-muted">
+                (fill in as it happens)
+              </span>
+            </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className={labelClass} htmlFor="supplierPO">
-                  Our PO number
+                  Our PO number{" "}
+                  <span className="font-normal text-muted">(optional)</span>
                 </label>
                 <input
                   id="supplierPO"
@@ -672,7 +655,8 @@ export default function JobForm({
               </div>
               <div>
                 <label className={labelClass} htmlFor="poRaisedDate">
-                  Date PO raised
+                  Date PO raised{" "}
+                  <span className="font-normal text-muted">(optional)</span>
                 </label>
                 <input
                   id="poRaisedDate"
@@ -708,24 +692,25 @@ export default function JobForm({
               />
             </div>
 
-            {status === "paid" ? (
-              <div>
-                <label className={labelClass} htmlFor="paidDate">
-                  Date paid
-                </label>
-                <input
-                  id="paidDate"
-                  name="paidDate"
-                  type="date"
-                  className={`${inputClass} sm:max-w-[14rem]`}
-                  value={paidDate}
-                  onChange={(event) => setPaidDate(event.target.value)}
-                />
-                {state.fieldErrors.paidDate ? (
-                  <p className={errorClass}>{state.fieldErrors.paidDate}</p>
-                ) : null}
-              </div>
-            ) : null}
+            <div>
+              <label className={labelClass} htmlFor="paidDate">
+                Date paid{" "}
+                <span className="font-normal text-muted">
+                  (leave blank until it is)
+                </span>
+              </label>
+              <input
+                id="paidDate"
+                name="paidDate"
+                type="date"
+                className={`${inputClass} sm:max-w-[14rem]`}
+                value={paidDate}
+                onChange={(event) => setPaidDate(event.target.value)}
+              />
+              {state.fieldErrors.paidDate ? (
+                <p className={errorClass}>{state.fieldErrors.paidDate}</p>
+              ) : null}
+            </div>
           </div>
         ) : null}
 

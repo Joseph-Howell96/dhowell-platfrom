@@ -16,7 +16,6 @@ import { readSettings } from "./settings";
 import type { FormState } from "./form-state";
 import { addJob, deleteJob, readJobs, updateJob } from "./jobs";
 import {
-  isStatusValidFor,
   isWeighedOrLater,
   JOB_DIRECTIONS,
   JOB_STATUSES,
@@ -110,12 +109,8 @@ async function parseJob(
   const direction = directionValue as JobDirection;
 
   const statusValue = text(formData, "status") || "booked";
-  // The status has to belong to this job's path: a sale cannot be at
-  // "PO raised" or "paid", which are steps on the buying side only.
-  const statusIsKnown =
-    JOB_STATUSES.includes(statusValue as JobStatus) &&
-    directionIsKnown &&
-    isStatusValidFor(statusValue as JobStatus, direction);
+  // Three statuses, the same three whichever way the money goes.
+  const statusIsKnown = JOB_STATUSES.includes(statusValue as JobStatus);
   if (!statusIsKnown) {
     fieldErrors.status = "Choose a status.";
   }
@@ -143,13 +138,10 @@ async function parseJob(
     }
   }
 
-  /** A date field that has to be filled in and has to be a real date. */
-  function requiredDate(name: string, missingMessage: string): string | null {
+  /** A date box that may be left blank, but must be a real date if filled. */
+  function optionalDate(name: string): string | null {
     const value = text(formData, name);
-    if (value === "") {
-      fieldErrors[name] = missingMessage;
-      return null;
-    }
+    if (value === "") return null;
     if (!isValidISODate(value)) {
       fieldErrors[name] = "That is not a real date.";
       return null;
@@ -157,29 +149,19 @@ async function parseJob(
     return value;
   }
 
-  // Purchase side. The order number and its date are needed from the moment an
-  // order goes out, and stay on the job after it has been paid.
+  // Purchase side. The order we raise to pay the client for their material,
+  // asked for once a rebate job has been checked off. All of it is optional:
+  // the order goes out when it goes out, and the job is done either way.
   let supplierPO: string | null = null;
   let poRaisedDate: string | null = null;
   let supplierInvoiceRef: string | null = null;
   let paidDate: string | null = null;
 
-  if (statusIsKnown && (status === "po-raised" || status === "paid")) {
-    supplierPO = text(formData, "supplierPO");
-    if (supplierPO === "") {
-      fieldErrors.supplierPO = "Enter the purchase order number.";
-      supplierPO = null;
-    }
-    poRaisedDate = requiredDate(
-      "poRaisedDate",
-      "Enter the date the order was raised.",
-    );
-    // Optional: there is no supplier invoice at all when we self-bill.
+  if (statusIsKnown && direction === "purchase" && status === "complete") {
+    supplierPO = text(formData, "supplierPO") || null;
+    poRaisedDate = optionalDate("poRaisedDate");
     supplierInvoiceRef = text(formData, "supplierInvoiceRef") || null;
-  }
-
-  if (statusIsKnown && status === "paid") {
-    paidDate = requiredDate("paidDate", "Enter the date they were paid.");
+    paidDate = optionalDate("paidDate");
   }
 
   /** An optional money box: blank is allowed, nonsense is not. */
