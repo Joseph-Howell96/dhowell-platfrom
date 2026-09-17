@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "u-joseph",
+    "username": "joseph",
+    "displayName": "Joseph Howell",
+    "role": "admin",
+    "createdAt": "2026-08-01T09:00:00.000Z"
+  },
+  {
+    "id": "u-office",
+    "username": "office",
+    "displayName": "Office",
+    "role": "standard",
+    "createdAt": "2026-08-01T09:00:00.000Z"
+  }
+]

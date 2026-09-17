@@ -1,1 +1,92 @@
-[]
+[
+  {
+    "id": "c-aldgate",
+    "businessName": "Aldgate Interiors Ltd",
+    "contactName": "Sarah Deakin",
+    "siteAddress": "14 Leman Street\nLondon E1 8EN",
+    "billingAddress": "",
+    "phone": "020 7000 0001",
+    "email": "sarah@example.co.uk",
+    "paymentTermsDays": 30,
+    "notes": "",
+    "haulageFeePence": 8500,
+    "rateLines": [
+      {
+        "id": "c-aldgate-r1",
+        "material": "General rubbish",
+        "ratePerTonnePence": 14500,
+        "direction": "charge"
+      },
+      {
+        "id": "c-aldgate-r2",
+        "material": "Wood",
+        "ratePerTonnePence": 12000,
+        "direction": "charge"
+      },
+      {
+        "id": "c-aldgate-r3",
+        "material": "Mixed paper",
+        "ratePerTonnePence": 5500,
+        "direction": "pay"
+      }
+    ],
+    "archivedAt": null,
+    "createdAt": "2026-08-01T09:00:00.000Z"
+  },
+  {
+    "id": "c-bermondsey",
+    "businessName": "Bermondsey Fit-Out Co",
+    "contactName": "Tom Reilly",
+    "siteAddress": "72 Tower Bridge Road\nLondon SE1 4TR",
+    "billingAddress": "",
+    "phone": "020 7000 0002",
+    "email": "tom@example.co.uk",
+    "paymentTermsDays": 30,
+    "notes": "",
+    "haulageFeePence": 9500,
+    "rateLines": [
+      {
+        "id": "c-bermondsey-r1",
+        "material": "General rubbish",
+        "ratePerTonnePence": 13900,
+        "direction": "charge"
+      },
+      {
+        "id": "c-bermondsey-r2",
+        "material": "Corex",
+        "ratePerTonnePence": 11000,
+        "direction": "charge"
+      }
+    ],
+    "archivedAt": null,
+    "createdAt": "2026-08-01T09:00:00.000Z"
+  },
+  {
+    "id": "c-croydon",
+    "businessName": "Croydon Office Group",
+    "contactName": "Priya Nair",
+    "siteAddress": "3 Wellesley Road\nCroydon CR0 2AG",
+    "billingAddress": "",
+    "phone": "020 8000 0003",
+    "email": "priya@example.co.uk",
+    "paymentTermsDays": 30,
+    "notes": "",
+    "haulageFeePence": 7500,
+    "rateLines": [
+      {
+        "id": "c-croydon-r1",
+        "material": "General rubbish",
+        "ratePerTonnePence": 15000,
+        "direction": "charge"
+      },
+      {
+        "id": "c-croydon-r2",
+        "material": "Wood",
+        "ratePerTonnePence": 12500,
+        "direction": "charge"
+      }
+    ],
+    "archivedAt": null,
+    "createdAt": "2026-08-01T09:00:00.000Z"
+  }
+]

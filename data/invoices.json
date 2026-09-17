@@ -1,1 +1,48 @@
-[]
+[
+  {
+    "id": "i-1003",
+    "number": 1003,
+    "customerId": "c-bermondsey",
+    "issueDate": "2026-09-12",
+    "customerPO": "",
+    "jobIds": [
+      "j-ber-1"
+    ],
+    "status": "sent",
+    "paidDate": null,
+    "pdfSavedAt": null,
+    "deletedAt": null,
+    "createdAt": "2026-08-01T09:00:00.000Z"
+  },
+  {
+    "id": "i-1002",
+    "number": 1002,
+    "customerId": "c-aldgate",
+    "issueDate": "2026-09-12",
+    "customerPO": "",
+    "jobIds": [
+      "j-ald-1",
+      "j-ald-2"
+    ],
+    "status": "paid",
+    "paidDate": "2026-09-16",
+    "pdfSavedAt": "2026-09-17T22:04:40.883Z",
+    "deletedAt": null,
+    "createdAt": "2026-08-01T09:00:00.000Z"
+  },
+  {
+    "id": "i-1001",
+    "number": 1001,
+    "customerId": "c-croydon",
+    "issueDate": "2026-08-08",
+    "customerPO": "",
+    "jobIds": [
+      "j-cro-1"
+    ],
+    "status": "sent",
+    "paidDate": null,
+    "pdfSavedAt": null,
+    "deletedAt": null,
+    "createdAt": "2026-08-01T09:00:00.000Z"
+  }
+]
