@@ -14,12 +14,14 @@ import {
   ClientsIcon,
   DashboardIcon,
   FinanceIcon,
+  OutletsIcon,
   SettingsIcon,
 } from "./icons";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
   { href: "/clients", label: "Clients", Icon: ClientsIcon },
+  { href: "/outlets", label: "Outlets", Icon: OutletsIcon },
   { href: "/calendar", label: "Calendar", Icon: CalendarIcon },
   { href: "/finance", label: "Finance", Icon: FinanceIcon },
   { href: "/settings", label: "Settings", Icon: SettingsIcon },

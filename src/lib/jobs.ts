@@ -113,6 +113,8 @@ function toJob(raw: unknown): Job | null {
     poRaisedDate: optionalDate("poRaisedDate"),
     supplierInvoiceRef: optionalText("supplierInvoiceRef"),
     paidDate: optionalDate("paidDate"),
+    outletId: optionalText("outletId"),
+    haulageCostPence: optionalPence("haulageCostPence"),
     disposalCostPence: optionalPence("disposalCostPence"),
     onwardSalePence: optionalPence("onwardSalePence"),
     createdAt: text("createdAt") || new Date().toISOString(),

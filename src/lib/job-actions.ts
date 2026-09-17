@@ -46,6 +46,8 @@ type ParsedJob = {
   paidDate: string | null;
   disposalCostPence: number | null;
   onwardSalePence: number | null;
+  outletId: string | null;
+  haulageCostPence: number | null;
 };
 
 /**
@@ -201,6 +203,13 @@ async function parseJob(
       ? optionalMoney("onwardSale")
       : null;
 
+  // Where a rebate load went, and what it cost to get it there. Both only
+  // apply to rebate jobs, and both are optional.
+  const isRebate = statusIsKnown && direction === "purchase";
+  const outletId = isRebate ? text(formData, "outletId") || null : null;
+  const haulageCostPence =
+    isRebate && isWeighedOrLater(status) ? optionalMoney("haulageCost") : null;
+
   if (Object.keys(fieldErrors).length > 0) {
     return { errors: fieldErrors, job: null };
   }
@@ -224,6 +233,8 @@ async function parseJob(
       paidDate,
       disposalCostPence,
       onwardSalePence,
+      outletId,
+      haulageCostPence,
     },
   };
 }

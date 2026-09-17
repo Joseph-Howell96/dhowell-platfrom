@@ -32,6 +32,7 @@ import {
   type Job,
   type JobDirection,
   type JobStatus,
+  type Outlet,
 } from "@/lib/types";
 import { penceToInputValue } from "@/lib/money";
 import { kgToInputValue } from "@/lib/weight";
@@ -50,6 +51,8 @@ const cardClass = "space-y-4 rounded-xl border border-line bg-surface p-6";
 type Props = {
   /** The clients a job can be booked against. */
   customers: Customer[];
+  /** The reprocessors a rebate load can be sent to. */
+  outlets: Outlet[];
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   submitLabel: string;
   cancelHref: string;
@@ -63,6 +66,7 @@ type Props = {
 
 export default function JobForm({
   customers,
+  outlets,
   action,
   submitLabel,
   cancelHref,
@@ -113,6 +117,10 @@ export default function JobForm({
   );
   const [onwardSale, setOnwardSale] = useState(
     job?.onwardSalePence != null ? penceToInputValue(job.onwardSalePence) : "",
+  );
+  const [outletId, setOutletId] = useState(job?.outletId ?? "");
+  const [haulageCost, setHaulageCost] = useState(
+    job?.haulageCostPence != null ? penceToInputValue(job.haulageCostPence) : "",
   );
 
   /**
@@ -259,6 +267,35 @@ export default function JobForm({
             <p className={errorClass}>{state.fieldErrors.siteAddress}</p>
           ) : null}
         </div>
+
+        {/* Only a rebate load goes to an outlet - a charge job goes to the tip. */}
+        {direction === "purchase" ? (
+          <div>
+            <label className={labelClass} htmlFor="outletId">
+              Outlet{" "}
+              <span className="font-normal text-muted">(optional)</span>
+            </label>
+            <Select
+              id="outletId"
+              name="outletId"
+              className={inputClass}
+              value={outletId}
+              onChange={(event) => setOutletId(event.target.value)}
+            >
+              <option value="">Not decided yet…</option>
+              {outlets.map((outlet) => (
+                <option key={outlet.id} value={outlet.id}>
+                  {outlet.name}
+                </option>
+              ))}
+            </Select>
+            <p className="mt-1.5 text-xs text-muted">
+              {outlets.length === 0
+                ? "No outlets added yet. Add one under Outlets and its rate will price this load."
+                : "Where the load was sold on. Their rate for this material is what it earned."}
+            </p>
+          </div>
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
@@ -464,7 +501,7 @@ export default function JobForm({
               <p className="mt-1.5 text-xs text-muted">
                 {direction === "sale"
                   ? "What the tip or outlet charged us to take this load. Profit on the dashboard is what we charged less this."
-                  : "What the outlet paid us for this load. Profit on the dashboard is this less what we pay the client."}
+                  : "Leave blank to use the outlet's rate for this material. Fill it in only where the load went for something else."}
               </p>
               {state.fieldErrors.disposalCost ? (
                 <p className={errorClass}>{state.fieldErrors.disposalCost}</p>
@@ -473,6 +510,31 @@ export default function JobForm({
                 <p className={errorClass}>{state.fieldErrors.onwardSale}</p>
               ) : null}
             </div>
+
+            {direction === "purchase" ? (
+              <div className="mt-4">
+                <label className={labelClass} htmlFor="haulageCost">
+                  Haulage (£){" "}
+                  <span className="font-normal text-muted">(optional)</span>
+                </label>
+                <input
+                  id="haulageCost"
+                  name="haulageCost"
+                  inputMode="decimal"
+                  className={`${inputClass} sm:max-w-[14rem]`}
+                  placeholder="85.00"
+                  value={haulageCost}
+                  onChange={(event) => setHaulageCost(event.target.value)}
+                />
+                <p className="mt-1.5 text-xs text-muted">
+                  What it cost to get the load to the outlet. Margin is the
+                  material income, less the rebate, less this.
+                </p>
+                {state.fieldErrors.haulageCost ? (
+                  <p className={errorClass}>{state.fieldErrors.haulageCost}</p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : null}
 

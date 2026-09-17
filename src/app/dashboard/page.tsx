@@ -16,6 +16,7 @@ import {
 import { todayISO } from "@/lib/calendar";
 import { readCustomers } from "@/lib/customers";
 import { readJobs } from "@/lib/jobs";
+import { readOutlets } from "@/lib/outlets";
 import { formatPence } from "@/lib/money";
 
 export const metadata: Metadata = {
@@ -63,8 +64,13 @@ export default async function DashboardPage({
   await connection();
 
   const today = todayISO();
-  const [jobs, customers] = await Promise.all([readJobs(), readCustomers()]);
+  const [jobs, customers, outlets] = await Promise.all([
+    readJobs(),
+    readCustomers(),
+    readOutlets(),
+  ]);
   const clientsById = new Map(customers.map((c) => [c.id, c]));
+  const outletsById = new Map(outlets.map((o) => [o.id, o]));
 
   const years = yearsWithJobs(jobs, today.slice(0, 4));
   const requested = (await searchParams).year;
@@ -74,10 +80,10 @@ export default async function DashboardPage({
   const completed = inYear.filter(isCompleted);
   const scheduled = inYear.filter((job) => !isCompleted(job));
 
-  const done = totalsFor(completed, clientsById);
-  const ahead = totalsFor(scheduled, clientsById);
-  const months = byMonth(completed, clientsById);
-  const materials = byMaterial(completed, clientsById);
+  const done = totalsFor(completed, clientsById, outletsById);
+  const ahead = totalsFor(scheduled, clientsById, outletsById);
+  const months = byMonth(completed, clientsById, outletsById);
+  const materials = byMaterial(completed, clientsById, outletsById);
 
   // The widest margin sets the length of the bars, so they compare against each
   // other rather than against an arbitrary 100%.
@@ -227,11 +233,12 @@ export default async function DashboardPage({
       </div>
 
       <p className="mt-8 text-xs text-muted">
-        Profit is what comes in less what goes out: on a sale, what the client
-        is charged less the disposal cost; on material bought off a client, what
-        the outlet paid us less what we paid them. Jobs with no cost recorded
-        against them count towards revenue but are left out of profit and
-        margin, rather than being treated as costing nothing.
+        Profit is what comes in less what goes out. On a charge job that is
+        what the client is invoiced less the disposal cost. On a rebate job it
+        is the material income from the outlet, less the rebate paid to the
+        client, less haulage. Jobs missing one of those figures count towards
+        revenue but are left out of profit and margin, rather than being treated
+        as costing nothing.
       </p>
     </main>
   );

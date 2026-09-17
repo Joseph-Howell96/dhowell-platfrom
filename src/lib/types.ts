@@ -34,8 +34,14 @@ export const DIRECTIONS = ["charge", "pay"] as const;
 export type Direction = (typeof DIRECTIONS)[number];
 
 export const DIRECTION_LABELS: Record<Direction, string> = {
-  charge: "We charge the customer",
-  pay: "We pay the customer",
+  charge: "Charge",
+  pay: "Rebate",
+};
+
+/** The longer wording, for places with room to explain which way money goes. */
+export const DIRECTION_HINTS: Record<Direction, string> = {
+  charge: "We charge the client for this",
+  pay: "We pay the client for this and sell it on",
 };
 
 /** One priced line on a customer's account, e.g. "Wood, per tonne, £85, we charge". */
@@ -81,8 +87,8 @@ export const JOB_DIRECTIONS = ["sale", "purchase"] as const;
 export type JobDirection = (typeof JOB_DIRECTIONS)[number];
 
 export const DIRECTION_JOB_LABELS: Record<JobDirection, string> = {
-  sale: "Sale — we charge the client",
-  purchase: "Purchase — we pay the client",
+  sale: "Charge — we invoice the client",
+  purchase: "Rebate — we pay the client",
 };
 
 /** Which rate lines produce which kind of job. */
@@ -263,11 +269,51 @@ export type Job = {
    */
   disposalCostPence: number | null;
   /**
-   * On a purchase: what the outlet paid us for the load once it was sold on,
-   * in pence. Null means not recorded yet. Prices for paper and plastics move
-   * week to week, so this is held per load rather than per material.
+   * On a rebate job: which outlet the load went to, matching an Outlet id.
+   * Their rate for the material is what the load earned.
+   */
+  outletId: string | null;
+  /**
+   * On a rebate job: what it cost us to get the load to the outlet, in pence.
+   * Margin is the outlet's income less the rebate less this.
+   */
+  haulageCostPence: number | null;
+  /**
+   * On a rebate job: what the load actually fetched, in pence, where it went
+   * for something other than the outlet's standing rate. Left blank, the
+   * outlet's rate is used instead.
    */
   onwardSalePence: number | null;
 
+  createdAt: string;
+};
+
+/* ---------------------------------------------------------------------------
+ * Outlets
+ * ------------------------------------------------------------------------- */
+
+/** What an outlet pays us for a tonne of a given material. */
+export type OutletMaterial = {
+  id: string;
+  material: string;
+  /** Held in pence per tonne, as with every other rate. */
+  incomePence: number;
+};
+
+/**
+ * A reprocessor we sell material on to, such as Edwards.
+ *
+ * Kept apart from clients on purpose: a client is who we collect from, an
+ * outlet is who we deliver to, and the money runs the opposite way.
+ */
+export type Outlet = {
+  id: string;
+  name: string;
+  contactName: string;
+  phone: string;
+  email: string;
+  address: string;
+  notes: string;
+  materials: OutletMaterial[];
   createdAt: string;
 };

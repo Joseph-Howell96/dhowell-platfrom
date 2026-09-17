@@ -28,6 +28,8 @@ The sidebar has five sections. Only Settings is still a stub.
 | `/dashboard` | Totals for the year, a monthly billings chart and a breakdown by material. Opening the app lands here. |
 | `/clients` | Lists every client with their contact details and rate lines. |
 | `/clients/new` | Form for adding a client. |
+| `/outlets` | Reprocessors we sell material on to, and what they pay per tonne. |
+| `/outlets/new` | Form for adding an outlet. |
 | `/calendar` | Month view of jobs, colour-coded by status. Click a day to book. |
 | `/calendar/new` | Form for booking a job. |
 | `/finance` | Money in and money out, with due dates and anything overdue in red. |
@@ -43,12 +45,12 @@ Two things are stored in a deliberate way:
 - **Job dates are plain text** (`"2026-09-16"`), not points in time. A job
   booked for the 16th stays on the 16th whatever the clocks are doing.
 
-Every job is either a **sale** (we charge the client) or a **purchase** (we buy
-material off them and sell it on). The direction is set from the client's rate
-for that material when you pick one, and can be changed by hand. It decides
-which run of work the job follows.
+Each rate line on a client is either a **Charge** (we invoice them for it) or a
+**Rebate** (we pay them for it and sell it on). A job takes its direction from
+the rate for the material picked, and can be changed by hand. It decides which
+run of work the job follows.
 
-**Sales — money in**
+**Charge jobs — money in**
 
 | Status | Colour | What it means |
 | --- | --- | --- |
@@ -57,7 +59,7 @@ which run of work the job follows.
 | Generate invoice | Amber | Ready to invoice, not sent |
 | Invoice sent | Green | Records the date sent, and works out the due date |
 
-**Purchases — money out**
+**Rebate jobs — money out**
 
 | Status | Colour | What it means |
 | --- | --- | --- |
@@ -77,12 +79,16 @@ path, so a job three steps along stays three steps along.
   that is what "30 days" on a supplier account means. Bank holidays are worked out from the rules
   rather than typed in, so they stay right in future years. One-offs like a
   jubilee have to be added by hand, in `src/lib/working-days.ts`.
-- **Profit needs two figures no rate can supply.** A client's rate says what we
-  charge them or pay them; it cannot say what the tip charged us to take a load,
-  or what an outlet paid us for it. Both are recorded on the job once it is
-  weighed, and both are optional. A job with neither still counts towards
-  revenue but is left out of profit, and the dashboard says how many jobs are in
-  that position. Treating a blank as zero would report every job as pure profit.
+- **Margin on a rebate job is material income, less the rebate, less haulage.**
+  The income comes from the outlet's rate per tonne for that material against
+  the recorded weight, so picking the outlet on the job prices it. A one-off
+  figure typed against the job wins over the outlet's standing rate. Haulage is
+  recorded per load.
+- **Margin on a charge job is what the client is invoiced, less disposal.** The
+  disposal cost is recorded per load; a client's rate cannot supply it.
+- Jobs missing one of those figures count towards revenue but are left out of
+  profit and margin, and the dashboard says how many. Treating a blank as zero
+  would report every job as pure profit.
 - **Invoice amounts are not stored.** They are worked out each time from the
   client's rate line for that material: a per-tonne rate multiplied by the
   recorded weight, anything else taken as a flat fee. Correcting a rate on the
@@ -100,6 +106,7 @@ path, so a job three steps along stays three steps along.
 | `src/lib/` | The shared logic: data types, saving and loading, formatting. |
 | `data/clients.json` | The client records. Back this up. |
 | `data/jobs.json` | The booked jobs. Back this up. |
+| `data/outlets.json` | The outlets and their material income. Back this up. |
 | `public/` | Images and files served as-is (e.g. `/logo.png`). |
 | `package.json` | Project settings and the list of commands below. |
 
