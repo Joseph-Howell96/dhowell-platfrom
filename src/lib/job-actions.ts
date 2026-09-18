@@ -346,3 +346,55 @@ export async function removeJob(jobId: string): Promise<string | null> {
   for (const invoice of billedOn) revalidatePath(`/invoices/${invoice.id}`);
   redirect(`/calendar?month=${monthKeyOf(job.date)}`);
 }
+
+/**
+ * Move a job to another day, which is what dragging it across the calendar
+ * does.
+ *
+ * A job that is already on an invoice does not move. The invoice covers a
+ * week's work and says which week on the face of it, so shifting a job out of
+ * that week would leave the document describing something that did not happen.
+ * Take it off the invoice first, or delete the invoice; both are possible, and
+ * both leave a record.
+ *
+ * Nothing else about the job changes. The weight, the status and the money are
+ * whatever they were - this is a date being corrected, not the work being
+ * redone.
+ *
+ * Returns a reason when it will not go ahead, or null when it has.
+ */
+export async function rescheduleJob(
+  jobId: string,
+  toDateISO: string,
+): Promise<string | null> {
+  if (jobId === "") return "Could not tell which job this is.";
+  if (!isValidISODate(toDateISO)) return "That is not a real date.";
+
+  const [jobs, invoices] = await Promise.all([readJobs(), readAllInvoices()]);
+  const job = jobs.find((entry) => entry.id === jobId);
+  if (!job) return "That job no longer exists.";
+  if (job.date === toDateISO) return null;
+
+  // Every invoice, withdrawn ones included: a job on a deleted invoice is
+  // still named by a document somebody may yet restore.
+  const billedOn = invoices.find((invoice) => invoice.jobIds.includes(jobId));
+  if (billedOn) {
+    return `This job is on invoice number ${billedOn.number}, so it cannot be moved. Take it off that invoice first.`;
+  }
+
+  try {
+    // Everything as it was, with the one field changed. updateJob keeps the
+    // id and the created date whatever is handed to it.
+    await updateJob(jobId, { ...job, date: toDateISO });
+  } catch (error) {
+    console.error("Could not move the job", error);
+    return "Could not move the job. Please try again.";
+  }
+
+  revalidatePath("/calendar");
+  revalidatePath(`/calendar/${jobId}`);
+  revalidatePath("/finance");
+  revalidatePath("/dashboard");
+  revalidatePath("/search");
+  return null;
+}

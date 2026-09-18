@@ -81,3 +81,11 @@ export function SearchIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function ChevronLeftIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M15 5 8 12l7 7" />
+    </svg>
+  );
+}
