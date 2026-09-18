@@ -1,16 +1,17 @@
-"use client";
-
 /**
- * The button on the end of a week, which raises that week's invoices.
+ * The link on the end of a week, which opens that week's invoices for review.
  *
- * It says how many jobs are waiting so nobody has to press it to find out. A
- * week does not have to be over: anything already marked complete and priced
+ * It used to raise them on the spot. It does not any more: pressing it opens a
+ * page showing which days are being billed and what each client will be
+ * charged, and nothing is written until the button down there is pressed. The
+ * counts stay here so nobody has to open it to find out whether there is
+ * anything waiting.
+ *
+ * A week does not have to be over. Anything already marked complete and priced
  * can be invoiced today, which is what happens when a client wants billing
  * early.
  */
-import { useTransition } from "react";
-
-import { generateWeekInvoices } from "@/lib/invoice-actions";
+import Link from "next/link";
 
 export default function GenerateWeekButton({
   weekStart,
@@ -27,9 +28,9 @@ export default function GenerateWeekButton({
    */
   waiting: number;
   /**
-   * Weighed jobs this week that cannot be billed because the client record has
-   * no rate for the material at that skip size. Said out loud rather than left
-   * out, or a job sits unbilled with nothing on screen to explain why.
+   * Complete jobs this week that cannot be billed because the client record
+   * has no rate for the material. Said out loud rather than left out, or a job
+   * sits unbilled with nothing on screen to explain why.
    */
   unpriced: number;
   /**
@@ -41,73 +42,54 @@ export default function GenerateWeekButton({
   /** How many clients those jobs belong to, which is how many invoices follow. */
   clients: number;
 }) {
-  const [pending, startTransition] = useTransition();
+  const href = `/calendar/generate?week=${weekStart}`;
 
   const needsRate =
     unpriced > 0
       ? `${unpriced} ${unpriced === 1 ? "job needs" : "jobs need"} a rate`
       : null;
-  const needsChecking =
-    toCheck > 0 ? `${toCheck} to check off` : null;
+  const needsChecking = toCheck > 0 ? `${toCheck} to check off` : null;
 
-  // Nothing waiting is not the same as not allowed. Saying what is outstanding
-  // stops the column reading as though a week has to finish before it unlocks.
+  // Nothing waiting is not the same as nothing to look at: the review page
+  // says why a job is being left out, which is the thing worth reading when
+  // the week looks emptier than it should.
   if (waiting === 0) {
     return (
-      <span className="block px-2 py-3 text-center text-xs leading-tight text-muted/60">
+      <Link
+        href={href}
+        className="block rounded px-2 py-3 text-center text-xs leading-tight text-muted transition-colors hover:bg-accent-soft"
+      >
         {needsChecking ? (
-          <span
-            className="block text-weighed"
-            title="These jobs have been weighed but not yet marked complete. Open the job and mark it complete once the ticket has been checked."
-          >
-            {needsChecking}
-          </span>
+          <span className="block text-weighed">{needsChecking}</span>
         ) : null}
         {needsRate ? (
-          <span
-            className="block text-attention"
-            title="These jobs are complete, but the client has no rate for the material at that skip size, so there is nothing to charge. Add the rate on their client record."
-          >
-            {needsRate}
-          </span>
+          <span className="block text-attention">{needsRate}</span>
         ) : null}
         {!needsChecking && !needsRate ? "No jobs ready" : null}
-      </span>
+      </Link>
     );
   }
 
   return (
-    <button
-      type="button"
-      disabled={pending}
-      onClick={() =>
-        startTransition(() => {
-          void generateWeekInvoices(weekStart);
-        })
-      }
-      title={`Raise a draft invoice for each of the ${clients} client${clients === 1 ? "" : "s"} with completed work this week. The week does not have to be over.`}
-      className="block w-full rounded px-2 py-3 text-center text-xs font-medium leading-tight text-accent transition-colors hover:bg-accent-soft disabled:opacity-50"
+    <Link
+      href={href}
+      title={`Look over the ${clients} invoice${clients === 1 ? "" : "s"} this week would raise before any of them is written.`}
+      className="block w-full rounded px-2 py-3 text-center text-xs font-medium leading-tight text-accent transition-colors hover:bg-accent-soft"
     >
-      {pending ? "Working…" : "Generate invoices"}
+      Generate invoices
       <span className="mt-1 block font-normal text-muted">
         {waiting} job{waiting === 1 ? "" : "s"} ready
       </span>
       {needsChecking ? (
-        <span
-          className="mt-0.5 block font-normal text-weighed"
-          title="These jobs have been weighed but not yet marked complete. Open the job and mark it complete once the ticket has been checked."
-        >
+        <span className="mt-0.5 block font-normal text-weighed">
           {needsChecking}
         </span>
       ) : null}
       {needsRate ? (
-        <span
-          className="mt-0.5 block font-normal text-attention"
-          title="These jobs are complete, but the client has no rate for the material at that skip size, so there is nothing to charge. Add the rate on their client record."
-        >
+        <span className="mt-0.5 block font-normal text-attention">
           {needsRate}
         </span>
       ) : null}
-    </button>
+    </Link>
   );
 }

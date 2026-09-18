@@ -148,3 +148,52 @@ export function buildMonthGrid(month: MonthKey): DayCell[] {
   }
   return cells;
 }
+
+/** Monday first again, spelled out, for reading rather than for a column head. */
+export const WEEKDAY_FULL_NAMES = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
+
+/** Which day of the week a date is, Monday being 0. */
+export function weekdayIndex(isoDate: string): number {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  // getUTCDay() counts Sunday as 0; shifting by 6 and wrapping makes Monday 0.
+  return (new Date(Date.UTC(year, month - 1, day)).getUTCDay() + 6) % 7;
+}
+
+/** The month a date falls in, spelled out: "September". */
+export function monthNameOf(isoDate: string): string {
+  return MONTH_NAMES[Number(isoDate.slice(5, 7)) - 1];
+}
+
+/**
+ * A span of days said the way somebody would say it out loud.
+ *
+ * "Monday 14 to Sunday 20 September" while it stays inside one month, and the
+ * month is put on both ends only when it has to be - repeating "September"
+ * twice in one line reads like a form, not like English. A span crossing new
+ * year carries the year on both ends, because "Monday 29 December to Sunday 4
+ * January" leaves the reader working out which December.
+ */
+export function describeRange(startISO: string, endISO: string): string {
+  const start = `${WEEKDAY_FULL_NAMES[weekdayIndex(startISO)]} ${Number(startISO.slice(8))}`;
+  const end = `${WEEKDAY_FULL_NAMES[weekdayIndex(endISO)]} ${Number(endISO.slice(8))}`;
+
+  const sameYear = startISO.slice(0, 4) === endISO.slice(0, 4);
+  const sameMonth = sameYear && startISO.slice(5, 7) === endISO.slice(5, 7);
+  const year = (iso: string) => (sameYear ? "" : ` ${iso.slice(0, 4)}`);
+
+  if (sameMonth) {
+    return `${start} to ${end} ${monthNameOf(endISO)}`;
+  }
+  return (
+    `${start} ${monthNameOf(startISO)}${year(startISO)}` +
+    ` to ${end} ${monthNameOf(endISO)}${year(endISO)}`
+  );
+}
