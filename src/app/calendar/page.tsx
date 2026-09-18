@@ -4,7 +4,7 @@ import { connection } from "next/server";
 
 import { requireSession } from "@/lib/guard";
 
-import { DragBoard, DraggableJob, DropDay } from "./drag";
+import { DragBoard, DropDay, JobChip } from "./drag";
 import GenerateWeekButton from "./generate-week-button";
 import PageHeader from "@/components/page-header";
 import {
@@ -231,30 +231,25 @@ export default async function CalendarPage({
                             clientNames.get(job.customerId) ?? "Unknown client";
                           return (
                             <li key={job.id}>
-                              <DraggableJob jobId={job.id} movable={!invoiced}>
-                                <Link
-                                  href={`/calendar/${job.id}`}
-                                  // The wrapper is what gets dragged; an anchor that
-                                  // can drag itself would carry its own address
-                                  // instead of the job.
-                                  draggable={false}
-                                  className={`block rounded px-1.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 ${JOB_STANDING_CLASSES[standing]}`}
-                                  title={`${who} — ${job.material} (${JOB_STANDING_LABELS[standing]})${
-                                    invoiced
-                                      ? ". On an invoice, so it cannot be moved."
-                                      : ""
-                                  }`}
-                                >
-                                  {/* Two lines rather than one: on a busy day the
+                              <JobChip
+                                jobId={job.id}
+                                movable={!invoiced}
+                                className={`block rounded px-1.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 ${JOB_STANDING_CLASSES[standing]}`}
+                                title={`${who} — ${job.material} (${JOB_STANDING_LABELS[standing]})${
+                                  invoiced
+                                    ? ". On an invoice, so it cannot be moved."
+                                    : ""
+                                }`}
+                              >
+                                {/* Two lines rather than one: on a busy day the
                               client tells you whose it is and the material
                               tells you what the lorry is going for, and
                               running them together truncates both away. */}
-                                  <span className="block truncate">{who}</span>
-                                  <span className="block truncate font-normal opacity-80">
-                                    {job.material}
-                                  </span>
-                                </Link>
-                              </DraggableJob>
+                                <span className="block truncate">{who}</span>
+                                <span className="block truncate font-normal opacity-80">
+                                  {job.material}
+                                </span>
+                              </JobChip>
                             </li>
                           );
                         })}
