@@ -81,12 +81,16 @@ export async function createReceipt(
     }
   }
 
-  const picture = formData.get("picture");
+  // Two inputs share this name - the camera one and the file one - so the
+  // empty one comes along with whichever was actually used.
+  const picture = formData
+    .getAll("picture")
+    .find((entry): entry is File => entry instanceof File && entry.size > 0);
   let bytes: Uint8Array | null = null;
   let extension = "";
   let contentType = "";
 
-  if (!(picture instanceof File) || picture.size === 0) {
+  if (!picture) {
     fieldErrors.picture = "Take a photo of the receipt, or choose a file.";
   } else if (picture.size > LARGEST_RECEIPT) {
     fieldErrors.picture = `That file is ${(picture.size / 1024 / 1024).toFixed(1)} MB. The limit is ${LARGEST_RECEIPT / 1024 / 1024} MB.`;

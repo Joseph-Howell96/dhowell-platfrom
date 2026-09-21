@@ -1,12 +1,22 @@
 "use client";
 
 /**
- * Taking a receipt.
+ * Taking a receipt. Mostly on an iPad, which decides how this is built.
  *
- * The one thing worth knowing: `capture="environment"` on a file input is what
- * makes a phone open the back camera rather than the photo library. On a
- * laptop the same input is an ordinary "choose a file" button, which is the
- * right thing there - nobody photographs a receipt with a laptop.
+ * Two inputs rather than one, and that is the whole point. `capture` tells a
+ * device to open its camera instead of its file browser, but iOS only honours
+ * it when everything in `accept` is something a camera could actually produce.
+ * One input accepting both pictures and PDFs therefore gets the full "Photo
+ * Library / Take Photo / Browse" sheet on an iPad, every time, and the camera
+ * is two taps away rather than none.
+ *
+ * So: one input that takes pictures only and asks for the camera, and a
+ * quieter second one for a PDF or something already in the photo roll. Both
+ * are called "picture", and the server takes whichever has anything in it.
+ *
+ * The camera needs a secure address on iOS. Over the tunnel that is https and
+ * fine; straight to a laptop's http address on the office wi-fi it is not, and
+ * the button falls back to the file browser with no explanation.
  *
  * The picture is shown back before saving. A receipt photographed at arm's
  * length in a lorry cab is often unreadable, and finding that out now is
@@ -59,11 +69,23 @@ export default function ReceiptForm({
     };
   }, [preview]);
 
+  /** The same handler for both inputs: whichever was used, show it back. */
+  function took(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    setChosen(file ? file.name : "");
+    setPreview(
+      file && file.type.startsWith("image/")
+        ? URL.createObjectURL(file)
+        : null,
+    );
+  }
+
   return (
     <form action={formAction} noValidate className="glass rounded-xl p-6">
       <h2 className="text-lg font-semibold">Keep a receipt</h2>
       <p className="mt-1 mb-4 text-base text-muted">
-        On a phone this opens the camera. On a computer it asks for a file.
+        On an iPad or a phone the first button opens the camera. On a computer
+        both ask for a file.
       </p>
 
       {state.formError ? (
@@ -75,37 +97,54 @@ export default function ReceiptForm({
         </p>
       ) : null}
       <div>
-        {/* A plain heading, not a second label: the button below is the
-            label for this input, and two of them means a screen reader
-            announces the control twice. */}
+        {/* A plain heading, not a label: the buttons below are the labels for
+            their inputs, and a third one means a screen reader announces the
+            control twice. */}
         <p className={labelClass}>The receipt</p>
-        {/* The label is the button. A bare file input cannot be styled and
-            reads "No file chosen", which tells nobody anything. */}
-        <label
-          htmlFor="picture"
-          className="inline-block cursor-pointer rounded-lg bg-accent px-5 py-3 text-base font-semibold text-canvas transition-colors hover:bg-accent-hover"
-        >
-          Take a photo
-        </label>
-        <input
-          id="picture"
-          name="picture"
-          type="file"
-          accept="image/*,application/pdf"
-          capture="environment"
-          className="sr-only"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            setChosen(file ? file.name : "");
-            setPreview(
-              file && file.type.startsWith("image/")
-                ? URL.createObjectURL(file)
-                : null,
-            );
-          }}
-        />
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* The label is the button. A bare file input cannot be styled and
+              reads "No file chosen", which tells nobody anything. Sized for a
+              thumb rather than a mouse: this is used standing up. */}
+          <label
+            htmlFor="picture"
+            className="inline-block cursor-pointer rounded-lg bg-accent px-6 py-4 text-lg font-semibold text-canvas transition-colors hover:bg-accent-hover"
+          >
+            Take a photo
+          </label>
+          {/* Pictures only, and nothing else in the list: an iPad opens its
+              camera for this and would not for a list that also mentioned
+              PDFs. */}
+          <input
+            id="picture"
+            name="picture"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="sr-only"
+            onChange={took}
+          />
+
+          <label
+            htmlFor="pictureFile"
+            className="inline-block cursor-pointer rounded-lg border-2 border-line px-6 py-4 text-lg font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
+          >
+            Choose a file
+          </label>
+          {/* No capture here, and PDFs allowed: this is the one for something
+              already in the photo roll, or a supplier's e-mailed invoice. */}
+          <input
+            id="pictureFile"
+            name="picture"
+            type="file"
+            accept="image/*,application/pdf"
+            className="sr-only"
+            onChange={took}
+          />
+        </div>
+
         {chosen ? (
-          <span className="ml-3 text-base text-muted">{chosen}</span>
+          <p className="mt-2 text-base text-muted">{chosen}</p>
         ) : null}
         {state.fieldErrors.picture ? (
           <p className={errorClass}>{state.fieldErrors.picture}</p>
