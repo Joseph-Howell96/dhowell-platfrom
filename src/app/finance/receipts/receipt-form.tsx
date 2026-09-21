@@ -22,11 +22,12 @@
  * length in a lorry cab is often unreadable, and finding that out now is
  * better than finding out in six months when the accountant asks.
  */
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
 import { parsePoundsToPence, penceToInputValue, vatWithin } from "@/lib/money";
 import { createReceipt } from "@/lib/receipt-actions";
+import { scanReceipt } from "@/lib/receipt-scan";
 
 const inputClass =
   "w-full rounded-lg border border-line bg-elevated px-3 py-2.5 text-base text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
@@ -60,6 +61,16 @@ export default function ReceiptForm({
   const [amount, setAmount] = useState("");
   const [vat, setVat] = useState("");
   const [vatTouched, setVatTouched] = useState(false);
+  // Controlled from here on, because reading the photograph fills them in.
+  const [date, setDate] = useState(today);
+  const [description, setDescription] = useState("");
+
+  // What reading the picture is doing, and what it found. "read" is kept so
+  // the form can say which boxes it filled - a figure somebody knows came off
+  // a photograph is a figure they check, and one that simply appeared is not.
+  const [reading, startReading] = useTransition();
+  const [readNote, setReadNote] = useState<string | null>(null);
+  const [read, setRead] = useState<Set<string>>(new Set());
 
   // A preview made from the file itself. Revoked when it is replaced, or the
   // browser holds on to every photograph taken this session.
@@ -78,6 +89,89 @@ export default function ReceiptForm({
         ? URL.createObjectURL(file)
         : null,
     );
+    setReadNote(null);
+    setRead(new Set());
+    if (file) look(file);
+  }
+
+  /**
+   * Have a look at the picture and fill in what can be made out.
+   *
+   * Everything it finds lands in an ordinary editable box. Nothing is saved,
+   * nothing is locked, and a box it could not fill is simply left alone - a
+   * blank waiting to be typed is honest, and a confident wrong figure is not.
+   * A field already typed by hand is never overwritten.
+   */
+  function look(file: File) {
+    startReading(async () => {
+      const carrying = new FormData();
+      carrying.append("picture", file);
+      const result = await scanReceipt(carrying);
+
+      if (!result.ok) {
+        setReadNote(result.reason);
+        return;
+      }
+
+      const filled = new Set<string>();
+      const { fields } = result;
+
+      if (fields.date) {
+        setDate(fields.date);
+        filled.add("date");
+      }
+      if (fields.description && description.trim() === "") {
+        setDescription(fields.description);
+        filled.add("description");
+      }
+      if (fields.amount && amount.trim() === "") {
+        setAmount(fields.amount);
+        filled.add("amount");
+        // The receipt's own VAT where it prints one; otherwise the standard
+        // share of the total, as before, which is a suggestion and says so.
+        if (!vatTouched) {
+          if (fields.vat) {
+            setVat(fields.vat);
+            filled.add("vat");
+          } else {
+            const pence = parsePoundsToPence(fields.amount);
+            setVat(pence === null ? "" : penceToInputValue(vatWithin(pence, vatPercent)));
+          }
+        }
+      } else if (fields.vat && !vatTouched && vat.trim() === "") {
+        setVat(fields.vat);
+        filled.add("vat");
+      }
+
+      setRead(filled);
+      setReadNote(
+        filled.size === 0
+          ? "Nothing could be made out. Type the details in."
+          : null,
+      );
+    });
+  }
+
+  /**
+   * A box is no longer "read from the photo" once a person has typed in it.
+   * Small, but the note under a field is a claim about where the figure came
+   * from, and a wrong one is worse than none - it tells somebody a number has
+   * been checked against the paper when it has not.
+   */
+  function typedIn(...fields: string[]) {
+    setRead((current) => {
+      if (!fields.some((field) => current.has(field))) return current;
+      const left = new Set(current);
+      for (const field of fields) left.delete(field);
+      return left;
+    });
+  }
+
+  /** Shown under a box the photograph filled, so it gets a second look. */
+  function fromPhoto(field: string) {
+    return read.has(field) ? (
+      <p className="mt-1 text-xs text-muted">Read from the photo — check it</p>
+    ) : null;
   }
 
   return (
@@ -160,6 +254,25 @@ export default function ReceiptForm({
             className="mt-4 max-h-72 rounded-lg border border-line"
           />
         ) : null}
+
+        {/* Said out loud, because otherwise boxes fill themselves in a second
+            or two after the photograph and it is not obvious why. */}
+        {reading ? (
+          <p role="status" className="mt-3 text-sm text-muted">
+            Reading the receipt…
+          </p>
+        ) : null}
+        {readNote && !reading ? (
+          <p role="status" className="mt-3 text-sm text-muted">
+            {readNote}
+          </p>
+        ) : null}
+        {read.size > 0 && !reading ? (
+          <p role="status" className="mt-3 text-sm text-muted">
+            Filled in from the photo. Check the figures before saving — a
+            crumpled receipt can be misread.
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_9rem_9rem]">
@@ -172,7 +285,13 @@ export default function ReceiptForm({
             name="description"
             className={inputClass}
             placeholder="Diesel, Shell Orpington"
+            value={description}
+            onChange={(event) => {
+              setDescription(event.target.value);
+              typedIn("description");
+            }}
           />
+          {fromPhoto("description")}
           {state.fieldErrors.description ? (
             <p className={errorClass}>{state.fieldErrors.description}</p>
           ) : null}
@@ -193,6 +312,9 @@ export default function ReceiptForm({
             onChange={(event) => {
               const typed = event.target.value;
               setAmount(typed);
+              // The VAT as well: a new total makes the figure beneath it a
+              // calculation again, whatever the photograph originally said.
+              typedIn("amount", ...(vatTouched ? [] : ["vat"]));
               // Only until somebody says otherwise. After that the figure is
               // theirs and typing the total again does not overwrite it.
               if (vatTouched) return;
@@ -204,6 +326,7 @@ export default function ReceiptForm({
               );
             }}
           />
+          {fromPhoto("amount")}
           {state.fieldErrors.amount ? (
             <p className={errorClass}>{state.fieldErrors.amount}</p>
           ) : null}
@@ -223,8 +346,10 @@ export default function ReceiptForm({
             onChange={(event) => {
               setVatTouched(true);
               setVat(event.target.value);
+              typedIn("vat");
             }}
           />
+          {fromPhoto("vat")}
           {state.fieldErrors.vat ? (
             <p className={errorClass}>{state.fieldErrors.vat}</p>
           ) : null}
@@ -246,9 +371,14 @@ export default function ReceiptForm({
             id="date"
             name="date"
             type="date"
-            defaultValue={today}
+            value={date}
+            onChange={(event) => {
+              setDate(event.target.value);
+              typedIn("date");
+            }}
             className={inputClass}
           />
+          {fromPhoto("date")}
           {state.fieldErrors.date ? (
             <p className={errorClass}>{state.fieldErrors.date}</p>
           ) : null}
