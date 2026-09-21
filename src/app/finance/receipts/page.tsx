@@ -9,7 +9,8 @@ import { monthKeyOf, monthLabel, todayISO } from "@/lib/calendar";
 import { formatDateGB } from "@/lib/dates";
 import { requireSession } from "@/lib/guard";
 import { formatPence } from "@/lib/money";
-import { readReceipts } from "@/lib/receipts";
+import { readReceipts, type Receipt } from "@/lib/receipts";
+import { readSettings } from "@/lib/settings";
 
 export const metadata: Metadata = {
   title: "Receipts",
@@ -22,13 +23,24 @@ export default async function ReceiptsPage() {
   // cannot open them, and the picture itself is behind the same check.
   await requireSession("/finance");
 
-  const receipts = await readReceipts();
-  const total = receipts.reduce(
-    (sum, receipt) => sum + (receipt.amountPence ?? 0),
-    0,
-  );
+  const [receipts, settings] = await Promise.all([
+    readReceipts(),
+    readSettings(),
+  ]);
+
+  /** What a pile of receipts comes to: paid, the VAT in it, and the rest. */
+  function addUp(pile: Receipt[]) {
+    const grossPence = pile.reduce((sum, r) => sum + (r.amountPence ?? 0), 0);
+    const vatPence = pile.reduce((sum, r) => sum + (r.vatPence ?? 0), 0);
+    return { grossPence, vatPence, netPence: grossPence - vatPence };
+  }
+
+  const total = addUp(receipts);
   const unpriced = receipts.filter(
     (receipt) => receipt.amountPence === null,
+  ).length;
+  const noVat = receipts.filter(
+    (receipt) => receipt.amountPence !== null && receipt.vatPence === null,
   ).length;
 
   /** Gathered by month, newest month first, the way a shoebox gets sorted. */
@@ -55,19 +67,66 @@ export default async function ReceiptsPage() {
 
       {/* Keyed on how many there are, so saving one gives back an empty
           form rather than the last one's words. */}
-      <ReceiptForm key={receipts.length} today={todayISO()} />
+      <ReceiptForm
+        key={receipts.length}
+        today={todayISO()}
+        vatPercent={settings.vatPercent}
+      />
 
       <section className="mt-10">
         <h2 className="text-lg font-semibold">Kept</h2>
-        <p className="mt-1 mb-4 text-base text-muted">
+        <p className="mt-1 text-base text-muted">
           {receipts.length === 0
             ? "Nothing yet."
-            : `${receipts.length} ${receipts.length === 1 ? "receipt" : "receipts"}, ${formatPence(total)} between them${
-                unpriced === 0
-                  ? "."
-                  : ` — ${unpriced} with no amount typed, so ${unpriced === 1 ? "it is" : "they are"} not in that total.`
-              }`}
+            : `${receipts.length} ${receipts.length === 1 ? "receipt" : "receipts"}.`}
         </p>
+
+        {receipts.length > 0 ? (
+          <>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div className="glass rounded-xl p-5">
+                <p className="text-base text-muted">Paid out</p>
+                <p className="mt-1 text-3xl font-semibold tabular-nums">
+                  {formatPence(total.grossPence)}
+                </p>
+                <p className="mt-2 text-sm text-muted">
+                  What was handed over, VAT included
+                </p>
+              </div>
+              <div className="glass rounded-xl p-5">
+                <p className="text-base text-muted">VAT in that</p>
+                <p className="mt-1 text-3xl font-semibold tabular-nums">
+                  {formatPence(total.vatPence)}
+                </p>
+                <p className="mt-2 text-sm text-muted">
+                  {noVat === 0
+                    ? "Added up from what each receipt says"
+                    : `${noVat} ${noVat === 1 ? "receipt has" : "receipts have"} no VAT typed, so ${noVat === 1 ? "it counts" : "they count"} as none`}
+                </p>
+              </div>
+              <div className="glass rounded-xl p-5">
+                <p className="text-base text-muted">Cost before VAT</p>
+                <p className="mt-1 text-3xl font-semibold tabular-nums">
+                  {formatPence(total.netPence)}
+                </p>
+                <p className="mt-2 text-sm text-muted">
+                  Paid out, less the VAT in it
+                </p>
+              </div>
+            </div>
+
+            {unpriced > 0 ? (
+              <p className="mt-3 text-sm text-muted">
+                {unpriced} {unpriced === 1 ? "receipt has" : "receipts have"} no
+                amount typed against {unpriced === 1 ? "it" : "them"}, so{" "}
+                {unpriced === 1 ? "it is" : "they are"} in none of these
+                figures.
+              </p>
+            ) : null}
+          </>
+        ) : null}
+
+        <div className="mt-6" />
 
         {receipts.length === 0 ? (
           <div className="glass-dashed rounded-xl px-6 py-14 text-center">
@@ -85,9 +144,10 @@ export default async function ReceiptsPage() {
                 <span className="font-normal text-muted">
                   {ofMonth.length}{" "}
                   {ofMonth.length === 1 ? "receipt" : "receipts"},{" "}
-                  {formatPence(
-                    ofMonth.reduce((sum, r) => sum + (r.amountPence ?? 0), 0),
-                  )}
+                  {formatPence(addUp(ofMonth).grossPence)}
+                  {addUp(ofMonth).vatPence > 0
+                    ? ` · ${formatPence(addUp(ofMonth).vatPence)} VAT`
+                    : ""}
                 </span>
               </h3>
 
@@ -132,6 +192,9 @@ export default async function ReceiptsPage() {
                     </div>
                     <p className="mt-0.5 text-sm text-muted">
                       {formatDateGB(receipt.date)}
+                      {receipt.vatPence === null
+                        ? ""
+                        : ` · ${formatPence(receipt.vatPence)} VAT`}
                       {receipt.notes ? ` · ${receipt.notes}` : ""}
                     </p>
 

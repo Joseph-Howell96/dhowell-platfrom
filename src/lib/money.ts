@@ -28,3 +28,16 @@ export function formatPence(pence: number): string {
 export function penceToInputValue(pence: number): string {
   return (pence / 100).toFixed(2);
 }
+
+/**
+ * The VAT inside a price that already includes it.
+ *
+ * A receipt says what was handed over, and the VAT is part of that rather than
+ * on top of it. At 20% the tax in £84.20 is a sixth of it, £14.03 - not
+ * £16.84, which is what taking 20% of the total would give and would be wrong
+ * by the width of a reclaim.
+ */
+export function vatWithin(grossPence: number, vatPercent: number): number {
+  if (vatPercent <= 0) return 0;
+  return Math.round((grossPence * vatPercent) / (100 + vatPercent));
+}

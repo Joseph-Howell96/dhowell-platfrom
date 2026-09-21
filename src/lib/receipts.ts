@@ -19,8 +19,18 @@ export type Receipt = {
   date: string;
   /** What it was for, in whatever words the person used. */
   description: string;
-  /** What it came to, in pence. Null where nobody typed one. */
+  /** What it came to, in pence, VAT included. Null where nobody typed one. */
   amountPence: number | null;
+  /**
+   * The VAT inside that, in pence. Null where nobody typed one.
+   *
+   * Typed rather than worked out, because not everything carries it: food is
+   * zero-rated, insurance is exempt, and a small supplier may not be
+   * registered at all. The form offers the standard share as a starting point
+   * and anyone can change it or zero it, which is the only way a reclaim total
+   * is worth adding up.
+   */
+  vatPence: number | null;
   notes: string;
   /** The picture, as it sits in data/receipts. */
   fileName: string;
@@ -28,6 +38,13 @@ export type Receipt = {
   contentType: string;
   createdAt: string;
 };
+
+/** Zero is a real answer, so only a proper number counts. */
+function money(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.round(value)
+    : null;
+}
 
 function toReceipt(raw: unknown): Receipt | null {
   if (typeof raw !== "object" || raw === null) return null;
@@ -49,11 +66,8 @@ function toReceipt(raw: unknown): Receipt | null {
     date,
     description: text("description"),
     // Zero is a real answer, so only a proper number counts.
-    amountPence:
-      typeof record.amountPence === "number" &&
-      Number.isFinite(record.amountPence)
-        ? Math.round(record.amountPence)
-        : null,
+    amountPence: money(record.amountPence),
+    vatPence: money(record.vatPence),
     notes: text("notes"),
     fileName,
     contentType: text("contentType") || "application/octet-stream",

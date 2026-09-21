@@ -68,6 +68,19 @@ export async function createReceipt(
     }
   }
 
+  let vatPence: number | null = null;
+  const vatInput = text(formData, "vat");
+  if (vatInput !== "") {
+    vatPence = parsePoundsToPence(vatInput);
+    if (vatPence === null) {
+      fieldErrors.vat = "Enter the VAT, e.g. 14.03, or leave it blank.";
+    } else if (amountPence !== null && vatPence > amountPence) {
+      // The VAT is inside the total, not on top of it, so it cannot be the
+      // larger of the two. Usually it means the net was typed by mistake.
+      fieldErrors.vat = "The VAT cannot be more than the total.";
+    }
+  }
+
   const picture = formData.get("picture");
   let bytes: Uint8Array | null = null;
   let extension = "";
@@ -104,6 +117,7 @@ export async function createReceipt(
       date,
       description,
       amountPence,
+      vatPence,
       notes: text(formData, "notes"),
       fileName,
       contentType,

@@ -23,6 +23,7 @@ import {
   ClientsIcon,
   DashboardIcon,
   FinanceIcon,
+  ReceiptIcon,
   SearchIcon,
   SettingsIcon,
 } from "./icons";
@@ -33,6 +34,9 @@ const NAV = [
   { href: "/calendar", label: "Calendar", Icon: CalendarIcon },
   { href: "/search", label: "Search", Icon: SearchIcon },
   { href: "/finance", label: "Finance", Icon: FinanceIcon },
+  // Under Finance, and hidden with it: canOpen says no to a standard user for
+  // this address just as it does for Finance itself.
+  { href: "/finance/receipts", label: "Receipts", Icon: ReceiptIcon },
   { href: "/settings", label: "Settings", Icon: SettingsIcon },
 ];
 
@@ -103,6 +107,17 @@ export default function Sidebar({
   // would turn you away when you clicked it.
   const sections = NAV.filter((item) => canOpen(role, item.href));
 
+  // Receipts live under Finance, so both match the address when you are on
+  // them. The longest match wins, or the strip lights up twice and neither
+  // one tells you where you are.
+  const current =
+    sections
+      .filter(
+        (item) =>
+          pathname === item.href || pathname.startsWith(`${item.href}/`),
+      )
+      .sort((a, b) => b.href.length - a.href.length)[0]?.href ?? "";
+
   return (
     <aside
       className={`glass-rail sticky top-0 flex h-screen w-16 shrink-0 flex-col ${
@@ -133,17 +148,15 @@ export default function Sidebar({
 
       <nav className={`flex-1 space-y-1 p-2 ${open ? "lg:p-3" : ""}`}>
         {sections.map(({ href, label, Icon }) => {
-          // A section counts as current if you are on its page or anywhere
-          // beneath it, so /clients/new still highlights Clients.
-          const current = pathname === href || pathname.startsWith(`${href}/`);
+          const here = href === current;
           return (
             <Link
               key={href}
               href={href}
               title={label}
-              aria-current={current ? "page" : undefined}
+              aria-current={here ? "page" : undefined}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                current
+                here
                   ? "bg-accent-soft text-accent"
                   : "text-muted hover:bg-elevated hover:text-ink"
               }`}

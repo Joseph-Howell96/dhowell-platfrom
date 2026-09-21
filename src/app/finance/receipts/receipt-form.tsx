@@ -15,6 +15,7 @@
 import { useActionState, useEffect, useState } from "react";
 
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
+import { parsePoundsToPence, penceToInputValue, vatWithin } from "@/lib/money";
 import { createReceipt } from "@/lib/receipt-actions";
 
 const inputClass =
@@ -28,13 +29,27 @@ const errorClass = "mt-1 text-sm text-danger";
  * form with a fresh one. The receipt appearing in the list below is the
  * confirmation, which is better than a line of text saying it worked.
  */
-export default function ReceiptForm({ today }: { today: string }) {
+export default function ReceiptForm({
+  today,
+  vatPercent,
+}: {
+  today: string;
+  /** The company's rate, from Settings, used to suggest the VAT. */
+  vatPercent: number;
+}) {
   const [state, formAction, pending] = useActionState(
     createReceipt,
     EMPTY_FORM_STATE,
   );
   const [preview, setPreview] = useState<string | null>(null);
   const [chosen, setChosen] = useState<string>("");
+  // Both kept here so that typing a total can offer a VAT figure, while
+  // leaving whoever is typing free to correct it. Most receipts carry the
+  // standard rate; the ones that do not are exactly the ones where guessing
+  // would be wrong.
+  const [amount, setAmount] = useState("");
+  const [vat, setVat] = useState("");
+  const [vatTouched, setVatTouched] = useState(false);
 
   // A preview made from the file itself. Revoked when it is replaced, or the
   // browser holds on to every photograph taken this session.
@@ -108,8 +123,8 @@ export default function ReceiptForm({ today }: { today: string }) {
         ) : null}
       </div>
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_1fr_10rem]">
-        <div className="sm:col-span-2">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_9rem_9rem]">
+        <div className="sm:col-span-2 lg:col-span-1">
           <label className={labelClass} htmlFor="description">
             What was it for?
           </label>
@@ -135,12 +150,53 @@ export default function ReceiptForm({ today }: { today: string }) {
             inputMode="decimal"
             className={inputClass}
             placeholder="84.20"
+            value={amount}
+            onChange={(event) => {
+              const typed = event.target.value;
+              setAmount(typed);
+              // Only until somebody says otherwise. After that the figure is
+              // theirs and typing the total again does not overwrite it.
+              if (vatTouched) return;
+              const pence = parsePoundsToPence(typed);
+              setVat(
+                pence === null
+                  ? ""
+                  : penceToInputValue(vatWithin(pence, vatPercent)),
+              );
+            }}
           />
           {state.fieldErrors.amount ? (
             <p className={errorClass}>{state.fieldErrors.amount}</p>
           ) : null}
         </div>
+
+        <div>
+          <label className={labelClass} htmlFor="vat">
+            VAT (£) <span className="font-normal text-muted">(optional)</span>
+          </label>
+          <input
+            id="vat"
+            name="vat"
+            inputMode="decimal"
+            className={inputClass}
+            placeholder="14.03"
+            value={vat}
+            onChange={(event) => {
+              setVatTouched(true);
+              setVat(event.target.value);
+            }}
+          />
+          {state.fieldErrors.vat ? (
+            <p className={errorClass}>{state.fieldErrors.vat}</p>
+          ) : null}
+        </div>
       </div>
+
+      <p className="mt-2 text-sm text-muted">
+        The VAT is filled in at {vatPercent}% of the total, the way it reads on
+        the receipt. Change it if the receipt says otherwise, or clear it for
+        anything zero-rated or from a supplier who is not registered.
+      </p>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-[12rem_1fr]">
         <div>
