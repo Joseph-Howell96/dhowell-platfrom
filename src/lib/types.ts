@@ -3,7 +3,18 @@
  * must match these descriptions, and TypeScript checks that for us.
  */
 
-/** What we charge or pay for, per material. */
+/**
+ * Everything we take away, and the only list of it.
+ *
+ * There were two of these - a longer one behind the rate card and a shorter
+ * one on the job form - which is a quiet way to cause trouble: a rate set
+ * against a material the job form could not offer prices nothing, and nobody
+ * finds out until an invoice comes up short. One list, used in both places.
+ *
+ * Adding to it is an edit here. Anything typed under "Other" still works and
+ * is kept exactly as typed, so a one-off load is never blocked waiting for
+ * this list to catch up.
+ */
 export const MATERIALS = [
   "Wood",
   "General rubbish",
@@ -241,14 +252,16 @@ export const STATUS_CLASSES: Record<JobStatus, string> = {
   complete: "bg-attention-soft text-attention",
 };
 
-/** The materials a job can be for. "Other" lets you type your own. */
-export const JOB_MATERIALS = [
-  "Wood",
-  "General rubbish",
-  "Mixed paper",
-  "Corex",
-  "Other",
-] as const;
+/**
+ * The same list, with the escape hatch on the end.
+ *
+ * Built from MATERIALS rather than written out again, so the two can never
+ * drift apart - which is exactly what they had done.
+ */
+export const JOB_MATERIALS = [...MATERIALS, "Other"] as const;
+
+/** What the free-text option is called, in both places that offer it. */
+export const OTHER_MATERIAL = "Other";
 
 export type Job = {
   id: string;

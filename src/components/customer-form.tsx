@@ -11,7 +11,7 @@
  * came back with a correction to make.
  */
 import Link from "next/link";
-import { useActionState, useId, useRef, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 
 import Select from "@/components/select";
 import type { FormState } from "@/lib/form-state";
@@ -22,6 +22,7 @@ import {
   DIRECTION_LABELS,
   DIRECTIONS,
   MATERIALS,
+  OTHER_MATERIAL,
   type Customer,
 } from "@/lib/types";
 
@@ -57,10 +58,27 @@ const EMPTY_DETAILS: Details = {
   notes: "",
 };
 
+/** Is this one of the materials on the list, or something typed by hand? */
+function isListed(material: string): boolean {
+  return (MATERIALS as readonly string[]).includes(material);
+}
+
+/**
+ * The material a row stands for: the one chosen, or the one typed under
+ * "Other". This is what is sent, so the server never has to know that the
+ * box on screen had an extra option in it.
+ */
+function materialOf(row: RateRow): string {
+  return row.material === OTHER_MATERIAL ? row.otherMaterial.trim() : row.material;
+}
+
 /** One row of the rates table, as it exists in the browser before saving. */
 type RateRow = {
   key: string;
+  /** The choice made in the box: a listed material, or "Other". */
   material: string;
+  /** What was typed when the choice was "Other". Ignored otherwise. */
+  otherMaterial: string;
   /** What a tonne of it is worth. */
   perTonne: string;
   /** Applies to the tonnage rate only. */
@@ -77,6 +95,7 @@ function blankRow(sequence: number): RateRow {
   return {
     key: `row-${sequence}`,
     material: "",
+    otherMaterial: "",
     perTonne: "",
     direction: "charge",
     onwardPerTonne: "",
@@ -113,7 +132,8 @@ export default function CustomerForm({
     customer && customer.rateLines.length > 0
       ? customer.rateLines.map((line, index) => ({
           key: `row-${index}`,
-          material: line.material,
+          material: isListed(line.material) ? line.material : OTHER_MATERIAL,
+          otherMaterial: isListed(line.material) ? "" : line.material,
           perTonne:
             line.ratePerTonnePence === null
               ? ""
@@ -129,7 +149,6 @@ export default function CustomerForm({
   const nextRowSequence = useRef(
     customer && customer.rateLines.length > 0 ? customer.rateLines.length : 1,
   );
-  const materialListId = useId();
 
   function updateDetail(field: keyof Details, value: string) {
     setDetails((current) => ({ ...current, [field]: value }));
@@ -285,21 +304,14 @@ export default function CustomerForm({
         <div>
           <h2 className="text-base font-semibold">Rates</h2>
           <p className="mt-1 text-sm text-muted">
-            One line per material and skip size, holding both figures: what a
-            tonne of it is worth, and what we charge to come and collect it.
-            Either can be left empty. Leave the size blank and the rate applies
-            whatever turns up. &ldquo;{DIRECTION_LABELS.charge}
+            One line per material, holding both figures: what a tonne of it is
+            worth to the client, and what the other side of the trade costs us.
+            Either can be left empty. &ldquo;{DIRECTION_LABELS.charge}
             &rdquo; means {DIRECTION_HINTS.charge.toLowerCase()};
             &ldquo;{DIRECTION_LABELS.pay}&rdquo; means{" "}
             {DIRECTION_HINTS.pay.toLowerCase()}.
           </p>
         </div>
-
-        <datalist id={materialListId}>
-          {MATERIALS.map((material) => (
-            <option key={material} value={material} />
-          ))}
-        </datalist>
 
         <div className="space-y-4">
           {rows.map((row, index) => (
@@ -314,21 +326,60 @@ export default function CustomerForm({
                 >
                   Material
                 </label>
+                {/* What is actually sent. The boxes below are for choosing;
+                    this is the answer they add up to, and it is always here,
+                    on every row, whether or not the "Other" box is showing.
+                    That matters: the server pairs these lists up by position,
+                    so a row that sometimes sends a field and sometimes does
+                    not would put every rate after it against the wrong
+                    material. */}
                 <input
-                  id={`rateMaterial-${row.key}`}
+                  type="hidden"
                   name="rateMaterial"
-                  list={materialListId}
+                  value={materialOf(row)}
+                />
+                <Select
+                  id={`rateMaterial-${row.key}`}
                   className={inputClass}
-                  placeholder="e.g. Wood"
                   value={row.material}
                   onChange={(event) =>
                     updateRow(row.key, { material: event.target.value })
                   }
-                />
+                >
+                  <option value="">Choose a material…</option>
+                  {MATERIALS.map((material) => (
+                    <option key={material} value={material}>
+                      {material}
+                    </option>
+                  ))}
+                  <option value={OTHER_MATERIAL}>
+                    {OTHER_MATERIAL} — type it
+                  </option>
+                </Select>
                 {state.fieldErrors[`rateMaterial-${index}`] ? (
                   <p className={errorClass}>
                     {state.fieldErrors[`rateMaterial-${index}`]}
                   </p>
+                ) : null}
+
+                {row.material === OTHER_MATERIAL ? (
+                  <div className="mt-3">
+                    <label
+                      className={labelClass}
+                      htmlFor={`rateOtherMaterial-${row.key}`}
+                    >
+                      Which material?
+                    </label>
+                    <input
+                      id={`rateOtherMaterial-${row.key}`}
+                      className={inputClass}
+                      placeholder="e.g. Plasterboard"
+                      value={row.otherMaterial}
+                      onChange={(event) =>
+                        updateRow(row.key, { otherMaterial: event.target.value })
+                      }
+                    />
+                  </div>
                 ) : null}
               </div>
 
