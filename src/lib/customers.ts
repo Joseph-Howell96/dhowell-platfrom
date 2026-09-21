@@ -66,6 +66,7 @@ function toRateLines(raw: unknown): RateLine[] {
       material,
       ratePerTonnePence: null,
       direction: "charge" as Direction,
+      onwardRatePerTonnePence: null,
     };
 
     if ("basis" in row) {
@@ -85,6 +86,10 @@ function toRateLines(raw: unknown): RateLine[] {
       const perTonne = pence(row.ratePerTonnePence);
       if (perTonne !== null) existing.ratePerTonnePence = perTonne;
       if (isDirection(row.direction)) existing.direction = row.direction;
+      // Absent on every record written before this existed, which reads as
+      // null and simply leaves the second figure to the job, as before.
+      const onward = pence(row.onwardRatePerTonnePence);
+      if (onward !== null) existing.onwardRatePerTonnePence = onward;
     }
 
     merged.set(key, existing);

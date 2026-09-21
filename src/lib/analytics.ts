@@ -10,7 +10,7 @@
  * but no profit, and the page says how many jobs are in that position. Treating
  * a blank as nothing would quietly report every job as pure profit.
  */
-import { haulageChargeFor, priceJob } from "./pricing";
+import { haulageChargeFor, onwardPriceFor, priceJob } from "./pricing";
 import type { Customer, Job } from "./types";
 import { isWeighedOrLater } from "./types";
 
@@ -38,18 +38,23 @@ export type JobEconomics = {
 /**
  * What a single job is worth.
  *
- * A charge job is the straightforward one: we invoice the client and pay the
- * tip. A rebate job runs the other way, and its margin is the wording the yard
- * uses - material income, less the rebate, less haulage:
+ * Every load has two prices on it: the client's, and the tip's or the mill's.
+ * A charge job is the straightforward one - we invoice the client and pay the
+ * tip. A rebate job runs the other way: we pay the client and sell the load
+ * on.
  *
- *   margin = what the load sold on for
- *          + any haulage we charged the client
- *          - what we paid the client
- *          - what it cost to get the load there
+ *   charge:  profit = what the client is charged  - what the tip charged us
+ *   rebate:  profit = what the load sold on for   - what we paid the client
  *
- * What it sold on for is typed against the job. Until it is, the job has a
- * cost and no income, so it counts towards neither profit nor margin rather
- * than being reported as a loss.
+ * In both cases the haulage fee we charge the client is money in on top.
+ *
+ * The second figure comes from the client's rate card where one is set, worked
+ * out from the weight like the first. Where the job carries a real figure -
+ * the weighbridge ticket, or what the mill actually paid - that wins, because
+ * the rate card is what we expect and the job is what happened.
+ *
+ * Where neither exists the job counts towards revenue and is left out of
+ * profit, rather than being reported as costing nothing.
  */
 export function jobEconomics(
   job: Job,
@@ -60,9 +65,13 @@ export function jobEconomics(
   // What we charge the client to collect, whichever way the material runs.
   const haulage = haulageChargeFor(job, customer)?.pence ?? null;
 
+  // The tip's price, or the mill's, from the rate card. What the job itself
+  // records beats it: that is the figure off the actual ticket.
+  const onward = onwardPriceFor(job, customer)?.pence ?? null;
+
   if (job.direction === "sale") {
     const revenuePence = sumKnown(rated, haulage);
-    const costPence = job.disposalCostPence;
+    const costPence = job.disposalCostPence ?? onward;
     return {
       revenuePence,
       // Profit needs the material priced as well. Haulage alone would
@@ -75,18 +84,15 @@ export function jobEconomics(
     };
   }
 
-  // What the load fetched when it was sold on. Recorded against the job, since
-  // that is the only place it is known.
-  const incomePence = job.onwardSalePence;
+  // What the load fetched when it was sold on: the figure off the job where
+  // there is one, otherwise what the rate card says to expect.
+  const incomePence = job.onwardSalePence ?? onward;
 
-  // The rebate is what the client's rate says we pay them. Haulage is on top,
-  // and counts as nothing only when someone has said so.
-  const rebatePence = rated;
-  const haulagePence = job.haulageCostPence;
-  const costPence =
-    rebatePence !== null && haulagePence !== null
-      ? rebatePence + haulagePence
-      : null;
+  // What it cost is the rebate, and only the rebate. Running our own lorry is
+  // not in it - the charge side does not count our lorry either, and a profit
+  // that means one thing on a charge job and another on a rebate one is not a
+  // figure anybody can add up.
+  const costPence = rated;
 
   // On a rebate job the haulage we charge is money in, on top of whatever the
   // the load fetched when it was sold on.

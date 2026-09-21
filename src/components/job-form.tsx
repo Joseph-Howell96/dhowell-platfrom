@@ -540,8 +540,20 @@ export default function JobForm({
               )}
               <p className="mt-1.5 text-xs text-muted">
                 {direction === "sale"
-                  ? "What the tip charged us to take this load. Profit on the dashboard is what we charged less this."
-                  : "What this load sold on for. Until it is filled in the job has a cost and no income, so it is left out of profit."}
+                  ? "What the tip actually charged us for this load. Profit is what we charged less this."
+                  : "What this load actually sold on for. Profit is this less what we paid the client."}
+                {materialRate?.onwardRatePerTonnePence != null ? (
+                  <>
+                    {" "}
+                    Leave it blank and{" "}
+                    <span className="text-ink">
+                      {formatPence(materialRate.onwardRatePerTonnePence)} a tonne
+                    </span>{" "}
+                    is used, from this client&rsquo;s rate card.
+                  </>
+                ) : (
+                  " Left blank, and with no rate on the client record either, the job counts towards revenue but is left out of profit."
+                )}
               </p>
               {state.fieldErrors.disposalCost ? (
                 <p className={errorClass}>{state.fieldErrors.disposalCost}</p>
@@ -567,8 +579,10 @@ export default function JobForm({
                   onChange={(event) => setHaulageCost(event.target.value)}
                 />
                 <p className="mt-1.5 text-xs text-muted">
-                  What it cost to get the load away. Margin is what it sold
-                  on for, less the rebate, less this.
+                  What it cost to get the load away. Kept for the record
+                  only: profit counts what we paid the client and nothing
+                  else, the same way a charge job does not count our own
+                  lorry either.
                 </p>
                 {state.fieldErrors.haulageCost ? (
                   <p className={errorClass}>{state.fieldErrors.haulageCost}</p>

@@ -94,3 +94,30 @@ export function haulageChargeFor(
     workedOut: "one collection at the client's haulage fee",
   };
 }
+
+/**
+ * The other side of the same load, worked out from the client's rate card.
+ *
+ * On a charge material this is what the tip will want for taking it; on a
+ * rebate material it is what the load should fetch when it is sold on. One
+ * field, because it is the same thing either way: the half of the trade that
+ * is not the client's.
+ *
+ * Null when the client has no rate for the material, when nobody has set the
+ * second figure, or when the job has not been weighed - the same three reasons
+ * the first figure can be unknown.
+ */
+export function onwardPriceFor(
+  job: Job,
+  customer: Customer | undefined,
+): JobPrice | null {
+  const line = findMaterialRate(customer, job);
+  if (!line || line.onwardRatePerTonnePence === null) return null;
+  if (job.weightKg === null) return null;
+
+  const tonnes = job.weightKg / 1000;
+  return {
+    pence: Math.round(line.onwardRatePerTonnePence * tonnes),
+    workedOut: `${tonnes.toFixed(2)} t at ${(line.onwardRatePerTonnePence / 100).toFixed(2)}/t`,
+  };
+}

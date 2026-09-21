@@ -63,6 +63,23 @@ export type RateLine = {
   ratePerTonnePence: number | null;
   /** Whether the tonnage rate is charged to the client or paid to them. */
   direction: Direction;
+  /**
+   * The other side of the same trade, per tonne, in pence. Null where nobody
+   * has set one.
+   *
+   * Every load has two prices on it. On a charge material we invoice the
+   * client to take it away and then pay the tip to be rid of it; on a rebate
+   * material we pay the client for it and then sell it on. Only the client's
+   * half was ever a rate - the other half had to be typed against each job as
+   * a lump sum, which meant that in practice nobody typed it and the profit
+   * on the work was simply never known.
+   *
+   * Setting it here works the second figure out from the weight, the same way
+   * the first one is worked out. What a job actually fetched, or actually cost
+   * at the weighbridge, still overrides it: this is what we expect, and the
+   * job is what happened.
+   */
+  onwardRatePerTonnePence: number | null;
 };
 
 export type Customer = {

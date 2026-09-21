@@ -351,10 +351,10 @@ export default async function FinancePage({
               }
               note={
                 overall.jobsWithProfit === 0
-                  ? "No job has a tip charge recorded against it"
+                  ? "Nothing is priced on the other side yet"
                   : uncosted === 0
-                    ? "Revenue, less what the tip charged"
-                    : `Leaves out ${uncosted} ${uncosted === 1 ? "job" : "jobs"} with no tip charge recorded`
+                    ? "What came in, less what the load cost us"
+                    : `Leaves out ${uncosted} ${uncosted === 1 ? "job" : "jobs"} with no price on the other side`
               }
             />
           </div>
@@ -412,11 +412,16 @@ export default async function FinancePage({
             </table>
 
             <p className="mt-4 text-sm text-muted">
-              Revenue is what the client is charged: the material at their rate
-              for it, plus the haulage fee on every collection. Profit is that
-              less what the tip charged to take the load. A job with no tip
-              charge typed against it is left out of profit rather than counted
-              as costing nothing.
+              Every load has two prices on it. On a material we charge for,
+              revenue is the client&rsquo;s rate plus the haulage fee, and
+              profit is that less what the tip charged. On one we buy - mixed
+              paper, metal - revenue is what the load sold on for plus the
+              haulage fee, and profit is that less what we paid the client.
+              Both second figures come from the client&rsquo;s rate card where
+              one is set, and from the job where a real figure has been typed
+              against it. Where there is neither, the job counts towards
+              revenue and is left out of profit rather than being treated as
+              costing nothing.
             </p>
           </div>
         </section>

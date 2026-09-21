@@ -94,15 +94,17 @@ function parseCustomer(
   const materials = formData.getAll("rateMaterial");
   const tonnageRates = formData.getAll("ratePerTonne");
   const directions = formData.getAll("rateDirection");
+  const onwardRates = formData.getAll("onwardRatePerTonne");
 
   const rateLines: RateLine[] = [];
   for (let index = 0; index < materials.length; index += 1) {
     const material = String(materials[index] ?? "").trim();
     const tonnageInput = String(tonnageRates[index] ?? "").trim();
+    const onwardInput = String(onwardRates[index] ?? "").trim();
 
     // A row where nothing was filled in is someone who added a row and
     // changed their mind. Ignore it rather than complaining.
-    if (material === "" && tonnageInput === "") continue;
+    if (material === "" && tonnageInput === "" && onwardInput === "") continue;
 
     if (material === "") {
       fieldErrors[`rateMaterial-${index}`] = "Choose or type a material.";
@@ -123,6 +125,17 @@ function parseCustomer(
       fieldErrors[`rateDirection-${index}`] = "Choose which way the money goes.";
     }
 
+    // The other half of the trade. Optional: leaving it blank is how it has
+    // always been, with the figure typed against each job instead.
+    let onwardRatePerTonnePence: number | null = null;
+    if (onwardInput !== "") {
+      onwardRatePerTonnePence = parsePoundsToPence(onwardInput);
+      if (onwardRatePerTonnePence === null) {
+        fieldErrors[`onwardRatePerTonne-${index}`] =
+          "Enter a rate, e.g. 85.00, or leave it blank.";
+      }
+    }
+
     if (
       material !== "" &&
       ratePerTonnePence !== null &&
@@ -133,6 +146,7 @@ function parseCustomer(
         material,
         ratePerTonnePence,
         direction: direction as Direction,
+        onwardRatePerTonnePence,
       });
     }
   }

@@ -65,6 +65,7 @@ type RateRow = {
   perTonne: string;
   /** Applies to the tonnage rate only. */
   direction: string;
+  onwardPerTonne: string;
 };
 
 /**
@@ -78,6 +79,7 @@ function blankRow(sequence: number): RateRow {
     material: "",
     perTonne: "",
     direction: "charge",
+    onwardPerTonne: "",
   };
 }
 
@@ -117,6 +119,10 @@ export default function CustomerForm({
               ? ""
               : penceToInputValue(line.ratePerTonnePence),
           direction: line.direction,
+          onwardPerTonne:
+            line.onwardRatePerTonnePence === null
+              ? ""
+              : penceToInputValue(line.onwardRatePerTonnePence),
         }))
       : [blankRow(0)],
   );
@@ -299,7 +305,7 @@ export default function CustomerForm({
           {rows.map((row, index) => (
             <div
               key={row.key}
-              className="grid gap-3 rounded-lg border border-line bg-elevated/40 p-4 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1.3fr_auto] lg:items-start"
+              className="grid gap-3 rounded-lg border border-line bg-elevated/40 p-4 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1.2fr_1fr_auto] lg:items-start"
             >
               <div>
                 <label
@@ -376,6 +382,37 @@ export default function CustomerForm({
                 {state.fieldErrors[`rateDirection-${index}`] ? (
                   <p className={errorClass}>
                     {state.fieldErrors[`rateDirection-${index}`]}
+                  </p>
+                ) : null}
+              </div>
+
+              <div>
+                {/* The same field either way round, named for what it is in
+                    each: the tip's price on a charge, the mill's on a rebate.
+                    Optional - left blank, the figure is typed on the job as
+                    it always was. */}
+                <label
+                  className={labelClass}
+                  htmlFor={`onwardRatePerTonne-${row.key}`}
+                >
+                  {row.direction === "pay"
+                    ? "We sell it on for (£/t)"
+                    : "Tip charges us (£/t)"}
+                </label>
+                <input
+                  id={`onwardRatePerTonne-${row.key}`}
+                  name="onwardRatePerTonne"
+                  inputMode="decimal"
+                  className={inputClass}
+                  placeholder="optional"
+                  value={row.onwardPerTonne}
+                  onChange={(event) =>
+                    updateRow(row.key, { onwardPerTonne: event.target.value })
+                  }
+                />
+                {state.fieldErrors[`onwardRatePerTonne-${index}`] ? (
+                  <p className={errorClass}>
+                    {state.fieldErrors[`onwardRatePerTonne-${index}`]}
                   </p>
                 ) : null}
               </div>
