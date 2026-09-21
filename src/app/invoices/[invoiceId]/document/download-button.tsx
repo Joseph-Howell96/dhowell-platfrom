@@ -129,7 +129,7 @@ export default function DownloadButton({
         aria-busy={busy}
         className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover aria-busy:opacity-50"
       >
-        {busy ? "Saving…" : "Save…"}
+        {busy ? "Saving…" : "Save as…"}
       </a>
       {problem ? (
         <p role="alert" className="text-sm text-danger">

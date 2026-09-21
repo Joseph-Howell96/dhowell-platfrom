@@ -99,7 +99,7 @@ export default async function InvoiceDocumentPage({
           not known until it is pressed. So say both plainly. */}
       <div className="mt-3 space-y-1 text-sm text-muted">
         <p>
-          <span className="font-medium text-ink">Save</span> opens a folder
+          <span className="font-medium text-ink">Save as</span> opens a folder
           picker on a computer. On an iPad it opens the share sheet — choose{" "}
           <span className="font-medium text-ink">Save to Files</span>, then the
           client&rsquo;s folder. The same sheet will mail it or AirDrop it.
