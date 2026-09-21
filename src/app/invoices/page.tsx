@@ -78,7 +78,7 @@ export default async function InvoicesPage() {
         action={
           <Link
             href="/invoices/new"
-            className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover"
+            className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover"
           >
             Raise invoice
           </Link>

@@ -44,14 +44,14 @@ export default function SearchForm({
           placeholder={placeholder}
           className={`min-w-0 rounded-lg border border-line bg-elevated px-3 text-ink outline-none transition-colors placeholder:text-muted focus:border-accent ${
             compact
-              ? "flex-1 py-2 text-sm sm:w-72"
+              ? "flex-1 py-2.5 text-base sm:w-72"
               : "flex-1 py-3 text-base sm:w-80 sm:flex-none"
           }`}
         />
         <button
           type="submit"
           className={`rounded-lg bg-accent font-semibold text-canvas transition-colors hover:bg-accent-hover ${
-            compact ? "px-4 py-2 text-sm" : "px-5 py-3 text-base"
+            compact ? "px-4 py-2.5 text-base" : "px-5 py-3 text-base"
           }`}
         >
           Search
@@ -60,7 +60,7 @@ export default function SearchForm({
           <Link
             href={action}
             className={`rounded-lg border-2 border-line font-semibold text-ink transition-colors hover:border-accent hover:text-accent ${
-              compact ? "px-4 py-2 text-sm" : "px-5 py-3 text-base"
+              compact ? "px-4 py-2.5 text-base" : "px-5 py-3 text-base"
             }`}
           >
             Show all

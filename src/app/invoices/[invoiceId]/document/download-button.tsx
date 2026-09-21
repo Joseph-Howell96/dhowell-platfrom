@@ -127,7 +127,7 @@ export default function DownloadButton({
         onPointerDown={start}
         onClick={save}
         aria-busy={busy}
-        className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover aria-busy:opacity-50"
+        className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover aria-busy:opacity-50"
       >
         {busy ? "Saving…" : "Save as…"}
       </a>

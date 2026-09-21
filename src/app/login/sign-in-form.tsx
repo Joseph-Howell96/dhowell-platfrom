@@ -14,7 +14,7 @@ import { EMPTY_FORM_STATE } from "@/lib/form-state";
 import { signIn } from "@/lib/session-actions";
 
 const inputClass =
-  "w-full rounded-lg border border-line bg-elevated px-3 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
+  "w-full rounded-lg border border-line bg-elevated px-3 py-2.5 text-base text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
 const labelClass = "mb-1.5 block text-sm font-medium";
 
 export default function SignInForm({ next }: { next?: string }) {
@@ -82,7 +82,7 @@ export default function SignInForm({ next }: { next?: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover disabled:opacity-50"
+        className="w-full rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover disabled:opacity-50"
       >
         {pending ? "Signing in…" : "Sign in"}
       </button>

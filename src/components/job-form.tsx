@@ -41,7 +41,7 @@ import { findMaterialRate } from "@/lib/pricing";
 import { kgToInputValue, parseTonnesToKg } from "@/lib/weight";
 
 const inputClass =
-  "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
+  "w-full rounded-lg border border-line bg-elevated px-3 py-2.5 text-base text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
 const labelClass = "mb-1.5 block text-sm font-medium";
 const errorClass = "mt-1 text-sm text-danger";
 const cardClass = "space-y-4 glass-solid rounded-xl p-6";
@@ -743,7 +743,7 @@ export default function JobForm({
         <button
           type="submit"
           disabled={pending || customers.length === 0}
-          className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover disabled:opacity-50"
+          className="rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover disabled:opacity-50"
         >
           {pending ? "Saving…" : submitLabel}
         </button>

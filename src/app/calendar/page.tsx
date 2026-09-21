@@ -200,7 +200,7 @@ export default async function CalendarPage({
                         draggable={false}
                         // The whole empty area of the day is the target, so there
                         // is no small number to aim at.
-                        className="group flex items-center justify-between rounded px-1 py-0.5 text-xs transition-colors hover:bg-elevated"
+                        className="group flex items-center justify-between rounded px-1 py-2 text-xs transition-colors hover:bg-elevated"
                         title={`Book a job on ${cell.iso.split("-").reverse().join("/")}`}
                       >
                         <span
@@ -234,7 +234,7 @@ export default async function CalendarPage({
                               <JobChip
                                 jobId={job.id}
                                 movable={!invoiced}
-                                className={`block rounded px-1.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 ${JOB_STANDING_CLASSES[standing]}`}
+                                className={`block rounded px-1.5 py-1.5 text-xs font-medium transition-opacity hover:opacity-80 ${JOB_STANDING_CLASSES[standing]}`}
                                 title={`${who} — ${job.material} (${JOB_STANDING_LABELS[standing]})${
                                   invoiced
                                     ? ". On an invoice, so it cannot be moved."

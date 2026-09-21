@@ -646,9 +646,15 @@ export default async function FinancePage({
                 <span className="min-w-0 flex-1 truncate">
                   {named(invoice.customerId)}
                 </span>
+                {/* Not cast. Everything on this list is deleted, so a date
+                    is always there - but "as string" is a promise to the
+                    compiler, not a check, and the one time it is wrong the
+                    whole of Finance goes white rather than one line reading
+                    oddly. */}
                 <span>
-                  deleted{" "}
-                  {formatDateGB((invoice.deletedAt as string).slice(0, 10))}
+                  {invoice.deletedAt
+                    ? `deleted ${formatDateGB(invoice.deletedAt.slice(0, 10))}`
+                    : "deleted"}
                 </span>
                 <Link
                   href={`/invoices/${invoice.id}`}

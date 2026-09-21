@@ -27,7 +27,7 @@ import {
 } from "@/lib/types";
 
 const inputClass =
-  "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
+  "w-full rounded-lg border border-line bg-elevated px-3 py-2.5 text-base text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
 const labelClass = "mb-1.5 block text-sm font-medium";
 const errorClass = "mt-1 text-sm text-danger";
 /** Each group of fields sits on its own card, as on the clients list. */
@@ -492,7 +492,7 @@ export default function CustomerForm({
             nextRowSequence.current += 1;
             setRows((current) => [...current, blankRow(sequence)]);
           }}
-          className="rounded-lg border border-line px-4 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+          className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
         >
           Add another rate line
         </button>
@@ -577,7 +577,7 @@ export default function CustomerForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover disabled:opacity-50"
+          className="rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover disabled:opacity-50"
         >
           {pending ? "Saving…" : submitLabel}
         </button>

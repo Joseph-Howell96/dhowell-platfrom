@@ -158,7 +158,7 @@ export default function Sidebar({
               href={href}
               title={label}
               aria-current={here ? "page" : undefined}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors ${
                 here
                   ? "bg-accent-soft text-accent"
                   : "text-muted hover:bg-elevated hover:text-ink"
@@ -179,7 +179,7 @@ export default function Sidebar({
           onClick={() => remember(!open)}
           aria-expanded={open}
           title={open ? "Hide the menu" : "Show the menu"}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-ink"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-muted transition-colors hover:bg-elevated hover:text-ink"
         >
           <ChevronLeftIcon
             className={`shrink-0 ${open ? "" : "rotate-180"}`}
@@ -199,7 +199,7 @@ export default function Sidebar({
           <button
             type="submit"
             title="Sign out"
-            className="mt-2 w-full rounded-lg border border-line px-2 py-1.5 text-xs text-muted transition-colors hover:border-danger/50 hover:text-danger"
+            className="mt-2 w-full rounded-lg border border-line px-2 py-2.5 text-sm text-muted transition-colors hover:border-danger/50 hover:text-danger"
           >
             <span className={open ? "hidden lg:inline" : "hidden"}>
               Sign out

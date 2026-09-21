@@ -26,7 +26,7 @@ export default function ArchiveButton({
           void setCustomerArchived(clientId, !archived);
         })
       }
-      className="rounded-lg border border-line px-3 py-1.5 text-sm text-muted transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+      className="rounded-lg border border-line px-3 py-2.5 text-sm text-muted transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
     >
       {archived ? "Restore" : "Archive"}
     </button>

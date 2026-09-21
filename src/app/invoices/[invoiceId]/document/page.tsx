@@ -47,7 +47,7 @@ export default async function InvoiceDocumentPage({
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Link
           href={`/invoices/${invoiceId}`}
-          className="rounded-lg border border-line px-4 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+          className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
         >
           ← Back to invoice
         </Link>
@@ -62,7 +62,7 @@ export default async function InvoiceDocumentPage({
           href={pdf}
           target="_blank"
           rel="noreferrer"
-          className="rounded-lg border border-line px-4 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+          className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
         >
           Open on its own
         </a>

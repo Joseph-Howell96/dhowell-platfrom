@@ -52,7 +52,7 @@ export default async function NewJobPage({
           </p>
           <Link
             href="/clients/new"
-            className="mt-5 inline-block rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover"
+            className="mt-5 inline-block rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover"
           >
             Add client
           </Link>

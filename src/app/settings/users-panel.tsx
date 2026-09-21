@@ -23,7 +23,7 @@ import {
 import type { User } from "@/lib/users";
 
 const inputClass =
-  "w-full rounded-lg border border-line bg-elevated px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
+  "w-full rounded-lg border border-line bg-elevated px-3 py-2.5 text-base text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
 const labelClass = "mb-1.5 block text-sm font-medium";
 const errorClass = "mt-1 text-sm text-danger";
 
@@ -97,7 +97,7 @@ function PasswordForm({ user, onDone }: { user: User; onDone: () => void }) {
           <button
             type="submit"
             disabled={pending}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover disabled:opacity-50"
+            className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover disabled:opacity-50"
           >
             {pending ? "Setting…" : "Set"}
           </button>
@@ -169,7 +169,7 @@ function Row({ user, isYou }: { user: User; isYou: boolean }) {
           type="button"
           onClick={() => setSettingPassword((open) => !open)}
           aria-expanded={settingPassword}
-          className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-sm text-muted transition-colors hover:border-accent/50 hover:text-ink"
+          className="shrink-0 rounded-lg border border-line px-3 py-2.5 text-sm text-muted transition-colors hover:border-accent/50 hover:text-ink"
         >
           Password
         </button>
@@ -180,7 +180,7 @@ function Row({ user, isYou }: { user: User; isYou: boolean }) {
               type="button"
               disabled={pending}
               onClick={() => run(() => removeUser(user.id))}
-              className="rounded-lg bg-danger px-3 py-1.5 text-sm font-semibold text-canvas transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="rounded-lg bg-danger px-3 py-3 text-sm font-semibold text-canvas transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {pending ? "Removing…" : "Yes, remove"}
             </button>
@@ -188,7 +188,7 @@ function Row({ user, isYou }: { user: User; isYou: boolean }) {
               type="button"
               disabled={pending}
               onClick={() => setAsking(false)}
-              className="rounded-lg px-3 py-1.5 text-sm text-muted transition-colors hover:text-ink"
+              className="rounded-lg px-3 py-2.5 text-sm text-muted transition-colors hover:text-ink"
             >
               Keep
             </button>
@@ -197,7 +197,7 @@ function Row({ user, isYou }: { user: User; isYou: boolean }) {
           <button
             type="button"
             onClick={() => setAsking(true)}
-            className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-sm text-muted transition-colors hover:border-danger/50 hover:text-danger"
+            className="shrink-0 rounded-lg border border-line px-3 py-2.5 text-sm text-muted transition-colors hover:border-danger/50 hover:text-danger"
           >
             Remove
           </button>
@@ -373,7 +373,7 @@ export default function UsersPanel({
           <button
             type="submit"
             disabled={pending}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover disabled:opacity-50 sm:mt-7"
+            className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover disabled:opacity-50 sm:mt-7"
           >
             {pending ? "Adding…" : "Add"}
           </button>

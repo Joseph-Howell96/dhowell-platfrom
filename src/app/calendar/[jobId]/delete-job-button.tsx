@@ -69,7 +69,7 @@ export default function DeleteJobButton({
               type="button"
               disabled={pending}
               onClick={confirmDelete}
-              className="rounded-lg bg-danger px-3 py-1.5 text-sm font-semibold text-canvas transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="rounded-lg bg-danger px-3 py-3 text-sm font-semibold text-canvas transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {pending ? "Deleting…" : "Yes, delete"}
             </button>
@@ -77,7 +77,7 @@ export default function DeleteJobButton({
               type="button"
               disabled={pending}
               onClick={() => setAsking(false)}
-              className="rounded-lg px-3 py-1.5 text-sm text-muted transition-colors hover:text-ink"
+              className="rounded-lg px-3 py-2.5 text-sm text-muted transition-colors hover:text-ink"
             >
               Keep it
             </button>
@@ -87,7 +87,7 @@ export default function DeleteJobButton({
         <button
           type="button"
           onClick={() => setAsking(true)}
-          className="rounded-lg border border-line px-3 py-1.5 text-sm text-muted transition-colors hover:border-danger/50 hover:text-danger"
+          className="rounded-lg border border-line px-3 py-2.5 text-sm text-muted transition-colors hover:border-danger/50 hover:text-danger"
         >
           Delete job
         </button>

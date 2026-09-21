@@ -68,13 +68,13 @@ export default function InvoiceActions({
             type="button"
             disabled={pending}
             onClick={() => run(() => restoreInvoice(invoiceId))}
-            className="rounded-lg border border-line px-4 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+            className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
           >
             {pending ? "Restoring…" : "Restore invoice"}
           </button>
           <a
             href={`/invoices/${invoiceId}/document`}
-            className="rounded-lg border border-line px-4 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+            className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
           >
             PDF
           </a>
@@ -105,7 +105,7 @@ export default function InvoiceActions({
             type="button"
             disabled={pending}
             onClick={() => run(() => deleteInvoice(invoiceId))}
-            className="rounded-lg bg-danger px-3 py-1.5 text-sm font-semibold text-canvas transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="rounded-lg bg-danger px-3 py-3 text-sm font-semibold text-canvas transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {pending ? "Deleting…" : "Yes, delete"}
           </button>
@@ -113,7 +113,7 @@ export default function InvoiceActions({
             type="button"
             disabled={pending}
             onClick={() => setAsking(false)}
-            className="rounded-lg px-3 py-1.5 text-sm text-muted transition-colors hover:text-ink"
+            className="rounded-lg px-3 py-2.5 text-sm text-muted transition-colors hover:text-ink"
           >
             Keep it
           </button>
@@ -134,7 +134,7 @@ export default function InvoiceActions({
               void setInvoiceStatus(invoiceId, step.to);
             })
           }
-          className="rounded-lg border border-line px-4 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+          className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
         >
           {step.label}
         </button>
@@ -146,7 +146,7 @@ export default function InvoiceActions({
           filed, so an invoice cannot go out unrecorded. */}
       <a
         href={`/invoices/${invoiceId}/document`}
-        className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover"
+        className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover"
       >
         PDF
       </a>

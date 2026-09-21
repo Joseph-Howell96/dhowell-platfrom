@@ -92,7 +92,7 @@ export default async function ClientsPage() {
         action={
           <Link
             href="/clients/new"
-            className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover"
+            className="rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover"
           >
             Add client
           </Link>
@@ -123,7 +123,7 @@ export default async function ClientsPage() {
                   </span>
                   <Link
                     href={`/clients/${customer.id}/edit`}
-                    className="rounded-lg border border-line px-3 py-1.5 text-sm text-muted transition-colors hover:border-accent hover:text-accent"
+                    className="rounded-lg border border-line px-3 py-2.5 text-sm text-muted transition-colors hover:border-accent hover:text-accent"
                   >
                     Edit
                   </Link>
@@ -183,7 +183,7 @@ export default async function ClientsPage() {
                 <div className="flex items-center gap-2">
                   <Link
                     href={`/clients/${customer.id}/edit`}
-                    className="rounded-lg border border-line px-3 py-1.5 text-sm text-muted transition-colors hover:border-accent hover:text-accent"
+                    className="rounded-lg border border-line px-3 py-2.5 text-sm text-muted transition-colors hover:border-accent hover:text-accent"
                   >
                     Edit
                   </Link>
