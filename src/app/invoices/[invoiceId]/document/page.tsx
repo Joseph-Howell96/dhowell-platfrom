@@ -54,7 +54,7 @@ export default async function InvoiceDocumentPage({
 
         <h1 className="mr-auto text-lg font-semibold">{number}</h1>
 
-        <DownloadButton href={pdf} fileName={file} />
+        <DownloadButton href={pdf} fileName={file} title={`Invoice ${number}`} />
 
         {/* Opens the file on its own, which is what an iPad wants for
             printing, mailing or handing to another app. */}
@@ -92,17 +92,26 @@ export default async function InvoiceDocumentPage({
         />
       </div>
 
-      {/* Said out loud rather than detected. Whether a browser will show a PDF
-          inside a page cannot be asked reliably - navigator.pdfViewerEnabled
-          answers yes in places that then show nothing - so rather than guess,
-          the way out is simply always here. */}
-      <p className="mt-3 text-sm text-muted">
-        Nothing showing above?{" "}
-        <a href={pdf} target="_blank" rel="noreferrer" className="text-accent underline">
-          Open it on its own
-        </a>{" "}
-        — some browsers, iPads especially, will not put a PDF inside a page.
-      </p>
+      {/* Both of these are said out loud rather than worked out. Whether a
+          browser will show a PDF inside a page cannot be asked reliably -
+          navigator.pdfViewerEnabled answers yes in places that then show
+          nothing - and what "Save" will do depends on the device, which is
+          not known until it is pressed. So say both plainly. */}
+      <div className="mt-3 space-y-1 text-sm text-muted">
+        <p>
+          <span className="font-medium text-ink">Save</span> opens a folder
+          picker on a computer. On an iPad it opens the share sheet — choose{" "}
+          <span className="font-medium text-ink">Save to Files</span>, then the
+          client&rsquo;s folder. The same sheet will mail it or AirDrop it.
+        </p>
+        <p>
+          Nothing showing above?{" "}
+          <a href={pdf} target="_blank" rel="noreferrer" className="text-accent underline">
+            Open it on its own
+          </a>{" "}
+          — some browsers, iPads especially, will not put a PDF inside a page.
+        </p>
+      </div>
     </main>
   );
 }

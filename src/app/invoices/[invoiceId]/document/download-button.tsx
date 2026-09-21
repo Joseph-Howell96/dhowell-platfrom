@@ -1,27 +1,28 @@
 "use client";
 
 /**
- * Saving the PDF somewhere of your choosing.
+ * Saving the invoice somewhere you choose.
  *
- * Browsers do not agree on whether a page may ask where a file should go.
- * Chrome and Edge on a computer have a picker we can open - the real Save As,
- * so a file can go straight into the client's folder. Safari, and everything
- * on an iPad, have no such thing at all: the file goes where that browser has
- * been told to put things, usually Downloads, and no amount of code changes
- * it.
+ * Three ways, because no one way exists everywhere, and the right one is
+ * whichever the device in your hand actually has:
  *
- * So this is a plain download link first and foremost - which works in every
- * browser, and would work with no JavaScript at all - and the click is only
- * intercepted where there is a genuine Save As to offer instead. Written the
- * other way round, as a button that navigates, it would be a worse link
- * pretending to be a better one.
+ *   - A computer running Chrome or Edge has a real Save As box, so the file
+ *     can go straight into the client's folder.
+ *   - An iPad has no such thing and never will - iOS gives a web page no way
+ *     to open a folder picker at all. What it does give is the share sheet,
+ *     and "Save to Files" on that sheet leads to exactly the same folders.
+ *     It also leads to Mail and AirDrop, which is how an invoice actually
+ *     reaches a client.
+ *   - Anything else gets an ordinary download, landing wherever that browser
+ *     has been told to put things.
+ *
+ * Underneath it is a plain download link, which works in every browser and
+ * would work with no JavaScript at all. The click is only intercepted when
+ * there is something better to offer.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 
-/**
- * What Chrome and Edge offer and the others do not. Typed here because it is
- * genuinely absent from most browsers, so it cannot be assumed to exist.
- */
+/** Chrome and Edge on a computer. Genuinely absent almost everywhere else. */
 type SaveFilePicker = (options: {
   suggestedName?: string;
   types?: { description: string; accept: Record<string, string[]> }[];
@@ -35,49 +36,86 @@ type SaveFilePicker = (options: {
 export default function DownloadButton({
   href,
   fileName,
+  title,
 }: {
   /** The address the PDF comes from. */
   href: string;
   /** What to call it when it is saved. */
   fileName: string;
+  /** What to call it on a share sheet. */
+  title: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
-  async function maybePick(event: React.MouseEvent<HTMLAnchorElement>) {
+  /**
+   * The file, fetched early.
+   *
+   * Held in a ref rather than state because it must not cause a redraw, and
+   * fetched on the way down of the press rather than on the click itself.
+   * That is not an optimisation. iOS will only open a share sheet as the
+   * direct result of a tap, and an `await` sitting between the tap and the
+   * asking breaks that chain - the sheet never appears and the browser
+   * reports permission denied. Starting the fetch a moment earlier means the
+   * file is usually in hand by the time the finger lifts.
+   */
+  const fetching = useRef<Promise<Blob> | null>(null);
+
+  function start() {
+    fetching.current ??= fetch(`${href}?download`).then((response) => {
+      if (!response.ok) throw new Error(`The server said ${response.status}.`);
+      return response.blob();
+    });
+  }
+
+  async function save(event: React.MouseEvent<HTMLAnchorElement>) {
     const picker = (
       globalThis as unknown as { showSaveFilePicker?: SaveFilePicker }
     ).showSaveFilePicker;
+    const canShareFiles = typeof navigator !== "undefined" && "canShare" in navigator;
 
-    // Read at click time rather than at render, so the server and the browser
-    // draw the same thing to begin with and nothing has to be guessed about
-    // the browser before it arrives. No picker: let the link be a link.
-    if (!picker) return;
+    // Nothing better than the link itself. Let it be a link.
+    if (!picker && !canShareFiles) return;
 
     event.preventDefault();
     setProblem(null);
     setBusy(true);
     try {
-      // Fetched before the picker opens, so a slow build does not leave
-      // somebody staring at a Save box that has not got the file yet.
-      const response = await fetch(`${href}?download`);
-      if (!response.ok) throw new Error(`The server said ${response.status}.`);
-      const pdf = await response.blob();
+      start();
+      const pdf = (await fetching.current) as Blob;
+      const file = new File([pdf], fileName, { type: "application/pdf" });
 
-      const handle = await picker({
-        suggestedName: fileName,
-        types: [{ description: "PDF", accept: { "application/pdf": [".pdf"] } }],
-      });
-      const writable = await handle.createWritable();
-      await writable.write(pdf);
-      await writable.close();
+      // A real Save As first where there is one: picking the folder yourself
+      // beats a sheet you have to go through to get to the same place.
+      if (picker) {
+        const handle = await picker({
+          suggestedName: fileName,
+          types: [{ description: "PDF", accept: { "application/pdf": [".pdf"] } }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(pdf);
+        await writable.close();
+        return;
+      }
+
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title });
+        return;
+      }
+
+      // Neither, after all. Fall back to what the link would have done.
+      window.open(`${href}?download`, "_self");
     } catch (error) {
-      // Closing the Save box is a decision, not a fault, and saying "could not
-      // save" to somebody who just pressed Cancel is how an app loses trust.
+      // Closing the Save box or the share sheet is a decision, not a fault,
+      // and telling somebody who just pressed Cancel that it failed is how an
+      // app loses their trust.
       if (error instanceof DOMException && error.name === "AbortError") return;
-      setProblem("Could not save it. Try again, or use “Open on its own”.");
+      setProblem("Could not save it. Try “Open on its own”, then share from there.");
     } finally {
       setBusy(false);
+      // Thrown away so a second press fetches a fresh copy - the invoice may
+      // have been corrected in between.
+      fetching.current = null;
     }
   }
 
@@ -86,11 +124,12 @@ export default function DownloadButton({
       <a
         href={`${href}?download`}
         download={fileName}
-        onClick={maybePick}
+        onPointerDown={start}
+        onClick={save}
         aria-busy={busy}
         className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover aria-busy:opacity-50"
       >
-        {busy ? "Saving…" : "Download"}
+        {busy ? "Saving…" : "Save…"}
       </a>
       {problem ? (
         <p role="alert" className="text-sm text-danger">
