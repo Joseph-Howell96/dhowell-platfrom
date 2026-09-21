@@ -26,8 +26,17 @@ export const RECEIPT_TYPES: Record<string, string> = {
   "application/pdf": "pdf",
 };
 
-/** Ten megabytes, which is a generous phone photograph and a mean video. */
-export const LARGEST_RECEIPT = 10 * 1024 * 1024;
+/**
+ * The largest picture that can actually get through.
+ *
+ * Was ten megabytes, which was a number this app was in no position to offer:
+ * a server action accepts one by default and the platform caps a request at
+ * about four and a half, so anything above that was refused underneath us
+ * with nothing able to explain itself. Pictures are shrunk in the browser
+ * before they are sent, so in practice nothing comes near this - it is the
+ * limit for one that could not be shrunk, and it is now a limit that is true.
+ */
+export const LARGEST_RECEIPT = 4 * 1024 * 1024;
 
 /** The file a receipt's picture is saved as. */
 export function receiptFileName(id: string, extension: string): string {

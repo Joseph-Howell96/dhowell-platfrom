@@ -28,6 +28,7 @@ import { EMPTY_FORM_STATE } from "@/lib/form-state";
 import { parsePoundsToPence, penceToInputValue, vatWithin } from "@/lib/money";
 import { createReceipt } from "@/lib/receipt-actions";
 import { scanReceipt } from "@/lib/receipt-scan";
+import { shrinkPhoto } from "@/lib/shrink-photo";
 
 const inputClass =
   "w-full rounded-lg border border-line bg-elevated px-3 py-2.5 text-base text-ink outline-none transition-colors placeholder:text-muted focus:border-accent";
@@ -54,6 +55,9 @@ export default function ReceiptForm({
   );
   const [preview, setPreview] = useState<string | null>(null);
   const [chosen, setChosen] = useState<string>("");
+  // The picture as it will actually be sent: shrunk, because the original off
+  // an iPad is several megabytes and a server action takes one.
+  const [photo, setPhoto] = useState<File | null>(null);
   // Both kept here so that typing a total can offer a VAT figure, while
   // leaving whoever is typing free to correct it. Most receipts carry the
   // standard rate; the ones that do not are exactly the ones where guessing
@@ -82,16 +86,25 @@ export default function ReceiptForm({
 
   /** The same handler for both inputs: whichever was used, show it back. */
   function took(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    setChosen(file ? file.name : "");
-    setPreview(
-      file && file.type.startsWith("image/")
-        ? URL.createObjectURL(file)
-        : null,
-    );
+    const picked = event.target.files?.[0];
+    setChosen(picked ? picked.name : "");
     setReadNote(null);
     setRead(new Set());
-    if (file) look(file);
+    setPhoto(null);
+
+    if (!picked) {
+      setPreview(null);
+      return;
+    }
+
+    startReading(async () => {
+      const smaller = await shrinkPhoto(picked);
+      setPhoto(smaller);
+      setPreview(
+        smaller.type.startsWith("image/") ? URL.createObjectURL(smaller) : null,
+      );
+      await look(smaller);
+    });
   }
 
   /**
@@ -102,16 +115,17 @@ export default function ReceiptForm({
    * blank waiting to be typed is honest, and a confident wrong figure is not.
    * A field already typed by hand is never overwritten.
    */
-  function look(file: File) {
-    startReading(async () => {
-      const carrying = new FormData();
-      carrying.append("picture", file);
-      const result = await scanReceipt(carrying);
+  async function look(file: File) {
+    const carrying = new FormData();
+    carrying.append("picture", file);
+    const result = await scanReceipt(carrying);
 
-      if (!result.ok) {
-        setReadNote(result.reason);
-        return;
-      }
+    if (!result.ok) {
+      setReadNote(result.reason);
+      return;
+    }
+
+    {
 
       const filled = new Set<string>();
       const { fields } = result;
@@ -149,7 +163,25 @@ export default function ReceiptForm({
           ? "Nothing could be made out. Type the details in."
           : null,
       );
-    });
+    }
+  }
+
+  /**
+   * Save it, sending the shrunk picture rather than the one the camera took.
+   *
+   * The file inputs still hold the originals - a file input is read-only, so
+   * they cannot be swapped in place - and those are several megabytes, which
+   * is more than a server action accepts. So both are taken out and the
+   * smaller copy put in under the same name. Saving without this is how the
+   * whole thing fell over: the request was refused before any of our code
+   * ran, so nothing in it could explain itself.
+   */
+  function send(formData: FormData) {
+    if (photo) {
+      formData.delete("picture");
+      formData.append("picture", photo, photo.name);
+    }
+    formAction(formData);
   }
 
   /**
@@ -175,7 +207,7 @@ export default function ReceiptForm({
   }
 
   return (
-    <form action={formAction} noValidate className="glass rounded-xl p-6">
+    <form action={send} noValidate className="glass rounded-xl p-6">
       <h2 className="text-lg font-semibold">Keep a receipt</h2>
       <p className="mt-1 mb-4 text-base text-muted">
         On an iPad or a phone the first button opens the camera. On a computer
