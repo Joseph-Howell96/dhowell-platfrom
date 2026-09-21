@@ -1,0 +1,37 @@
+<!--
+  The app icon: the black tile with the green D, as it appears in a browser
+  tab, on a home screen and in the dock.
+
+  The D is drawn as a path rather than set as text on purpose. An icon is
+  rendered in places that have no idea what fonts this app uses - an operating
+  system's dock, a bookmark bar, a phone's home screen - and a letter that
+  depends on one comes out as whatever happens to be lying around, or as
+  nothing at all.
+
+  The glow is deliberately slight. At sixteen pixels across, which is what a
+  browser tab gives you, a generous one stops reading as light and starts
+  reading as a smudge.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3.5" result="blurred" />
+      <feMerge>
+        <feMergeNode in="blurred" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- All black, corners rounded the way the tile in the app is. -->
+  <rect width="100" height="100" rx="22" fill="#000000" />
+
+  <!-- The letter, and the counter punched out of it. -->
+  <path
+    fill="#22c55e"
+    fill-rule="evenodd"
+    filter="url(#glow)"
+    d="M22 18 H46 A32 32 0 0 1 46 82 H22 Z
+       M38 34 H46 A16 16 0 0 1 46 66 H38 Z"
+  />
+</svg>
