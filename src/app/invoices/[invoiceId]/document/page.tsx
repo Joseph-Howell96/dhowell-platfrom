@@ -69,25 +69,40 @@ export default async function InvoiceDocumentPage({
       </div>
 
       {/* Tall enough to read a whole page of an invoice without scrolling the
-          page behind it as well, which is maddening on a laptop. */}
+          page behind it as well, which is maddening on a laptop.
+
+          Nothing inside the iframe. Putting fallback content there is an old
+          habit from when some browsers had no iframes at all; in HTML as it is
+          now an iframe's content model is nothing, so the browser throws those
+          children away while the server has dutifully rendered them - and the
+          two disagreeing is a hydration error on a page that otherwise works.
+          Unlike <object>, an <iframe> has no fallback. The line underneath
+          does that job instead, where it is always visible. */}
       <div className="glass min-h-0 flex-1 overflow-hidden rounded-xl">
         <iframe
-          src={pdf}
+          // Fit the width and leave the thumbnail strip shut. Without this the
+          // viewer opens at its own zoom, which on a frame this shape means a
+          // corner of the letterhead and not one figure. The toolbar is left
+          // on deliberately: it carries the page numbers, and an invoice
+          // covering a busy week runs to more than one page.
+          // Chrome, Edge and Firefox honour these; Safari ignores them harmlessly.
+          src={`${pdf}#navpanes=0&view=FitH`}
           title={`${number} as a PDF`}
           className="h-full min-h-[70vh] w-full"
-        >
-          {/* Shown where a browser will not put a PDF inside a page. Some
-              versions of Safari on an iPad will not, so this is not a
-              theoretical fallback. */}
-          <p className="p-6 text-sm">
-            This browser will not show the PDF here.{" "}
-            <a href={pdf} className="text-accent underline">
-              Open it on its own
-            </a>
-            .
-          </p>
-        </iframe>
+        />
       </div>
+
+      {/* Said out loud rather than detected. Whether a browser will show a PDF
+          inside a page cannot be asked reliably - navigator.pdfViewerEnabled
+          answers yes in places that then show nothing - so rather than guess,
+          the way out is simply always here. */}
+      <p className="mt-3 text-sm text-muted">
+        Nothing showing above?{" "}
+        <a href={pdf} target="_blank" rel="noreferrer" className="text-accent underline">
+          Open it on its own
+        </a>{" "}
+        — some browsers, iPads especially, will not put a PDF inside a page.
+      </p>
     </main>
   );
 }
