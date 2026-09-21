@@ -427,6 +427,21 @@ export default async function FinancePage({
         </section>
       ) : null}
 
+      {/* Money going out, kept as photographs. Its own screen because a
+          receipt has nothing to do with an invoice beyond both being money. */}
+      <Link
+        href="/finance/receipts"
+        className="glass glass-hover mb-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-xl px-5 py-4"
+      >
+        <span>
+          <span className="block text-lg font-semibold">Receipts</span>
+          <span className="block text-base text-muted">
+            Photograph a tip ticket or a fuel receipt and keep it here.
+          </span>
+        </span>
+        <span className="text-base font-semibold text-accent">Open →</span>
+      </Link>
+
       <h2 className="text-lg font-semibold">Invoices</h2>
       <p className="mb-4 text-base text-muted">
         What is late, what is waiting, and what has been paid.
