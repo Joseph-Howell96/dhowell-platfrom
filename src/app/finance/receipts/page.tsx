@@ -12,6 +12,17 @@ import { formatPence } from "@/lib/money";
 import { readReceipts, type Receipt } from "@/lib/receipts";
 import { readSettings } from "@/lib/settings";
 
+/**
+ * Reading a photographed receipt takes a few seconds - the picture has to go
+ * up, be looked at, and come back. The platform's own default is shorter than
+ * that on some plans, and when it runs out the request is cut off from
+ * underneath with nothing able to explain itself.
+ *
+ * Set on the page because a server action takes its timeout from the page it
+ * is called on, not from the file it lives in.
+ */
+export const maxDuration = 60;
+
 export const metadata: Metadata = {
   title: "Receipts",
 };

@@ -183,6 +183,37 @@ export async function scanReceipt(formData: FormData): Promise<ScanResult> {
   } catch (error) {
     // Never fatal. The form still works; this was only ever a shortcut.
     console.error("Could not read the receipt", error);
-    return { ok: false, reason: "Could not read it. Type the details in." };
+    return { ok: false, reason: whyNot(error) };
   }
+}
+
+/**
+ * Why it could not be read, in words that say what to do about it.
+ *
+ * "Could not read it" was true and useless. These three go wrong in
+ * completely different ways and are fixed in completely different places -
+ * one is a key, one is a card, one is a slow photograph - and a person
+ * standing in a yard holding a receipt cannot tell them apart from a
+ * server log they have no way to open.
+ */
+function whyNot(error: unknown): string {
+  const status = (error as { status?: number } | null)?.status;
+  const said = error instanceof Error ? error.message : String(error);
+
+  if (status === 401 || status === 403) {
+    return "The key for reading receipts was refused. Check ANTHROPIC_API_KEY.";
+  }
+  if (status === 400 && /credit|balance|billing/i.test(said)) {
+    return "The account for reading receipts has run out of credit.";
+  }
+  if (status === 429) {
+    return "Too many at once. Wait a moment and take it again.";
+  }
+  if (status === 402 || /credit|balance|billing/i.test(said)) {
+    return "The account for reading receipts has run out of credit.";
+  }
+  if (/timeout|timed out|aborted/i.test(said)) {
+    return "It took too long to read. Try again, or type the details in.";
+  }
+  return "Could not read it. Type the details in.";
 }
