@@ -131,11 +131,12 @@ export default function Sidebar({
           open ? "lg:px-5" : ""
         }`}
       >
-        {/* Black tile, green letter, green ring. The name beside it is the
-            only thing on any screen lit as a matter of course rather than
-            because a figure needs looking at. */}
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-accent/50 bg-black text-base font-bold text-accent shadow-[0_0_11px_-5px_rgba(34,197,94,0.45)]">
-          D
+        {/* All black, and the only thing in it is the letter: no ring, no
+            halo around the tile, nothing on the edge to compete with it. The
+            green is in the D and the D alone, lit the way the wordmark beside
+            it is. */}
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-black text-lg font-bold">
+          <span className="neon text-accent">D</span>
         </span>
         {/* The wordmark is hidden on narrow screens, where only icons fit. */}
         <span className={`${wide} min-w-0`}>
