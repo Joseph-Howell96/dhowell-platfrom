@@ -1,14 +1,15 @@
+import "server-only";
+
 /**
  * Where generated invoice PDFs are kept.
  *
- * One file per invoice, named after its number, in data/invoices. They are not
- * committed with the code: they hold client details and are produced from the
- * records rather than being source.
+ * One file per invoice, named after its number, in a private Supabase Storage
+ * bucket. Private because an invoice carries a client's details and what they
+ * were charged; nothing reaches one except through this app.
  */
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { db } from "./db";
 
-const PDF_DIR = path.join(process.cwd(), "data", "invoices");
+const BUCKET = "invoices";
 
 /** The file an invoice's PDF is saved as. */
 export function pdfFileName(prefix: string, number: number): string {
@@ -18,17 +19,18 @@ export function pdfFileName(prefix: string, number: number): string {
 }
 
 export async function readSavedPdf(fileName: string): Promise<Uint8Array | null> {
-  try {
-    return await readFile(path.join(PDF_DIR, fileName));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw error;
-  }
+  const { data, error } = await db().storage.from(BUCKET).download(fileName);
+  // Nothing filed yet is the ordinary case, not a fault: the caller builds a
+  // fresh PDF when this comes back empty.
+  if (error) return null;
+  return new Uint8Array(await data.arrayBuffer());
 }
 
 export async function savePdf(fileName: string, bytes: Uint8Array): Promise<void> {
-  await mkdir(PDF_DIR, { recursive: true });
-  await writeFile(path.join(PDF_DIR, fileName), bytes);
+  const { error } = await db()
+    .storage.from(BUCKET)
+    .upload(fileName, bytes, { contentType: "application/pdf", upsert: true });
+  if (error) throw new Error(`Filing the invoice PDF failed: ${error.message}`);
 }
 
 /**
@@ -40,9 +42,6 @@ export async function savePdf(fileName: string, bytes: Uint8Array): Promise<void
  * missing file is not an error: there may never have been one.
  */
 export async function deleteSavedPdf(fileName: string): Promise<void> {
-  try {
-    await unlink(path.join(PDF_DIR, fileName));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-  }
+  const { error } = await db().storage.from(BUCKET).remove([fileName]);
+  if (error) throw new Error(`Removing the invoice PDF failed: ${error.message}`);
 }

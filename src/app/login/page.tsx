@@ -10,7 +10,25 @@ export const metadata: Metadata = {
   title: "Sign in",
 };
 
-export default async function LoginPage() {
+/**
+ * The page they were heading for before being sent here, if any.
+ *
+ * Only a path from this app is ever returned. A search parameter is whatever
+ * somebody put in the address bar, so a full URL here would let a link like
+ * /login?next=https://not-us.example send a person who has just typed their
+ * password somewhere else entirely - and it would look, to them, like a normal
+ * part of signing in.
+ */
+function wantedPage(params: Record<string, string | string[] | undefined>) {
+  const raw = params.next;
+  const wanted = Array.isArray(raw) ? raw[0] : raw;
+  if (!wanted) return undefined;
+  // A single leading slash, so "//elsewhere.example" - which a browser reads
+  // as another site - does not get through.
+  return /^\/(?!\/)/.test(wanted) ? wanted : undefined;
+}
+
+export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   await connection();
   // Already signed in: there is nothing to do here.
   if (await readSession()) redirect("/");
@@ -46,11 +64,10 @@ export default async function LoginPage() {
           </svg>
         </div>
 
-        <SignInForm />
+        <SignInForm next={wantedPage(await searchParams)} />
 
         <p className="mt-6 text-center text-xs text-muted">
-          Demo only. Any username and password will sign you in, and nothing is
-          checked.
+          Forgotten your password? Ask an administrator to set you a new one.
         </p>
       </div>
     </main>

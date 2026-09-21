@@ -1,166 +1,117 @@
 /**
- * Reading and writing the job list, kept in data/jobs.json.
+ * Reading and writing the job list.
  *
- * The same arrangement as clients: one plain file you can open and read, with
- * every value checked on the way in because a hand-edited file can hold
- * anything.
+ * Every check the file-backed version did on the way in is a column type or a
+ * constraint now: a status has to be one of three, a weight cannot be
+ * negative, and a job cannot be complete without one. Those rules used to be
+ * promises this code made and are facts the database keeps, which means they
+ * hold however a row is written - including by somebody poking at it in the
+ * Supabase table editor at ten to five on a Friday.
  */
-import { randomUUID } from "node:crypto";
+import { db, orThrow } from "./db";
+import type { Job, JobDirection, JobStatus } from "./types";
 
-import { isValidISODate } from "./calendar";
-import { readJsonList, writeJsonList } from "./store";
-import {
-  isWeighedOrLater,
-  JOB_DIRECTIONS,
-  JOB_STATUSES,
-  type Job,
-  type JobDirection,
-  type JobStatus,
-} from "./types";
-
-const FILE = "jobs.json";
-
-/**
- * Statuses that existed before the list changed, and what they became.
- * Without this, a job saved under an old name would quietly fall back to
- * "booked" and lose its place in the run of work.
- */
-const RENAMED_STATUSES: Record<string, JobStatus> = {
-  // Not the same word as today's "complete", despite how it reads. The old
-  // "completed" meant the skip had been collected, before any weight existed;
-  // today's "complete" means someone has checked the weighed ticket and signed
-  // it off. A collected job that was never weighed is back at booked.
-  completed: "booked",
-  // Billing is no longer a status. A job that had reached one of the old
-  // billing steps had been checked and sent out, which is what complete means
-  // now; if it is on an invoice it reads as invoiced anyway, worked out from
-  // the invoice rather than from this.
-  invoiced: "complete",
-  "generate-invoice": "complete",
-  "invoice-sent": "complete",
-  // Raising an order to pay a client, and paying it, are no longer statuses -
-  // they are fields on a rebate job. A job that had reached either had been
-  // checked off, which is where it lands. The order number and its dates are
-  // read straight off the record and are not touched by this.
-  "po-raised": "complete",
-  paid: "complete",
+type Row = {
+  id: string;
+  customer_id: string;
+  site_address: string | null;
+  job_date: string;
+  material: string | null;
+  notes: string | null;
+  status: string;
+  weight_kg: number | null;
+  direction: string;
+  supplier_po: string | null;
+  po_raised_date: string | null;
+  supplier_invoice_ref: string | null;
+  paid_date: string | null;
+  disposal_cost_pence: number | null;
+  haulage_cost_pence: number | null;
+  onward_sale_pence: number | null;
+  created_at: string;
 };
 
-function toStatus(value: unknown): JobStatus | null {
-  if (typeof value !== "string") return null;
-  if (JOB_STATUSES.includes(value as JobStatus)) return value as JobStatus;
-  return RENAMED_STATUSES[value] ?? null;
-}
+const COLUMNS = `
+  id, customer_id, site_address, job_date, material, notes, status, weight_kg,
+  direction, supplier_po, po_raised_date, supplier_invoice_ref, paid_date,
+  disposal_cost_pence, haulage_cost_pence, onward_sale_pence, created_at
+`;
 
-function toDirection(value: unknown): JobDirection | null {
-  if (typeof value !== "string") return null;
-  return JOB_DIRECTIONS.includes(value as JobDirection)
-    ? (value as JobDirection)
-    : null;
-}
-
-function toJob(raw: unknown): Job | null {
-  if (typeof raw !== "object" || raw === null) return null;
-  const record = raw as Record<string, unknown>;
-
-  // Without a date there is nowhere to put it on the calendar, and without a
-  // client it belongs to nobody. Anything missing those is skipped.
-  if (typeof record.date !== "string" || !isValidISODate(record.date)) {
-    return null;
-  }
-  if (typeof record.customerId !== "string" || record.customerId === "") {
-    return null;
-  }
-
-  const text = (key: string) =>
-    typeof record[key] === "string" ? (record[key] as string) : "";
-
-  // A weight of zero is a real answer, so only a proper number counts.
-  const weightKg =
-    typeof record.weightKg === "number" &&
-    Number.isFinite(record.weightKg) &&
-    record.weightKg >= 0
-      ? Math.round(record.weightKg)
-      : null;
-
-  const optionalDate = (key: string) =>
-    typeof record[key] === "string" && isValidISODate(record[key] as string)
-      ? (record[key] as string)
-      : null;
-
-  const optionalPence = (key: string) => {
-    const value = record[key];
-    return typeof value === "number" && Number.isFinite(value) && value >= 0
-      ? Math.round(value)
-      : null;
-  };
-
-  const optionalText = (key: string) => {
-    const value = record[key];
-    return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
-  };
-
-  // Jobs saved before sales and purchases were told apart have no direction
-  // recorded. They were all being treated as money coming in, so that is what
-  // they stay until someone says otherwise on the job itself.
-  const direction = toDirection(record.direction) ?? "sale";
-
-  const status = toStatus(record.status) ?? "booked";
-  // Everything from "weighed" onwards is a claim about a figure, and a record
-  // making that claim without the figure is not one to believe, however it got
-  // into the file. Falling back to the start understates progress rather than
-  // claiming a job was signed off when it was not.
-  const safeStatus =
-    isWeighedOrLater(status) && weightKg === null ? "booked" : status;
-
+function toJob(row: Row): Job {
   return {
-    id: typeof record.id === "string" ? record.id : randomUUID(),
-    customerId: record.customerId,
-    siteAddress: text("siteAddress"),
-    date: record.date,
-    material: text("material"),
-    notes: text("notes"),
-    status: safeStatus,
-    weightKg,
-    direction,
-    supplierPO: optionalText("supplierPO"),
-    poRaisedDate: optionalDate("poRaisedDate"),
-    supplierInvoiceRef: optionalText("supplierInvoiceRef"),
-    paidDate: optionalDate("paidDate"),
-    haulageCostPence: optionalPence("haulageCostPence"),
-    disposalCostPence: optionalPence("disposalCostPence"),
-    onwardSalePence: optionalPence("onwardSalePence"),
-    createdAt: text("createdAt") || new Date().toISOString(),
+    id: row.id,
+    customerId: row.customer_id,
+    siteAddress: row.site_address ?? "",
+    date: row.job_date,
+    material: row.material ?? "",
+    notes: row.notes ?? "",
+    status: row.status as JobStatus,
+    weightKg: row.weight_kg,
+    direction: row.direction as JobDirection,
+    supplierPO: row.supplier_po,
+    poRaisedDate: row.po_raised_date,
+    supplierInvoiceRef: row.supplier_invoice_ref,
+    paidDate: row.paid_date,
+    disposalCostPence: row.disposal_cost_pence,
+    haulageCostPence: row.haulage_cost_pence,
+    onwardSalePence: row.onward_sale_pence,
+    createdAt: row.created_at,
+  };
+}
+
+function fields(job: Omit<Job, "id" | "createdAt">) {
+  return {
+    customer_id: job.customerId,
+    site_address: job.siteAddress,
+    job_date: job.date,
+    material: job.material,
+    notes: job.notes,
+    status: job.status,
+    weight_kg: job.weightKg,
+    direction: job.direction,
+    supplier_po: job.supplierPO,
+    po_raised_date: job.poRaisedDate,
+    supplier_invoice_ref: job.supplierInvoiceRef,
+    paid_date: job.paidDate,
+    disposal_cost_pence: job.disposalCostPence,
+    haulage_cost_pence: job.haulageCostPence,
+    onward_sale_pence: job.onwardSalePence,
   };
 }
 
 /** Every job we hold, earliest date first. */
 export async function readJobs(): Promise<Job[]> {
-  const rows = await readJsonList(FILE);
-  return rows
-    .map(toJob)
-    .filter((job) => job !== null)
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const rows = orThrow<Row[]>(
+    "Reading the jobs",
+    await db()
+      .from("jobs")
+      .select(COLUMNS)
+      .order("job_date", { ascending: true })
+      .returns<Row[]>(),
+  );
+  return rows.map(toJob);
 }
 
 /** One job by its id, or null if there is no such job. */
 export async function readJob(id: string): Promise<Job | null> {
-  const jobs = await readJobs();
-  return jobs.find((job) => job.id === id) ?? null;
+  const { data, error } = await db()
+    .from("jobs")
+    .select(COLUMNS)
+    .eq("id", id)
+    .maybeSingle<Row>();
+  if (error) throw new Error(`Reading a job failed: ${error.message}`);
+  return data ? toJob(data) : null;
 }
 
 /** Add a job and save. Returns the job as it was stored. */
 export async function addJob(
   details: Omit<Job, "id" | "createdAt">,
 ): Promise<Job> {
-  const jobs = await readJobs();
-  const job: Job = {
-    ...details,
-    id: randomUUID(),
-    createdAt: new Date().toISOString(),
-  };
-  await writeJsonList(FILE, [...jobs, job]);
-  return job;
+  const row = orThrow<Row>(
+    "Saving the job",
+    await db().from("jobs").insert(fields(details)).select(COLUMNS).single<Row>(),
+  );
+  return toJob(row);
 }
 
 /**
@@ -171,16 +122,14 @@ export async function updateJob(
   id: string,
   changes: Omit<Job, "id" | "createdAt">,
 ): Promise<Job | null> {
-  const jobs = await readJobs();
-  const existing = jobs.find((job) => job.id === id);
-  if (!existing) return null;
-
-  const updated: Job = { ...existing, ...changes, id: existing.id };
-  await writeJsonList(
-    FILE,
-    jobs.map((job) => (job.id === id ? updated : job)),
-  );
-  return updated;
+  const { data, error } = await db()
+    .from("jobs")
+    .update(fields(changes))
+    .eq("id", id)
+    .select(COLUMNS)
+    .maybeSingle<Row>();
+  if (error) throw new Error(`Saving the job failed: ${error.message}`);
+  return data ? toJob(data) : null;
 }
 
 /**
@@ -188,11 +137,7 @@ export async function updateJob(
  * happens if it was already deleted in another tab.
  */
 export async function deleteJob(id: string): Promise<boolean> {
-  const jobs = await readJobs();
-  if (!jobs.some((job) => job.id === id)) return false;
-  await writeJsonList(
-    FILE,
-    jobs.filter((job) => job.id !== id),
-  );
-  return true;
+  const { data, error } = await db().from("jobs").delete().eq("id", id).select("id");
+  if (error) throw new Error(`Deleting a job failed: ${error.message}`);
+  return (data?.length ?? 0) > 0;
 }

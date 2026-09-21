@@ -80,6 +80,11 @@ create table public.rate_lines (
   -- rather than quietly charging nothing.
   rate_per_tonne_pence integer check (rate_per_tonne_pence >= 0),
   direction            text not null check (direction in ('charge', 'pay')),
+  -- The other side of the same trade. On a charge material this is what the
+  -- tip costs us per tonne; on a rebate material it is what we sell it on for.
+  -- Null where nobody has set one, which leaves the profit unknown rather
+  -- than pretending it is the whole of the client's half.
+  onward_rate_per_tonne_pence integer check (onward_rate_per_tonne_pence >= 0),
   -- One rate per material per client. Two rows for the same material is a
   -- question with two answers.
   unique (customer_id, material)
@@ -178,6 +183,41 @@ create table public.invoice_jobs (
 create index invoice_jobs_by_job_idx on public.invoice_jobs (job_id);
 
 -- ---------------------------------------------------------------------------
+-- Receipts
+--
+-- The shoebox: a photograph of a piece of paper, what it was for and what it
+-- cost. Not tied to a job or an invoice on purpose - most of what goes in it
+-- is fuel, parts and lunch, and forcing every scrap to belong to something
+-- would mean nobody puts anything in.
+--
+-- VAT is typed in rather than worked out. What is printed on the receipt is
+-- the fact; a percentage of the total is a guess, and on a receipt with both
+-- standard and zero rated lines on it, a wrong one.
+-- ---------------------------------------------------------------------------
+create table public.receipts (
+  id             uuid primary key default gen_random_uuid(),
+  receipt_date   date not null,
+  description    text not null,
+  -- The whole of what was paid, VAT included. Null where nobody typed one,
+  -- which is not zero: a receipt with no total is one that still needs
+  -- looking at.
+  amount_pence   integer check (amount_pence >= 0),
+  vat_pence      integer check (vat_pence >= 0),
+  notes          text not null default '',
+  -- The photograph in the storage bucket, and what kind of picture it is.
+  file_name      text not null,
+  content_type   text not null,
+  created_at     timestamptz not null default now(),
+
+  -- The VAT is part of the total, not on top of it. More VAT than there is
+  -- money is somebody having typed the wrong figure in the wrong box.
+  constraint receipts_vat_fits_inside_the_total
+    check (vat_pence is null or amount_pence is null or vat_pence <= amount_pence)
+);
+
+create index receipts_by_day_idx on public.receipts (receipt_date desc);
+
+-- ---------------------------------------------------------------------------
 -- People
 --
 -- Supabase Auth owns who somebody is - their e-mail, their password, resetting
@@ -186,6 +226,10 @@ create index invoice_jobs_by_job_idx on public.invoice_jobs (job_id);
 -- ---------------------------------------------------------------------------
 create table public.app_users (
   id           uuid primary key references auth.users (id) on delete cascade,
+  -- What they type to sign in. Auth knows them by an e-mail address made up
+  -- from this; nobody ever sees that address. Held lower case so that two
+  -- people cannot take the same name in different capitals.
+  username     text not null unique check (username = lower(username) and username <> ''),
   display_name text not null default '',
   role         text not null default 'standard'
                  check (role in ('admin', 'standard')),
@@ -205,5 +249,25 @@ alter table public.jobs         enable row level security;
 alter table public.invoices     enable row level security;
 alter table public.invoice_jobs enable row level security;
 alter table public.app_users    enable row level security;
+alter table public.receipts     enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Two buckets for the things that are not rows.
+--
+-- Both are private. `public => false` means a bucket's files have no guessable
+-- address of their own: nothing comes out of them except through our server,
+-- which checks who is asking first. A receipt is a photograph of somebody's
+-- real paperwork and an invoice PDF has a client's details on it; neither
+-- belongs on an address anyone could stumble onto.
+--
+-- No storage policies are granted, for the same reason no table policies are.
+-- The service role the server holds goes through regardless; the key that
+-- ships to the browser gets nothing.
+-- ---------------------------------------------------------------------------
+insert into storage.buckets (id, name, public, file_size_limit)
+values
+  ('receipts', 'receipts', false, 10485760),   -- ten megabytes, a generous phone photograph
+  ('invoices', 'invoices', false, 10485760)
+on conflict (id) do nothing;
 
 commit;

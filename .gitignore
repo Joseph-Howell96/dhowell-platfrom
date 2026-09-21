@@ -30,8 +30,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files. The service role key lives in one of these, so none of them
+# are committed - except the example, which holds names and no values.
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -40,8 +42,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Generated invoice PDFs. Made from the records, and full of client details.
-/data/invoices/
-
-# Receipt photographs. Somebody real's paperwork, and not source.
-/data/receipts/
+# The old file store. Everything lives in Postgres now and nothing reads
+# this folder, but anything dropped here is still real client detail.
+/data/

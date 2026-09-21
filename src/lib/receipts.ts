@@ -6,12 +6,7 @@
  * tickets and a sandwich, and making somebody file each one against a job
  * before it can be kept is how receipts end up not being kept at all.
  */
-import { randomUUID } from "node:crypto";
-
-import { isValidISODate } from "./calendar";
-import { readJsonList, writeJsonList } from "./store";
-
-const FILE = "receipts.json";
+import { db, orThrow } from "./db";
 
 export type Receipt = {
   id: string;
@@ -32,80 +27,99 @@ export type Receipt = {
    */
   vatPence: number | null;
   notes: string;
-  /** The picture, as it sits in data/receipts. */
+  /** The picture, as it sits in the receipts bucket. */
   fileName: string;
   /** What kind of picture it is, so it can be served back correctly. */
   contentType: string;
   createdAt: string;
 };
 
-/** Zero is a real answer, so only a proper number counts. */
-function money(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value)
-    ? Math.round(value)
-    : null;
-}
+type Row = {
+  id: string;
+  receipt_date: string;
+  description: string | null;
+  amount_pence: number | null;
+  vat_pence: number | null;
+  notes: string | null;
+  file_name: string;
+  content_type: string | null;
+  created_at: string;
+};
 
-function toReceipt(raw: unknown): Receipt | null {
-  if (typeof raw !== "object" || raw === null) return null;
-  const record = raw as Record<string, unknown>;
-
-  // A receipt with no picture is not a receipt, and one with no date has
-  // nowhere to sit in the list. Either way there is nothing to show.
-  const fileName =
-    typeof record.fileName === "string" ? record.fileName : "";
-  if (fileName === "") return null;
-  const date = typeof record.date === "string" ? record.date : "";
-  if (!isValidISODate(date)) return null;
-
-  const text = (key: string) =>
-    typeof record[key] === "string" ? (record[key] as string) : "";
-
+function toReceipt(row: Row): Receipt {
   return {
-    id: typeof record.id === "string" ? record.id : randomUUID(),
-    date,
-    description: text("description"),
-    // Zero is a real answer, so only a proper number counts.
-    amountPence: money(record.amountPence),
-    vatPence: money(record.vatPence),
-    notes: text("notes"),
-    fileName,
-    contentType: text("contentType") || "application/octet-stream",
-    createdAt: text("createdAt") || new Date().toISOString(),
+    id: row.id,
+    date: row.receipt_date,
+    description: row.description ?? "",
+    amountPence: row.amount_pence,
+    vatPence: row.vat_pence,
+    notes: row.notes ?? "",
+    fileName: row.file_name,
+    contentType: row.content_type || "application/octet-stream",
+    createdAt: row.created_at,
   };
 }
 
+const COLUMNS =
+  "id, receipt_date, description, amount_pence, vat_pence, notes, file_name, content_type, created_at";
+
 /** Everything kept, newest receipt first - the one just taken is the top one. */
 export async function readReceipts(): Promise<Receipt[]> {
-  const rows = await readJsonList(FILE);
-  return rows
-    .map(toReceipt)
-    .filter((receipt) => receipt !== null)
-    .sort(
-      (a, b) =>
-        b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt),
-    );
+  const rows = orThrow<Row[]>(
+    "Reading the receipts",
+    await db()
+      .from("receipts")
+      .select(COLUMNS)
+      // Two orderings, not one. Several receipts carry the same day, and the
+      // one just photographed has to come out on top of the others from that
+      // morning rather than wherever the database felt like putting it.
+      .order("receipt_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .returns<Row[]>(),
+  );
+  return rows.map(toReceipt);
 }
 
 export async function readReceipt(id: string): Promise<Receipt | null> {
-  return (await readReceipts()).find((receipt) => receipt.id === id) ?? null;
+  const { data, error } = await db()
+    .from("receipts")
+    .select(COLUMNS)
+    .eq("id", id)
+    .maybeSingle<Row>();
+  if (error) throw new Error(`Reading a receipt failed: ${error.message}`);
+  return data ? toReceipt(data) : null;
 }
 
 export async function addReceipt(
   receipt: Omit<Receipt, "id" | "createdAt"> & { id: string },
 ): Promise<Receipt> {
-  const saved: Receipt = { ...receipt, createdAt: new Date().toISOString() };
-  await writeJsonList(FILE, [saved, ...(await readReceipts())]);
-  return saved;
+  const saved = orThrow<Row>(
+    "Saving a receipt",
+    await db()
+      .from("receipts")
+      .insert({
+        id: receipt.id,
+        receipt_date: receipt.date,
+        description: receipt.description,
+        amount_pence: receipt.amountPence,
+        vat_pence: receipt.vatPence,
+        notes: receipt.notes,
+        file_name: receipt.fileName,
+        content_type: receipt.contentType,
+      })
+      .select(COLUMNS)
+      .single<Row>(),
+  );
+  return toReceipt(saved);
 }
 
 /** Returns false where the id matches nothing, which is not worth a fuss. */
 export async function deleteReceipt(id: string): Promise<boolean> {
-  const receipts = await readReceipts();
-  if (!receipts.some((receipt) => receipt.id === id)) return false;
-  await writeJsonList(
-    FILE,
-    receipts.filter((receipt) => receipt.id !== id),
-  );
-  return true;
+  const { data, error } = await db()
+    .from("receipts")
+    .delete()
+    .eq("id", id)
+    .select("id");
+  if (error) throw new Error(`Deleting a receipt failed: ${error.message}`);
+  return (data?.length ?? 0) > 0;
 }

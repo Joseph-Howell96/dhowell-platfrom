@@ -46,7 +46,7 @@ export default async function SettingsPage() {
             their sidebar or reachable by typing the address.
           </p>
         </div>
-        <UsersPanel users={users} signedInAs={session.username} />
+        <UsersPanel users={users} signedInId={session.id} />
       </section>
     </main>
   );

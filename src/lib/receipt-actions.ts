@@ -115,7 +115,7 @@ export async function createReceipt(
   const id = randomUUID();
   const fileName = receiptFileName(id, extension);
   try {
-    await saveReceiptFile(fileName, bytes);
+    await saveReceiptFile(fileName, bytes, contentType);
     await addReceipt({
       id,
       date,
