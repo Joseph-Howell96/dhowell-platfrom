@@ -600,7 +600,7 @@ export default async function FinancePage({
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <LinkButton href={`/invoices/${row.id}/pdf`}>
+                  <LinkButton href={`/invoices/${row.id}/document`}>
                     Open PDF
                   </LinkButton>
                   {/* The same file, asked for as a download, so it lands in

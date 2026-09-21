@@ -73,9 +73,7 @@ export default function InvoiceActions({
             {pending ? "Restoring…" : "Restore invoice"}
           </button>
           <a
-            href={`/invoices/${invoiceId}/pdf`}
-            target="_blank"
-            rel="noreferrer"
+            href={`/invoices/${invoiceId}/document`}
             className="rounded-lg border border-line px-4 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
           >
             PDF
@@ -141,12 +139,13 @@ export default function InvoiceActions({
           {step.label}
         </button>
       ))}
-      {/* A plain link to the PDF: asking for it builds the file, files a copy
-          and opens it, so an invoice cannot go out unrecorded. */}
+      {/* Goes to the document screen rather than straight at the file. That
+          screen shows the PDF with a way back and a way to save it; opening
+          the file itself handed the window to the browser's viewer and left
+          no way back to the invoice. Either way the file is built and a copy
+          filed, so an invoice cannot go out unrecorded. */}
       <a
-        href={`/invoices/${invoiceId}/pdf`}
-        target="_blank"
-        rel="noreferrer"
+        href={`/invoices/${invoiceId}/document`}
         className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-accent-hover"
       >
         PDF
