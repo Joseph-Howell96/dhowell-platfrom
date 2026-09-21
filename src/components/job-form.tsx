@@ -280,14 +280,29 @@ export default function JobForm({
             <label className={labelClass} htmlFor="date">
               Date
             </label>
+            {/* Locked once the job is on an invoice, the same as it cannot be
+                dragged across the calendar then. Read-only rather than
+                disabled: a disabled field is not submitted at all, and the
+                date would be read as blank. */}
             <input
               id="date"
               name="date"
               type="date"
-              className={inputClass}
+              readOnly={invoice != null}
+              aria-describedby={invoice ? "date-locked" : undefined}
+              className={`${inputClass} ${
+                invoice ? "cursor-not-allowed text-muted" : ""
+              }`}
               value={date}
               onChange={(event) => setDate(event.target.value)}
             />
+            {invoice ? (
+              <p id="date-locked" className="mt-1.5 text-xs text-muted">
+                On invoice {invoice.reference}, so the date is fixed. That
+                invoice covers a week and says so on the face of it. Take the
+                job off it, or delete it, to move this job.
+              </p>
+            ) : null}
             {state.fieldErrors.date ? (
               <p className={errorClass}>{state.fieldErrors.date}</p>
             ) : null}

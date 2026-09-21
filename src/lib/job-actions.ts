@@ -262,6 +262,30 @@ export async function saveJob(
     };
   }
 
+  // The same rule dragging a job across the calendar obeys, kept here as well
+  // so it holds whatever the browser was told. An invoice covers a week and
+  // says which week on the face of it, so a job cannot leave that week while
+  // it is still on one - the document would be describing work that did not
+  // happen on the dates it claims.
+  const [existing, everyInvoice] = await Promise.all([
+    readJobs(),
+    readAllInvoices(),
+  ]);
+  const before = existing.find((entry) => entry.id === jobId);
+  if (before && before.date !== parsed.job.date) {
+    const billedOn = everyInvoice.find((invoice) =>
+      invoice.jobIds.includes(jobId),
+    );
+    if (billedOn) {
+      return {
+        fieldErrors: {
+          date: `This job is on invoice number ${billedOn.number}, so its date cannot be changed. Take it off that invoice first.`,
+        },
+        formError: "Some details need fixing before this can be saved.",
+      };
+    }
+  }
+
   let updated;
   try {
     updated = await updateJob(jobId, parsed.job);

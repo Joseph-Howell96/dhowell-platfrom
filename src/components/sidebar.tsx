@@ -29,10 +29,12 @@ import {
 } from "./icons";
 
 const NAV = [
+  // Search first: it is the way in when you know what you are after, and
+  // everything below it is for when you do not.
+  { href: "/search", label: "Search", Icon: SearchIcon },
   { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
   { href: "/clients", label: "Clients", Icon: ClientsIcon },
   { href: "/calendar", label: "Calendar", Icon: CalendarIcon },
-  { href: "/search", label: "Search", Icon: SearchIcon },
   { href: "/finance", label: "Finance", Icon: FinanceIcon },
   // Under Finance, and hidden with it: canOpen says no to a standard user for
   // this address just as it does for Finance itself.
